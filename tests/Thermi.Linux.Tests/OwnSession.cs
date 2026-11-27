@@ -123,7 +123,8 @@ internal sealed class OwnSession : IAsyncDisposable
 
     /// <summary>
     /// Starts <paramref name="program"/> in the session, its session bus first if none runs yet, with
-    /// <paramref name="environment"/> over the session's own; its output is read as it comes, and its input is the test's.
+    /// <paramref name="environment"/> over the session's own, where a variable given empty is left out, as a session over SSH
+    /// has no display's; its output is read as it comes, and its input is the test's.
     /// </summary>
     public async Task<SessionProcess> StartAsync(
         string program, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null, CancellationToken cancel = default)
@@ -254,6 +255,11 @@ internal sealed class OwnSession : IAsyncDisposable
         foreach (var (name, value) in Variables.Concat(environment ?? new Dictionary<string, string>()))
         {
             start.Environment[name] = value;
+        }
+
+        foreach (var (name, _) in environment?.Where(variable => variable.Value.Length == 0) ?? [])
+        {
+            start.Environment.Remove(name);
         }
 
         var process = Process.Start(start) ?? throw new InvalidOperationException($"{program} did not start.");

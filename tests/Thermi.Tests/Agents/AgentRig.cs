@@ -123,6 +123,9 @@ internal sealed class AgentRig : IDisposable
 
     public bool OverlayCanShow { get; set; } = true;
 
+    /// <summary>Why the monitors read none, as the host says.</summary>
+    public AgentProblem? WhyNoScreens { get; set; }
+
     /// <summary>Where the commands log, the folder's own list when null.</summary>
     public ILogger? Log { get; set; }
 
@@ -208,6 +211,8 @@ internal sealed class AgentRig : IDisposable
         public bool RunsInstalled() => true;
 
         public IReadOnlyList<Screen> Screens() => rig.Screens;
+
+        public AgentProblem? WhyNoScreens() => rig.WhyNoScreens;
 
         public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 

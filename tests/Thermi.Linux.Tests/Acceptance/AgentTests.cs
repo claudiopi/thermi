@@ -33,10 +33,26 @@ public sealed class AgentTests
     // How each shell runs a command and says the code it ended with, after what it printed, and the size its edit sets.
     private static readonly (string Shell, string Code, double Size)[] Shells = [("bash", "$?", 1.25), ("zsh", "$?", 1.5), ("fish", "$status", 1.75)];
 
-    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
-    public async Task TheCliAnswersOnLinux()
+    public enum Cli
+    {
+        Shells,
+        OverSsh,
+        FromTheOverlay,
+    }
+
+    [Theory(Timeout = Bound.Test)]
+    [InlineData(Cli.Shells, Skip = "Waiting for its code")]
+    [InlineData(Cli.OverSsh)]
+    [InlineData(Cli.FromTheOverlay)]
+    public async Task TheCliAnswersOnLinux(Cli row)
     {
         var cancel = TestContext.Current.CancellationToken;
+        if (row != Cli.Shells)
+        {
+            await (row == Cli.OverSsh ? OverSshAsync(cancel) : FromTheOverlayAsync(cancel));
+            return;
+        }
+
         await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [new TestMonitor(1920, 1080)], cancel);
         var session = desktop.Session;
         var units = await UserUnits.StartAsync(session, cancel);
@@ -61,9 +77,6 @@ public sealed class AgentTests
         }
 
         Assert.Equal(("running", false), await session.SdkStatusAsync(cancel));
-        // The one monitor, with the top bar the desktop keeps on it.
-        var monitors = JsonNode.Parse((await session.RunAsync("thermi-cli", ["monitors"], cancel: cancel)).Out)!["monitors"]!.AsArray();
-        Assert.True((bool)Assert.Single(monitors)!["taskbar"]!);
         await StartsAtSignInAsync(session, units, cancel);
         await CannotShowAsync(cancel);
     }
@@ -152,12 +165,64 @@ public sealed class AgentTests
         }
     }
 
-    // In a Wayland session with neither GNOME Shell nor layer surfaces, status says the overlay cannot show there.
+    // On GNOME without thermi's extension, status says the overlay cannot show there.
     private static async Task CannotShowAsync(CancellationToken cancel)
     {
-        await using var bare = await TestDesktop.StartAsync(DesktopKind.BareWayland, [new TestMonitor(1920, 1080)], cancel);
+        await using var bare = await TestDesktop.StartAsync(DesktopKind.Gnome, [new TestMonitor(1920, 1080)], extension: null, cancel);
         await SensorFeed.ServeAsync(bare.Session, SensorFeed.Desktop, cancel);
         var status = JsonNode.Parse((await bare.Session.RunAsync("thermi-cli", ["status", "--schema", "1"], cancel: cancel)).Out)!;
         Assert.Contains(status["problems"]!.AsArray(), problem => (string?)problem!["code"] == "overlay-cannot-show");
+    }
+
+    // Over SSH, with no display and no overlay, as where the sensors' package is alone: status answers as it does with no
+    // overlay, and monitors says none runs, which alone measures them.
+    private static async Task OverSshAsync(CancellationToken cancel)
+    {
+        await using var session = new OwnSession();
+        await SensorFeed.ServeAsync(session, SensorFeed.Desktop, cancel);
+        var ssh = new Dictionary<string, string> { ["WAYLAND_DISPLAY"] = "", ["DISPLAY"] = "" };
+
+        var status = await session.RunAsync("thermi-cli", ["status", "--schema", "1"], ssh, cancel);
+        var monitors = await session.RunAsync("thermi-cli", ["monitors"], ssh, cancel);
+
+        Assert.Equal((0, 0), (status.Exit, monitors.Exit));
+        var said = JsonNode.Parse(status.Out)!;
+        Assert.Empty(SchemaCheck.Findings(AgentSchemas.Current["status"], said));
+        Assert.Equal(("running", false), ((string?)said["service"], (bool)said["overlay"]!));
+        Assert.DoesNotContain("overlay-cannot-show", Codes(said));
+        Assert.Equal("overlay-not-running", NotMeasured(monitors.Out));
+    }
+
+    // The monitors as the running overlay places the overlays on them, in thermi's pixels, on GNOME at 150 % with the top
+    // bar as their taskbar; before it runs, none, as on every desktop, and status says it runs and can show.
+    private static async Task FromTheOverlayAsync(CancellationToken cancel)
+    {
+        await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [new TestMonitor(1920, 1080, 1.5)], cancel);
+        var session = desktop.Session;
+        await SensorFeed.ServeAsync(session, SensorFeed.Desktop, cancel);
+        var before = await session.RunAsync("thermi-cli", ["monitors"], cancel: cancel);
+        await desktop.ShowThermiAsync([], cancel);
+
+        var status = JsonNode.Parse((await session.RunAsync("thermi-cli", ["status", "--schema", "1"], cancel: cancel)).Out)!;
+        var monitors = JsonNode.Parse((await session.RunAsync("thermi-cli", ["monitors"], cancel: cancel)).Out)!;
+
+        Assert.Equal("overlay-not-running", NotMeasured(before.Out));
+        Assert.True((bool)status["overlay"]!);
+        Assert.DoesNotContain("overlay-cannot-show", Codes(status));
+        Assert.Null(monitors["problem"]);
+        var monitor = Assert.Single(monitors["monitors"]!.AsArray())!;
+        Assert.Equal(
+            (1920, 1080, 1.5, true),
+            ((int)monitor["bounds"]!["width"]!, (int)monitor["bounds"]!["height"]!, (double)monitor["scale"]!, (bool)monitor["taskbar"]!));
+    }
+
+    private static IEnumerable<string?> Codes(JsonNode status) => status["problems"]!.AsArray().Select(problem => (string?)problem!["code"]);
+
+    // The problem monitors answers with no monitor, which only a running overlay measures.
+    private static string? NotMeasured(string answer)
+    {
+        var monitors = JsonNode.Parse(answer)!;
+        Assert.Empty(monitors["monitors"]!.AsArray());
+        return (string?)monitors["problem"]?["code"];
     }
 }

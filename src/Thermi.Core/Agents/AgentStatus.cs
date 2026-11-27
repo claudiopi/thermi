@@ -30,6 +30,9 @@ public enum AgentProblem
 
     /// <summary>A desktop where no overlay can show, as GNOME without thermi's extension.</summary>
     OverlayCannotShow,
+
+    /// <summary>No overlay runs to tell the monitors, which on Linux only the overlay measures, as <c>monitors</c> says.</summary>
+    OverlayNotRunning,
 }
 
 /// <summary>The OS an agent's command runs on, whose fixes a person follows.</summary>
@@ -73,6 +76,8 @@ public enum AgentText
     DriverMissingFixLinux,
     SettingsBrokenFixLinuxSensorsOnly,
     DriverMissingCauseLinux,
+    OverlayNotRunningCause,
+    OverlayNotRunningFix,
 }
 
 /// <summary>A problem, with why it happens and what a person does about it; nothing an agent may do itself.</summary>
@@ -195,6 +200,7 @@ public static class AgentStatus
             AgentProblem.NotRunning => (AgentText.NotRunningCause, AgentText.NotRunningFix),
             AgentProblem.FramesNotRead => (AgentText.FramesNotReadCause, AgentText.FramesNotReadFix),
             AgentProblem.OverlayCannotShow => (AgentText.OverlayCannotShowCause, AgentText.OverlayCannotShowFix),
+            AgentProblem.OverlayNotRunning => (AgentText.OverlayNotRunningCause, AgentText.OverlayNotRunningFix),
             _ => throw new ArgumentOutOfRangeException(nameof(problem), problem, "Unknown problem."),
         };
         return new ProblemAnswer(problem, Texts.English.Of(cause), Texts.English.Of(fix));
@@ -209,7 +215,7 @@ public static class AgentStatus
         AgentProblem.SettingsBroken when sensorsOnly => (AgentText.SettingsBrokenCause, AgentText.SettingsBrokenFixLinuxSensorsOnly),
         // Said as on Windows: they name nothing of Windows', or never happen on Linux, as a per-user install's.
         AgentProblem.ServiceMissing or AgentProblem.SettingsBroken or AgentProblem.NotRunning or AgentProblem.FramesNotRead
-            or AgentProblem.OverlayCannotShow => null,
+            or AgentProblem.OverlayCannotShow or AgentProblem.OverlayNotRunning => null,
         _ => throw new ArgumentOutOfRangeException(nameof(problem), problem, "Unknown problem."),
     };
 }

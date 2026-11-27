@@ -52,6 +52,9 @@ public sealed record EditAnswer(bool Done)
 public sealed record MonitorsAnswer(IReadOnlyList<MonitorView> Monitors)
 {
     public int Schema { get; init; } = AgentSchema.Current;
+
+    /// <summary>Why there are no monitors, where only the overlay measures them, as on Linux; null where they were read.</summary>
+    public ProblemAnswer? Problem { get; init; }
 }
 
 /// <summary>The saved looks by name, or one look's file as text.</summary>

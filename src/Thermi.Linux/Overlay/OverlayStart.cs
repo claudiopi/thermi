@@ -20,6 +20,9 @@ internal static class OverlayStart
     /// <summary>The button of the notice that this desktop shows no overlay, which only closes it.</summary>
     public const string NoOverlayAction = "no-overlay";
 
+    // How long the notice's server has to take it, past which thermi ends without it, as every server answers in far less.
+    private static readonly TimeSpan NoticeBound = TimeSpan.FromSeconds(5);
+
     public static async Task<int> RunAsync(OverlayRequest request, TimeProvider time)
     {
         using var logs = ThermiLog.Create(ThermiLog.OverlayPath, time, request.Trace);
@@ -32,7 +35,7 @@ internal static class OverlayStart
             if (kind == SurfaceKind.None)
             {
                 log.NoSurfaces();
-                await TellNoOverlayAsync(bus);
+                await TellNoOverlayAsync(bus, time, log);
                 return 1;
             }
 
@@ -54,8 +57,9 @@ internal static class OverlayStart
         });
     }
 
-    // Once ever: each start after would tell it again at every sign-in, where nothing changed.
-    private static async Task TellNoOverlayAsync(Gio.DBusConnection bus)
+    // Once ever: each start after would tell it again at every sign-in, where nothing changed. A notice left unanswered is
+    // told again at the next start.
+    private static async Task TellNoOverlayAsync(Gio.DBusConnection bus, TimeProvider time, ILogger log)
     {
         var told = Path.Combine(UserFolders.State, "thermi", "no-overlay-told");
         if (File.Exists(told))
@@ -66,11 +70,19 @@ internal static class OverlayStart
         var texts = Texts.For(null, CultureInfo.CurrentUICulture);
         using var notices = new DesktopNotices(bus);
         var said = notices.Say(texts.Of(HostText.GnomeExtensionTitle), texts.Of(HostText.NoOverlaySurfaces), (NoOverlayAction, texts.Of(HostText.NoticeGotIt)));
-        // The bus answers on GLib's main loop, which no host runs yet.
+        // The bus answers on GLib's main loop, which no host runs yet: it runs until the answer, or the bound, wakes it.
         var context = GLib.MainContext.Default();
-        while (!said.IsCompleted)
+        var ended = Task.WhenAny(said, Task.Delay(NoticeBound, time));
+        _ = ended.ContinueWith(_ => context.Wakeup(), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+        while (!ended.IsCompleted)
         {
             _ = context.Iteration(true);
+        }
+
+        if (await ended != said)
+        {
+            log.NoticeUnanswered(NoticeBound);
+            return;
         }
 
         await said;

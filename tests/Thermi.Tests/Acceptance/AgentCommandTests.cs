@@ -139,7 +139,8 @@ public sealed class AgentCommandTests : IDisposable
     }
 
     // On Linux no frame is read, a CPU with no temperature lacks the kernel's module for it, as a virtual machine's always
-    // does, and a session the overlay cannot show in says so; the missing module's cause and fix are Linux's own.
+    // does, and a session the overlay cannot show in says so, in status and in monitors, which no overlay measured; the
+    // missing module's cause and fix are Linux's own.
     [Theory]
     [InlineData(true, true)]
     [InlineData(false, false)]
@@ -153,11 +154,16 @@ public sealed class AgentCommandTests : IDisposable
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
         _rig.Os = AgentOs.Linux;
         _rig.OverlayCanShow = overlayCanShow;
+        _rig.Screens = overlayCanShow ? _rig.Screens : [];
+        _rig.WhyNoScreens = overlayCanShow ? null : AgentProblem.OverlayCannotShow;
 
         var problems = (await _rig.RunAsync("status")).Json["problems"]!.AsArray().Select(problem => problem!.AsObject()).ToList();
+        var monitors = (await _rig.RunAsync("monitors")).Json;
 
         string[] expected = cpuTemperature ? ["frames-not-read"] : ["driver-missing", "frames-not-read", "overlay-cannot-show"];
         Assert.Equal(expected, problems.Select(problem => (string)problem["code"]!));
+        Assert.Equal(overlayCanShow ? null : "overlay-cannot-show", (string?)monitors["problem"]?["code"]);
+        Assert.Equal(overlayCanShow ? 1 : 0, monitors["monitors"]!.AsArray().Count);
         var windows = AgentStatus.Said(AgentProblem.DriverMissing);
         Assert.All(problems.Where(problem => (string)problem["code"]! == "driver-missing"),
             problem => Assert.Equal((false, false), ((string)problem["cause"]! == windows.Cause, (string)problem["fix"]! == windows.Fix)));

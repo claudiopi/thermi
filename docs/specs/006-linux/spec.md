@@ -2,7 +2,7 @@
 
 **Status**: approved
 
-**Budget**: 50 .NET and 4 page cases
+**Budget**: 52 .NET and 4 page cases
 
 thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel exposes, the overlay stays above every window on GNOME, KDE Plasma, Hyprland, Sway, Cinnamon, Xfce and MATE, the settings window is the same page as on Windows, `thermi-cli` and its MCP server answer agents as they do there, and updates come through the system's own updater. Many of the developers thermi is for run their agents on Linux, often on a box with no screen, so the sensors and `thermi-cli` install alone too. How it is built, and why each desktop gets its own surface, is in `docs/adr/0019-linux.md`.
 
@@ -58,7 +58,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 
 ### Agents
 
-- R15. Every command and MCP tool of spec 003 answers on Linux with the same JSON and schemas: `status` says whether the service is installed and serving, whether an overlay runs, and on a desktop where the overlay cannot show, that it cannot; `monitors` gives the desktop's monitors with their panels; `start-with-windows` keeps its name, as the contract does, and sets the start at sign-in; `find-cpu-fan` loads the CPU at the scheduler's idle priority. The .NET SDK finds `thermi-cli` on Linux.
+- R15. Every command and MCP tool of spec 003 answers on Linux with the same JSON and schemas: `status` says whether the service is installed and serving, whether an overlay runs, and on a desktop where the overlay cannot show, that it cannot; `monitors` gives the desktop's monitors with their panels, as the running overlay places its overlays on them, and with none running says so, so `thermi-cli` needs no display; `start-with-windows` keeps its name, as the contract does, and sets the start at sign-in; `find-cpu-fan` loads the CPU at the scheduler's idle priority. The .NET SDK finds `thermi-cli` on Linux.
 
 ### FPS
 

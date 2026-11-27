@@ -31,7 +31,8 @@
               "settings-broken",
               "not-running",
               "frames-not-read",
-              "overlay-cannot-show"
+              "overlay-cannot-show",
+              "overlay-not-running"
             ]
           },
           "cause": {

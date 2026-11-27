@@ -30,7 +30,7 @@ The tools are the commands below, with `find_cpu_fan` and `start_with_windows` s
 | `watch [ids]` | `read`'s document, one line a second, until its stdin closes, or until the service goes quiet, which ends it with exit 3. |
 | `sensors [--search text] [--type t]` | Every sensor the service reads, by device, found as the settings window's search finds; an address's text only with `--type address`. |
 | `config` | The settings as thermi reads them. |
-| `monitors` | The monitors, their bounds and taskbars, in Windows' pixels. |
+| `monitors` | The monitors, their bounds and taskbars, in Windows' pixels. On Linux, as the running overlay places its overlays on them; with none running, or none that can show, no monitor and a `problem`, as status says one, `overlay-not-running` or `overlay-cannot-show`. |
 | `looks`, `look wear/save/rename/delete/export/import` | The saved looks, with the settings window's rules; a look file goes in and out as text. |
 | `edit <json>` | One change of the settings, by the settings window's rules. |
 | `find-cpu-fan [--use]` | Loads every core for up to 30 s, at idle priority, and says which fan answered; it runs one at a time with the other changes, and a run starts at most once in 2 minutes, from any process, a run sooner or at once refused with `runsAgainIn` seconds; with `--use`, it becomes the first overlay's CPU fan, or the answer says which fan it found and the refusal's key. |

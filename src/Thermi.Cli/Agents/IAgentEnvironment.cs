@@ -41,6 +41,9 @@ internal interface IAgentEnvironment
 
     IReadOnlyList<Screen> Screens();
 
+    /// <summary>Why <see cref="Screens"/> holds none, where only a running overlay measures them; null where it holds them, as Windows always does.</summary>
+    AgentProblem? WhyNoScreens() => null;
+
     IReadOnlySet<int> AltGrKeys();
 
     /// <summary>Loads every core until <paramref name="stop"/>, in a process of its own, for the fan finder.</summary>

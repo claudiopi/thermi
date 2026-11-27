@@ -81,8 +81,7 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
         AgentVerb.Read => ReadAsync(request, stop),
         AgentVerb.Sensors => SensorsAsync(request, stop),
         AgentVerb.Config => ConfigAsync(),
-        AgentVerb.Monitors =>
-            Task.FromResult(new AgentReply(AgentExit.Done, AgentJson.Write(new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])))),
+        AgentVerb.Monitors => Task.FromResult(Monitors()),
         AgentVerb.Looks => Task.FromResult(Looks()),
         AgentVerb.Edit => EditAsync(request.Text ?? "", stop),
         AgentVerb.Look => OneAtATimeAsync(() => LookAsync(request), stop),
@@ -166,6 +165,16 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
             Detail = read.Problem is { } problem ? problem.OneLine(Core.Translations.Texts.English, System.Globalization.CultureInfo.InvariantCulture) : null,
         };
         return new AgentReply(read.Problem is null ? AgentExit.Done : AgentExit.SettingsBroken, AgentJson.Write(answer), answer.Detail);
+    }
+
+    // None, with why, is still an answer: monitors no overlay measured are no error of the command's.
+    private AgentReply Monitors()
+    {
+        var answer = new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])
+        {
+            Problem = environment.WhyNoScreens() is { } problem ? AgentStatus.Said(problem, environment.SensorsOnly(), environment.Os) : null,
+        };
+        return new AgentReply(AgentExit.Done, AgentJson.Write(answer));
     }
 
     private AgentFacts Facts(Core.Tray.ServiceState state, bool taken, Snapshot? latest, ConfigProblem? settings) =>

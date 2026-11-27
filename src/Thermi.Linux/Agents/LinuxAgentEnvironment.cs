@@ -9,24 +9,20 @@ using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
-using Thermi.Linux.LayerShell;
 using Thermi.Linux.Overlay;
 using Thermi.Linux.Sensors;
-using Thermi.Linux.X11;
 
 namespace Thermi.Linux.Agents;
 
 /// <summary>
 /// What an agent's command reaches on Linux: the sensors from <c>thermi-sensors</c>' socket, the service installed when
 /// systemd has its socket unit, an overlay running when it owns its name on the session bus, the start at sign-in as its
-/// user unit, GNOME's monitors, the load of a <c>thermi cpu-load</c> at the scheduler's idle priority, and the kernel's
-/// answer for a file another process holds. Linux reads no game's frames.
+/// user unit, the monitors as the running overlay measures them, the load of a <c>thermi cpu-load</c> at the scheduler's
+/// idle priority, and the kernel's answer for a file another process holds. Linux reads no game's frames. It asks only
+/// through Gio, never GTK, so it answers with the sensors' package alone and over SSH, where there is no display.
 /// </summary>
 internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IAgentEnvironment
 {
-    /// <summary>The name the overlay owns on the session bus while it runs, its application id.</summary>
-    public const string BusName = "io.github.claudiopi.thermi";
-
     /// <summary>The GNOME Shell extension that shows the overlay on GNOME.</summary>
     public const string Extension = "thermi@claudiopi.github.io";
 
@@ -55,7 +51,7 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public bool PerUser() => false;
 
-    public bool Overlay() => SessionBus.HasOwner(BusName);
+    public bool Overlay() => SessionBus.HasOwner(ShellLink.Name);
 
     /// <summary>The sensors' package alone has no overlay's unit for the session to start.</summary>
     public bool SensorsOnly() => _unit.File is null;
@@ -65,13 +61,12 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public bool RunsInstalled() => AppContext.BaseDirectory.StartsWith(InstallFolder, StringComparison.Ordinal);
 
-    // GNOME's monitors as the overlay reads them, from thermi's extension, so an agent's place is the overlay's pixel, and
-    // none while it does not answer. Another desktop's are what the overlay's own surfaces find, layer-shell's or X11's.
-    public IReadOnlyList<Screen> Screens() =>
-        !DesktopSession.IsGnome() ? SurfacesScreens()
-        : SessionBus.Call(ShellLink.Shell, ShellLink.ObjectPath, ShellLink.Interface, "Monitors") is { } answer && SessionBus.Bus is { } bus
-            ? new ShellScreens(ShellLink.MonitorsOf(answer.GetChildValue(0)), ShellScreens.Names(bus)).Screens
-            : [];
+    // The monitors as the overlay places the overlays on them, so an agent's place is the overlay's pixel on every desktop.
+    public IReadOnlyList<Screen> Screens() => OverlayState.Ask()?.Screens ?? [];
+
+    public AgentProblem? WhyNoScreens() => Overlay()
+        ? OverlayState.Ask() is { CanShow: false, Screens.Count: 0 } ? AgentProblem.OverlayCannotShow : null
+        : AgentProblem.OverlayNotRunning;
 
     public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 
@@ -86,40 +81,15 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public AgentOs Os => AgentOs.Linux;
 
-    // GNOME shows it only through thermi's extension, on; another desktop through layer surfaces or X11, as the overlay finds them.
-    public bool OverlayCanShow() => DesktopSession.IsGnome()
-        ? SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension)
-            is { } info
-            && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } state
-            && (int)state == Active
-        : DesktopSession.Start() != SurfaceKind.None;
+    // The running overlay says whether its surfaces show. With none, GNOME shows it only through thermi's extension, on;
+    // whether another desktop can, through layer-shell or X11, only the overlay's own surfaces find, so it says yes.
+    public bool OverlayCanShow() => OverlayState.Ask() is { } state
+        ? state.CanShow
+        : !DesktopSession.IsGnome()
+            || (SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension)
+                is { } info
+                && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } shown
+                && (int)shown == Active);
 
     public AboutFacts About() => LinuxAbout.Read();
-
-    // The surfaces measure the monitors as the overlay's do, GTK's main loop run until they did.
-    private List<Screen> SurfacesScreens()
-    {
-        using IOverlaySurfaces? surfaces = DesktopSession.Start() switch
-        {
-            SurfaceKind.Layer => new LayerSurfaces(log),
-            SurfaceKind.X11 => new X11Surfaces(),
-            SurfaceKind.Shell or SurfaceKind.None => null,
-            _ => null,
-        };
-        if (surfaces is null || GdkMonitors.All().Count == 0)
-        {
-            return [];
-        }
-
-        var monitors = new List<ShellMonitor>();
-        surfaces.Arrived = () => monitors = [.. surfaces.Monitors()];
-        surfaces.Start();
-        var context = GLib.MainContext.Default();
-        while (monitors.Count == 0)
-        {
-            _ = context.Iteration(true);
-        }
-
-        return [.. new ShellScreens(monitors, new Dictionary<(int X, int Y), string>()).Screens];
-    }
 }

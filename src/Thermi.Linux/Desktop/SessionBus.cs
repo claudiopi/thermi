@@ -10,9 +10,6 @@ internal static class SessionBus
 
     private static readonly Lazy<Gio.DBusConnection?> Connection = new(Connect);
 
-    /// <summary>The session's bus, or null where there is none.</summary>
-    public static Gio.DBusConnection? Bus => Connection.Value;
-
     public static bool HasOwner(string name) =>
         Call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner", name) is { } answer
         && answer.GetChildValue(0).GetBoolean();

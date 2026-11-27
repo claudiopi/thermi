@@ -2391,6 +2391,12 @@
   <data name="AgentText.SettingsBrokenFixLinuxSensorsOnly" xml:space="preserve">
     <value>Ask the person to fix or delete thermi&apos;s settings file, ~/.config/thermi/config.json.</value>
   </data>
+  <data name="AgentText.OverlayNotRunningCause" xml:space="preserve">
+    <value>thermi&apos;s overlay isn&apos;t running in this session, and on Linux only the overlay measures the monitors.</value>
+  </data>
+  <data name="AgentText.OverlayNotRunningFix" xml:space="preserve">
+    <value>Ask the person to start thermi in their desktop, or to install thermi&apos;s package where only its sensors are. Do not start it yourself. The sensors still read.</value>
+  </data>
   <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
     <value>This build does not update itself</value>
   </data>
