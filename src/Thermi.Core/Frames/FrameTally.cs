@@ -105,7 +105,7 @@ public sealed class FrameTally
     /// <summary>How many seconds in a row a process presents at <see cref="SteadyFps"/> before its rates are told.</summary>
     public const int SteadyFor = 3;
 
-    /// <summary>How far back the lows look, in milliseconds: a minute of play, as gamers' overlays count them.</summary>
+    /// <summary>How far back the lows look, in milliseconds.</summary>
     public const double LowsOver = 60_000;
 
     /// <summary>

@@ -1,6 +1,6 @@
 # 005. FPS and frame time of the game in front, and voltages
 
-**Status**: approved
+**Status**: done
 
 **Budget**: 11 .NET and 1 page cases
 

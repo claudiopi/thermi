@@ -49,12 +49,12 @@ public sealed partial class FrameTests
             [
                 " | ",
                 " | ",
-                "161 7.9 ms | ",
-                "151 22.5 ms | ",
-                "156 22.3 ms | ",
-                "154 17.7 ms | ",
-                "153 23.5 ms | ",
-                "156 13.1 ms | ",
+                "161 7.9 ms 72 40 | ",
+                "151 22.5 ms 65 40 | ",
+                "156 22.3 ms 64 40 | ",
+                "154 17.7 ms 65 40 | ",
+                "153 23.5 ms 65 43 | ",
+                "156 13.1 ms 69 43 | ",
             ],
             seconds);
     }
@@ -157,7 +157,7 @@ public sealed partial class FrameTests
             [Edited.Item(ThermiConfig.New, Metrics.Fps.Id), Edited.Item(added, FpsSensor), Edited.Item(low, LowSensor)],
             item => Assert.Null(item.Threshold));
         Assert.Contains(LowSensor, SensorCatalog.Build(game).Single(device => device.Kind == DeviceKind.Game).Sensors.Select(row => row.Id));
-        Assert.DoesNotContain(OverlayConfig.First.Items, item => FramesAndLows[2..].Contains(item.Metric));
+        Assert.DoesNotContain(OverlayConfig.First.Items, item => LowIds.Contains(item.Metric));
         var (rate, wait) = (MeterChart.Of(Metrics.Fps.Id, game)!, MeterChart.Of(Metrics.FrameTime.Id, game)!);
         Assert.Equal(
             [60.0, 30, 55, 50, 100, 105],

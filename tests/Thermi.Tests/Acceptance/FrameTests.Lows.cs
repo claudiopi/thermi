@@ -9,8 +9,10 @@ public sealed partial class FrameTests
 {
     private const string LowSensor = "/game/0/framerate/1";
 
+    private static readonly string[] LowIds = [Metrics.OnePercentLow.Id, Metrics.PointOnePercentLow.Id];
+
     // What the overlay shows for frames: FPS and frame time, then the 1 % and 0.1 % lows.
-    private static readonly string[] FramesAndLows = [Metrics.Fps.Id, Metrics.FrameTime.Id, Metrics.OnePercentLow.Id, Metrics.PointOnePercentLow.Id];
+    private static readonly string[] FramesAndLows = [Metrics.Fps.Id, Metrics.FrameTime.Id, .. LowIds];
 
     private static ItemConfig[] LowItems =>
     [
@@ -29,9 +31,10 @@ public sealed partial class FrameTests
         static string[] Lows(double wait, params int[] seconds)
         {
             var presents = new List<Present>();
-            var at = 0.0;
-            for (var frame = 1; at < 100_000; frame++)
+            var (at, frame) = (0.0, 0);
+            while (at < 100_000)
             {
+                frame++;
                 at += at >= 30_000 || frame % 50 != 0 ? wait : frame % 500 == 0 ? 10 * wait : 2 * wait;
                 presents.Add(new Present(Game, 1, at));
             }
@@ -41,7 +44,7 @@ public sealed partial class FrameTests
             return
             [
                 .. seconds.Select(second => Shown(lows, Desktop, replayed[second - 1], Game))
-                    .Select(shown => string.Join(" ", FramesAndLows[2..].Select(shown.GetValueOrDefault))),
+                    .Select(shown => string.Join(" ", LowIds.Select(shown.GetValueOrDefault))),
             ];
         }
 
