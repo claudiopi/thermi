@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Thermi.App.Ping;
 using Thermi.Core.Agents;
@@ -25,13 +24,19 @@ public sealed class PingTests
 {
     private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
 
-    private static readonly ThermiConfig Pinging = new()
+    internal static readonly ThermiConfig Pinging = new()
     {
         Overlays = [new OverlayConfig { Items = [new ItemConfig { Id = Metrics.Ping.Id, Metric = Metrics.Ping.Id }] }],
     };
 
-    // What the echo did, as the system's ping says it, or a lookup that never answers, or an error no ping names; then what
-    // the item shows and why it has no value. Before the first echo ends it waits, and with no ping item nothing is sent.
+    private static readonly ThermiConfig WarnsByPing = new()
+    {
+        Overlays = [new OverlayConfig { Items = [new ItemConfig { Id = "load", Metric = Metrics.CpuLoad.Id, WarnBy = new() { Metric = Metrics.Ping.Id } }] }],
+    };
+
+    // What the echo did, as the system's ping says it, or a lookup that never answers, or an error no ping names, even the
+    // network's own check; then what the item shows and why it has no value, and one log line however many seconds it lasts.
+    // Before the first echo ends it waits, logging nothing, and with no ping item nothing is sent.
     [Theory] // Rows: each a way an echo ends, an operand of the status and error tests, the wait, and nothing sent
     [InlineData("reply", "23 ms", null)]
     [InlineData("timed out", ReadingFormatter.Missing, NoValue.PingTimedOut)]
@@ -44,12 +49,14 @@ public sealed class PingTests
     [InlineData("no network", ReadingFormatter.Missing, NoValue.PingNoNetwork)]
     [InlineData("slow lookup", ReadingFormatter.Missing, NoValue.PingTimedOut)]
     [InlineData("throws", ReadingFormatter.Missing, NoValue.PingUnreachable)]
+    [InlineData("network check throws", ReadingFormatter.Missing, NoValue.PingUnreachable)]
     [InlineData("waiting", ReadingFormatter.Missing, NoValue.PingWaiting)]
     [InlineData("no item", ReadingFormatter.Missing, NoValue.PingOff)]
     public async Task APingShowsItsRoundTripOrWhyItHasNone(string echo, string shown, NoValue? why)
     {
-        var fake = new FakeEcho(Answer(echo)) { Up = echo != "no network" };
-        var latest = await ReplyAsync(fake, echo == "no item" ? new ThermiConfig() : Pinging, waits: echo != "waiting");
+        var fake = new FakeEcho(Answer(echo)) { Up = echo != "no network", UpThrows = echo == "network check throws" };
+        var log = new ListLogger();
+        var latest = await ReplyAsync(fake, echo == "no item" ? new ThermiConfig() : Pinging, log, waits: echo != "waiting");
 
         var snapshot = PingSensors.With(TestRecordings.Read(TestRecordings.Admin), latest);
         var input = new TrayInput(snapshot, ServiceState.Running, English, Texts.English, LightTaskbar: false, "");
@@ -62,17 +69,19 @@ public sealed class PingTests
         Assert.Equal((DeviceKind.Network, why), (device.Kind, device.Sensors.Single(row => row.Sensor.Id == PingSensors.Id).Why));
         Assert.Equal((why is null ? 23d : null, "ms", why), (read.Value, read.Unit, read.Why));
         Assert.Equal(why is not null, why is { } reason && tooltip.Contains(Texts.English.Of(reason), StringComparison.Ordinal));
+        Assert.Equal(why is NoValue.PingWaiting or NoValue.PingOff ? 0 : 1, log.Entries.Count);
     }
 
-    // Nothing leaves the PC until an item reads the ping; then one echo a second at most goes to the host the settings name,
-    // or to 1.1.1.1, each waited for a second. An echo cut off as its process stops throws nothing out of the reader, and
-    // once none has ended for two seconds the last one no longer reads; none goes out once it stops following settings.
+    // Nothing leaves the PC until an item reads the ping, or warns by it; then one echo a second at most goes to the host the
+    // settings name, or to 1.1.1.1, each waited for a second. An echo cut off as its process stops throws nothing out of the
+    // reader and counts for nothing, and once none has ended for two seconds the last one no longer reads.
     [Fact]
     public async Task EchoesGoOutOnlyWhileAnItemReadsThePing()
     {
         var time = new FakeTimeProvider();
         var fake = new FakeEcho(_ => Task.FromResult((IPStatus.Success, 12L))) { Clock = time };
-        var reader = new PingReader(fake, time, NullLogger.Instance);
+        var log = new ListLogger();
+        var reader = new PingReader(fake, time, log);
         var config = new ThermiConfig();
         reader.Follow(() => config);
         using var stop = new CancellationTokenSource();
@@ -80,7 +89,7 @@ public sealed class PingTests
 
         await AdvanceUntilAsync(time, () => time.GetUtcNow() > time.Start.AddSeconds(3));
         Assert.Empty(fake.Sent);
-        config = Pinging;
+        config = WarnsByPing;
         await AdvanceUntilAsync(time, () => fake.Sent.Count == 2);
         config = Pinging with { PingHost = "example.com" };
         await AdvanceUntilAsync(time, () => fake.Sent.Count == 3 && reader.Latest is { RoundTrip: 12 });
@@ -88,6 +97,7 @@ public sealed class PingTests
         await AdvanceUntilAsync(time, () => fake.Sent.Count == 4);
         await stop.CancelAsync();
         await running;
+        var cut = reader.Latest;
         time.Advance(PingReader.Stale + PingReader.Period);
         var stale = reader.Latest;
         reader.Follow(null);
@@ -95,7 +105,8 @@ public sealed class PingTests
         Assert.Equal([PingSensors.DefaultHost, PingSensors.DefaultHost, "example.com", "example.com"], fake.Sent.Select(each => each.Host));
         Assert.All(fake.Sent, each => Assert.Equal(PingReader.Period, each.Timeout));
         Assert.All(fake.Sent.Zip(fake.Sent.Skip(1)), pair => Assert.True(pair.Second.At - pair.First.At >= PingReader.Period));
-        Assert.Equal((PingFailure.Waiting, null), (stale?.Failure, reader.Latest));
+        Assert.Equal((12d, PingFailure.Waiting, null), (cut?.RoundTrip, stale?.Failure, reader.Latest));
+        Assert.Equal([$"Ping {PingSensors.DefaultHost}: replies", "Ping example.com: replies"], log.Entries.Select(entry => entry.Message));
     }
 
     // A one-shot read with a ping item says what its first echo did, here a host that never answers, never that it waits.
@@ -110,6 +121,8 @@ public sealed class PingTests
         var end = await rig.RunAsync("read", Metrics.Ping.Id);
 
         Assert.Equal("ping-timed-out", (string?)end.Json["values"]![0]!["why"]);
+        // The agents' log is what agents changed, which a ping's echoes would push out of the window's view of it.
+        Assert.DoesNotContain(rig.Folder.Log.Entries, entry => entry.Message.Contains(PingSensors.DefaultHost, StringComparison.Ordinal));
     }
 
     // The host typed, as the window and thermi-cli's edit send it: a name or an address is kept trimmed, empty goes back to
@@ -164,7 +177,7 @@ public sealed class PingTests
         "no data" => _ => throw Failed(SocketError.NoData),
         "try again" => _ => throw Failed(SocketError.TryAgain),
         "network down" => _ => throw Failed(SocketError.NetworkDown),
-        "throws" => _ => throw new InvalidOperationException("No ping names this."),
+        "throws" or "network check throws" => _ => throw new InvalidOperationException("No ping names this."),
         // A resolver that answers nothing, as a dead DNS server, for longer than a second, whatever it is told.
         "slow lookup" or "waiting" => _ => Task.Delay(TimeSpan.FromSeconds(10), TimeProvider.System, CancellationToken.None)
             .ContinueWith(_ => (IPStatus.Success, 1L), TaskScheduler.Default),
@@ -173,11 +186,11 @@ public sealed class PingTests
 
     private static PingException Failed(SocketError error) => new("", new SocketException((int)error));
 
-    // The reader's reply once its first echo ended, or with waits false, at once.
-    private static async Task<EchoReply?> ReplyAsync(FakeEcho echo, ThermiConfig config, bool waits)
+    // The reader's reply once three echoes ended, or with waits false, at once.
+    private static async Task<EchoReply?> ReplyAsync(FakeEcho echo, ThermiConfig config, ListLogger log, bool waits)
     {
         var time = new FakeTimeProvider();
-        var reader = new PingReader(echo, time, NullLogger.Instance);
+        var reader = new PingReader(echo, time, log);
         var answered = 0;
         reader.Answered += (_, _) => Interlocked.Increment(ref answered);
         reader.Follow(() => config);
@@ -185,7 +198,7 @@ public sealed class PingTests
         var running = Task.Run(() => reader.RunAsync(stop.Token), TestContext.Current.CancellationToken);
         if (waits)
         {
-            await AdvanceUntilAsync(time, () => Volatile.Read(ref answered) > 0 || time.GetUtcNow() > time.Start.AddSeconds(3));
+            await AdvanceUntilAsync(time, () => Volatile.Read(ref answered) >= 3 || time.GetUtcNow() > time.Start.AddSeconds(5));
         }
 
         var latest = reader.Latest;
@@ -195,7 +208,7 @@ public sealed class PingTests
     }
 
     // Small steps of the fake clock, each let through to the reader, so it is never moved past a wait the reader has yet to start.
-    private static async Task AdvanceUntilAsync(FakeTimeProvider time, Func<bool> done)
+    internal static async Task AdvanceUntilAsync(FakeTimeProvider time, Func<bool> done)
     {
         var waited = 0;
         while (!done())
@@ -214,13 +227,15 @@ public sealed class PingTests
 
         public bool Up { get; init; } = true;
 
+        public bool UpThrows { get; init; }
+
         public TimeProvider Clock { get; init; } = TimeProvider.System;
 
         public volatile bool Hangs;
 
         public IReadOnlyList<(string Host, TimeSpan Timeout, DateTimeOffset At)> Sent => [.. _sent];
 
-        public bool NetworkUp() => Up;
+        public bool NetworkUp() => UpThrows ? throw new NetworkInformationException(5) : Up;
 
         public async Task<(IPStatus Status, long RoundTrip)> SendAsync(string host, TimeSpan timeout, CancellationToken stop)
         {

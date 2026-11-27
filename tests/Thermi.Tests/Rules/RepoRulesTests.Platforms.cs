@@ -48,6 +48,9 @@ public sealed partial class RepoRulesTests
     [Fact]
     public void OnlyTheFilesListedReachTheNetwork()
     {
+        // A type made with a target-typed new reaches the network as one named after new does.
+        string[] made = ["using var ping = new Ping();", "private readonly HttpClient _http = new(handler);", "Socket Open() => new(family);"];
+        Assert.All(made, line => Assert.Matches(NetworkApi(), line));
         var src = Path.Combine(Root, "src");
         var reaching = RepoFiles([".cs"])
             .Where(path => !Path.GetRelativePath(src, path).StartsWith("..", StringComparison.Ordinal))
