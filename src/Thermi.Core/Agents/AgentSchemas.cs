@@ -16,6 +16,7 @@ public static class AgentSchemas
         ["status"] = Of(AgentJsonContext.Default.StatusAnswer, "status"),
         ["read"] = Of(AgentJsonContext.Default.ReadAnswer, "read and each line of watch"),
         ["sensors"] = Of(AgentJsonContext.Default.SensorsAnswer, "sensors"),
+        ["preview"] = Of(AgentJsonContext.Default.PreviewAnswer, "preview"),
     };
 
     private static JsonObject Of(JsonTypeInfo type, string command)

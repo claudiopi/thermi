@@ -72,3 +72,12 @@ public sealed record ReadAnswer(IReadOnlyList<ValueAnswer> Values, IReadOnlyList
     /// <summary>When the last sample was read.</summary>
     public DateTimeOffset? At { get; init; }
 }
+
+/// <summary>
+/// An overlay painted as it draws the readings of now: <see cref="Png"/> is the picture in base64, <see cref="Width"/> by
+/// <see cref="Height"/> pixels, of the overlay counted from 0 as the settings list them.
+/// </summary>
+public sealed record PreviewAnswer(int Overlay, int Width, int Height, string Png)
+{
+    public int Schema { get; init; } = AgentSchema.Current;
+}

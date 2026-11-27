@@ -27,4 +27,5 @@ public static class AgentJson
 [JsonSerializable(typeof(LooksAnswer))]
 [JsonSerializable(typeof(FinderAnswer))]
 [JsonSerializable(typeof(StartAnswer))]
+[JsonSerializable(typeof(PreviewAnswer))]
 internal sealed partial class AgentJsonContext : JsonSerializerContext;

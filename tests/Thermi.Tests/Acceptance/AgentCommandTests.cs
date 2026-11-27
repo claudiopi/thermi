@@ -9,6 +9,7 @@ using Thermi.Core.Settings;
 using Thermi.Core.Translations;
 using Thermi.Core.Tray;
 using Thermi.Tests.Agents;
+using Thermi.Tests.Contract;
 
 namespace Thermi.Tests.Acceptance;
 
@@ -40,9 +41,12 @@ public sealed class AgentCommandTests : IDisposable
     [InlineData(Ending.Done, 2, "watch", "no.such.metric")]
     [InlineData(Ending.Done, 2, "edit", "not json")]
     [InlineData(Ending.Done, 2, "status", "--schema", "2")]
+    [InlineData(Ending.Done, 2, "preview", "--overlay", "1")]
     [InlineData(Ending.Stopped, 3, "read")]
     [InlineData(Ending.Stopped, 3, "sensors")]
+    [InlineData(Ending.Stopped, 3, "preview")]
     [InlineData(Ending.Broken, 4, "config")]
+    [InlineData(Ending.Broken, 4, "preview")]
     public async Task EveryCommandEndsWithItsCode(Ending ending, int exit, params string[] args)
     {
         if (ending == Ending.Stopped)
@@ -134,6 +138,25 @@ public sealed class AgentCommandTests : IDisposable
                 Assert.Equal((0, WithoutTime(alone.Out)), (beside.Exit, WithoutTime(beside.Out)));
             }
         }
+    }
+
+    // The host paints; the command chooses what: the overlay asked, of the settings as read, for the snapshot of now, at the
+    // scale asked. It only reads, so agents that only read see it too.
+    [Fact]
+    public async Task AgentsSeeTheOverlay()
+    {
+        var two = OverlayEdits.Add(new ThermiConfig()).Config;
+        var config = two with { Overlays = [two.Overlays[0], two.Overlays[1] with { Size = 2 }], Agents = AgentAccess.Read };
+        _rig.Folder.Write(ThermiConfigJson.Write(config));
+
+        var end = await _rig.RunAsync("preview", "--overlay", "1", "--scale", "1.5");
+
+        var painted = AgentRig.Painted(config, 1, TestRecordings.Read(TestRecordings.Admin), 1.5f);
+        Assert.Equal(
+            (0, 1, painted.Width, painted.Height, Convert.ToBase64String(painted.Png)),
+            (end.Exit, (int)end.Json["overlay"]!, (int)end.Json["width"]!, (int)end.Json["height"]!, (string?)end.Json["png"]));
+        var schema = Path.Combine(TestFiles.Root, "docs", "agents", "schema", "preview.schema.json");
+        Assert.Empty(SchemaCheck.Findings(JsonNode.Parse(await File.ReadAllTextAsync(schema, TestContext.Current.CancellationToken))!, end.Json, "preview"));
     }
 
     [Fact]

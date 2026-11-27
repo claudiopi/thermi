@@ -1,4 +1,6 @@
+using System.Text;
 using System.Text.Json.Nodes;
+using ModelContextProtocol.Protocol;
 using Thermi.App.SettingsFile;
 using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;
@@ -16,7 +18,7 @@ namespace Thermi.Tests.Acceptance;
 /// </summary>
 public sealed class AgentMcpTests : IDisposable
 {
-    private static readonly string[] ReadOnly = ["status", "read", "sensors", "config", "monitors", "looks"];
+    private static readonly string[] ReadOnly = ["status", "read", "sensors", "config", "monitors", "looks", "preview"];
 
     private static readonly string[] Changing = ["edit", "look", "find_cpu_fan", "start_with_windows", "undo", "redo"];
 
@@ -51,6 +53,14 @@ public sealed class AgentMcpTests : IDisposable
             var (_, sensors) = await session.CallAsync("sensors", new() { ["types"] = new[] { "temperature" } });
             Assert.True(JsonNode.DeepEquals(JsonNode.Parse((await _rig.RunAsync("sensors", "--type", "temperature")).Out), JsonNode.Parse(sensors)));
             Assert.True((await session.CallAsync("read", new() { ["seconds"] = 61 })).Error);
+
+            // The model sees the overlay: the command's own picture, as an image.
+            var picture = await session.Client.CallToolAsync(
+                "preview", new Dictionary<string, object?> { ["scale"] = 2 }, cancellationToken: TestContext.Current.CancellationToken);
+            var image = Assert.IsType<ImageContentBlock>(Assert.Single(picture.Content));
+            var png = (string?)(await _rig.RunAsync("preview", "--scale", "2")).Json["png"];
+            Assert.Equal(("image/png", png), (image.MimeType, Encoding.UTF8.GetString(image.Data.Span)));
+            Assert.True((await session.CallAsync("preview", new() { ["scale"] = 9 })).Error);
 
             var tooHigh = McpSession.Json("""{"kind":"threshold","item":"cpu.temperature","warning":95,"critical":90}""");
             var (refused, why) = await session.CallAsync("edit", new() { ["edit"] = tooHigh });

@@ -1,7 +1,9 @@
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Thermi.App.SettingsFile;
+using Thermi.Cli.Agents;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -15,9 +17,9 @@ using Windows.Win32.System.Console;
 namespace Thermi.Windows.Commands;
 
 /// <summary>
-/// <c>thermi preview</c>: the first overlay painted for a saved snapshot into a PNG, as the overlay would draw it. A
-/// snapshot that is none exits with 2, as any argument that makes no sense; a picture Windows would not write exits with 1.
-/// Either says why on stderr.
+/// <c>thermi preview</c>: the first overlay painted for a saved snapshot into a PNG, as the overlay would draw it, and
+/// <c>thermi-cli preview</c>'s picture of any overlay. A snapshot that is none exits with 2, as any argument that makes no
+/// sense; a picture Windows would not write exits with 1. Either says why on stderr.
 /// </summary>
 internal static class Preview
 {
@@ -35,20 +37,35 @@ internal static class Preview
             return 2;
         }
 
-        var overlay = config.Overlays[0];
-        using var painter = new Painter();
-        using var bitmap = painter.Paint(
-            Shown(config, series, CpuWatch.ReadBaseClock()),
-            OverlayLook.Of(overlay.Style, Desktop.LightTaskbar(), Desktop.HighContrast()),
-            request.Scale * (float)overlay.Size);
+        using var bitmap = Painted(config, 0, series, request.Scale);
         return await WriteAsync(request.Png, png => bitmap.Save(png, ImageFormat.Png));
     }
 
+    /// <summary>An agent's picture: <paramref name="overlay"/> painted for one snapshot, as a PNG file holds it.</summary>
+    public static OverlayPng Png(ThermiConfig config, int overlay, Snapshot snapshot, float scale)
+    {
+        using var bitmap = Painted(config, overlay, [snapshot], scale);
+        using var png = new MemoryStream();
+        bitmap.Save(png, ImageFormat.Png);
+        return new OverlayPng(png.ToArray(), bitmap.Width, bitmap.Height);
+    }
+
+    // At its size times the scale, in the taskbar's light or dark and the high contrast the desktop has now, as the overlay paints it.
+    private static Bitmap Painted(ThermiConfig config, int overlay, IReadOnlyList<Snapshot> series, float scale)
+    {
+        var one = config.Overlays[overlay];
+        using var painter = new Painter();
+        return painter.Paint(
+            Shown(config, series, CpuWatch.ReadBaseClock(), overlay),
+            OverlayLook.Of(one.Style, Desktop.LightTaskbar(), Desktop.HighContrast()),
+            scale * (float)one.Size);
+    }
+
     /// <summary>
-    /// The first overlay's items for the last snapshot of a series, a second each, as the overlay shows them after it read
-    /// them all: its graphs drawing the series, the driver's marker and throttling included.
+    /// An overlay's items, the first's when none is named, for the last snapshot of a series, a second each, as the overlay
+    /// shows them after it read them all: its graphs drawing the series, the driver's marker and throttling included.
     /// </summary>
-    internal static IReadOnlyList<OverlayItem> Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock)
+    internal static IReadOnlyList<OverlayItem> Shown(ThermiConfig config, IReadOnlyList<Snapshot> series, double? baseClock, int overlay = 0)
     {
         var clock = new SecondsClock();
         var history = new ItemHistory(clock);
@@ -64,7 +81,7 @@ internal static class Preview
             BaseClock = baseClock,
             History = history,
         };
-        return ThermiMark.Overlay(config, 0, input, windowOpenedOnce: true).Items;
+        return ThermiMark.Overlay(config, overlay, input, windowOpenedOnce: true).Items;
     }
 
     /// <summary>

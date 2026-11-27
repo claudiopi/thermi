@@ -34,7 +34,9 @@ public sealed class ContractTests
     [Fact]
     public void TheContractOnlyGrows()
     {
+        // A document the last release did not ship has nothing to keep yet.
         var findings = AgentSchemas.Current.Keys
+            .Where(name => System.IO.File.Exists(Path.Combine(Shipped, $"{name}.schema.json")))
             .SelectMany(name => Kept(Schema(Shipped, name), AgentSchemas.Current[name], name))
             // A field or a choice a reader of the shipped schema has not met is growth: it takes a word it does not know as unknown.
             .Concat(ContractAnswers.All().SelectMany(answer => SchemaCheck.Findings(Schema(Shipped, answer.Schema), JsonNode.Parse(answer.Json), answer.Schema)

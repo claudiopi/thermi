@@ -193,6 +193,18 @@ public sealed class CommandLineTests : IDisposable
         Assert.NotEmpty(errors);
     }
 
+    // thermi and thermi-cli have one preview: with no snapshot, it is the agents' picture of the readings now, whose options
+    // a saved snapshot's picture refuses.
+    [Fact]
+    public void ThermiAndThermiCliHaveOnePreview()
+    {
+        var now = Assert.IsType<AgentRequest>(ThermiCommands.Parse(["preview", "--overlay", "1", "--scale", "2"], out _));
+        Assert.Equal((AgentVerb.Preview, (int?)1, 2f), (now.Verb, now.Overlay, now.Scale));
+
+        Assert.Null(ThermiCommands.Parse(["preview", Snapshot, "o.png", "--scale", "2"], out var errors));
+        Assert.NotEmpty(errors);
+    }
+
     // thermi.exe is a windowed program, so what it says goes to stderr only when someone reads it: here, a pipe. Arguments
     // that make no sense exit with 2, a snapshot that is none too, as the user's input; a picture Windows would not write,
     // here into a folder that is not there, is a run that failed, with 1.

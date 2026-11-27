@@ -73,7 +73,7 @@ public sealed class AgentDoorTests : IDisposable
         await using var client = await McpClient.CreateAsync(
             new StreamClientTransport(process.Input.BaseStream, process.Output.BaseStream),
             cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal(12, (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken)).Count);
+        Assert.Equal(13, (await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken)).Count);
         var monitors = await client.CallToolAsync("monitors", new Dictionary<string, object?>(), cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(monitors.IsError ?? false);
     }

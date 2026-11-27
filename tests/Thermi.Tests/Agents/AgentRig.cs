@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Globalization;
 using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,7 @@ using Thermi.Cli.Commands;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
+using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 
 namespace Thermi.Tests.Agents;
@@ -163,6 +165,17 @@ internal sealed class AgentRig : IDisposable
         }
     }
 
+    /// <summary>
+    /// The rig's picture of an overlay: in place of pixels, which each OS's painter makes, what it was asked to paint, and
+    /// a size that grows with the overlay's own and the scale.
+    /// </summary>
+    public static OverlayPng Painted(ThermiConfig settings, int overlay, Snapshot snapshot, float scale)
+    {
+        var size = settings.Overlays[overlay].Size * scale;
+        var asked = string.Create(CultureInfo.InvariantCulture, $"overlay {overlay} of {settings.Overlays.Count}, {snapshot.Sensors.Count} sensors, {size}");
+        return new OverlayPng(Encoding.UTF8.GetBytes(asked), (int)Math.Round(100 * size), (int)Math.Round(20 * size));
+    }
+
     public void Dispose() => Folder.Dispose();
 
     /// <summary>The start at sign-in as the OS would hold it, here a switch of the rig's own.</summary>
@@ -203,6 +216,8 @@ internal sealed class AgentRig : IDisposable
         public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 
         public void Load(CancellationToken stop) => rig.Loaded(stop);
+
+        public OverlayPng Paint(ThermiConfig settings, int overlay, Snapshot snapshot, float scale) => Painted(settings, overlay, snapshot, scale);
 
         // A test holds the file the finder claims, and nothing else fails to open it here.
         public bool HeldElsewhere(IOException error) => true;

@@ -23,6 +23,7 @@ internal enum AgentVerb
     Edit,
     Monitors,
     Looks,
+    Preview,
     Look,
     FindCpuFan,
     StartWithWindows,
@@ -58,6 +59,9 @@ internal sealed record AgentRequest(AgentVerb Verb) : IThermiRequest
 
     public int? Overlay { get; init; }
 
+    /// <summary>A preview's size, times the overlay's own.</summary>
+    public float Scale { get; init; } = 1;
+
     public LookAction Look { get; init; }
 
     /// <summary>For the finder, whether its fan becomes the CPU fan; for the start at sign-in, on or off, or null to ask.</summary>
@@ -73,6 +77,12 @@ internal static class AgentCommandLine
 {
     public const int MaxSeconds = 60;
 
+    // A picture grows with the square of its scale: past 8 it is 64 times the overlay's pixels for no reader's gain, and
+    // under a quarter its text is a few pixels high.
+    public const float MinScale = 0.25f;
+
+    public const float MaxScale = 8;
+
     /// <summary>The answers' schema an agent asks for; today's is the only one.</summary>
     public static Option<int> Schema { get; } = new("--schema")
     {
@@ -81,6 +91,23 @@ internal static class AgentCommandLine
         DefaultValueFactory = _ => AgentSchema.Current,
         CustomParser = SchemaOf,
     };
+
+    /// <summary>
+    /// The options of <c>preview</c>, the agents' picture of an overlay now. A host whose own <c>preview</c> paints a saved
+    /// snapshot takes them on that command, so the two are one, and answers <see cref="Previewed"/> when it names none.
+    /// </summary>
+    public static Option<int?> PreviewOverlay { get; } =
+        new("--overlay") { Description = "The overlay, counted from 0 as config counts it; the first when none." };
+
+    public static Option<float> PreviewScale { get; } = new("--scale")
+    {
+        Description = string.Create(CultureInfo.InvariantCulture, $"Its size times this, {MinScale} to {MaxScale}."),
+        DefaultValueFactory = _ => 1,
+        CustomParser = Scale,
+    };
+
+    public static AgentRequest Previewed(ParseResult parsed) =>
+        new(AgentVerb.Preview) { Overlay = parsed.GetValue(PreviewOverlay), Scale = parsed.GetValue(PreviewScale) };
 
     /// <summary>
     /// A host's command line, its own commands and the agents': the request <paramref name="args"/> make, help or the version,
@@ -111,8 +138,14 @@ internal static class AgentCommandLine
         root.Options.Add(Schema);
         var looks = LookCommands(out var look);
         root.Subcommands.Add(look);
-        foreach (var (command, request) in Reads().Concat(Changes()).Concat(looks))
+        foreach (var (command, request) in Reads().Concat(Pictures()).Concat(Changes()).Concat(looks))
         {
+            // A host's own command of the name is the one parsed, as Windows' preview, which paints a saved snapshot too.
+            if (root.Subcommands.Any(own => own.Name == command.Name))
+            {
+                continue;
+            }
+
             requests[command] = request;
             if (command != look && !look.Subcommands.Contains(command))
             {
@@ -152,6 +185,11 @@ internal static class AgentCommandLine
             [new Command("looks", "Lists the saved looks.")] = _ => new AgentRequest(AgentVerb.Looks),
         };
     }
+
+    private static Dictionary<Command, Func<ParseResult, IThermiRequest>> Pictures() => new()
+    {
+        [new Command("preview", "Paints an overlay as it draws the readings now, as a PNG in base64.") { PreviewOverlay, PreviewScale }] = Previewed,
+    };
 
     private static Dictionary<Command, Func<ParseResult, IThermiRequest>> Changes()
     {
@@ -219,6 +257,27 @@ internal static class AgentCommandLine
 
         result.AddError(string.Create(CultureInfo.InvariantCulture, $"--schema takes {AgentSchema.Current}, the only schema thermi answers in."));
         return AgentSchema.Current;
+    }
+
+    /// <summary>A picture's scale, read in the invariant culture, so 1.5 means the same in every language.</summary>
+    public static float Scale(ArgumentResult result)
+    {
+        if (result.Tokens is [])
+        {
+            return 1;
+        }
+
+        // The range also leaves out NaN and the infinities, which every comparison with them refuses.
+        if (result.Tokens is [var token]
+            && float.TryParse(token.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            && value >= MinScale
+            && value <= MaxScale)
+        {
+            return value;
+        }
+
+        result.AddError(string.Create(CultureInfo.InvariantCulture, $"scale takes a number from {MinScale} to {MaxScale}, such as 1.5."));
+        return 1;
     }
 
     private static int Seconds(ArgumentResult result)
