@@ -1,6 +1,6 @@
 # Thermi.Settings.Web
 
-The settings window's page, in React and Fluent UI with strict TypeScript. The window hosts it in WebView2 (`docs/adr/0007-settings-window-in-webview2-and-react.md`), so it looks and works the same on any PC, and Vite builds it into `dist`, which `thermi.exe` embeds.
+The settings window's page, in React and Fluent UI with strict TypeScript. The window hosts it in WebView2 on Windows (`docs/adr/0007-settings-window-in-webview2-and-react.md`) and in WebKitGTK on Linux, so it looks and works the same on any PC, and Vite builds it into `dist`, which `thermi.exe` embeds and Linux's `thermi` keeps beside it as `web`.
 
 The page holds no logic of its own. It asks C# what to show and hands every change back through one typed bridge, whose TypeScript the build writes from Core. It loads nothing from the network: its Content Security Policy in `index.html` allows only its own files.
 
@@ -21,7 +21,7 @@ The page holds no logic of its own. It asks C# what to show and hands every chan
 | `src/kit/controls` | The kit's controls. |
 | `src/kit/surfaces` | The kit's surfaces: cards, dialogs, menus, panels, toasts, tooltips. |
 | `src/kit/theme` | The theme: light, dark and high contrast. |
-| `tests` | The Playwright tests, with axe, against the built page in the Edge Windows ships. |
+| `tests` | The Playwright tests, with axe, against the built page: in the Edge Windows ships, and on Linux in WebKit and Chromium. |
 | `tests/fakes` | The fake C# side. It decides no edit: `tests/oracle.ts` answers from the real bridge's recorded answers. |
 
 Entry points worth knowing:
