@@ -45,3 +45,37 @@ public sealed class BusiestDrive(TimeProvider time)
         .Select(drive => drive.Drive)
         .FirstOrDefault();
 }
+
+/// <summary>The network adapter the network metrics follow, among a snapshot's.</summary>
+internal static class BusiestAdapter
+{
+    // The adapter that has moved the most data, as the library counts it: a physical one while any moves data, so a VPN
+    // or a virtual switch, which carries the same traffic again, never wins; any one when none does.
+    // In one pass, without grouping, since it runs with every pick: of equal ones, the first listed wins.
+    public static string? Of(Snapshot snapshot)
+    {
+        var moved = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var sensor in snapshot.Sensors)
+        {
+            if (sensor is { HardwareType: "Network", Type: nameof(SensorKind.Data) })
+            {
+                var id = SensorMap.DeviceIdOf(sensor);
+                moved[id] = moved.GetValueOrDefault(id) + (sensor.Value is { } value && double.IsFinite(value) ? value : 0);
+            }
+        }
+
+        var virtuals = snapshot.VirtualAdapters ?? [];
+        var physicalMoves = moved.Any(adapter => adapter.Value > 0 && !virtuals.Contains(adapter.Key, StringComparer.Ordinal));
+        string? busiest = null;
+        var most = double.NegativeInfinity;
+        foreach (var (id, data) in moved)
+        {
+            if (data > most && !(physicalMoves && virtuals.Contains(id, StringComparer.Ordinal)))
+            {
+                (busiest, most) = (id, data);
+            }
+        }
+
+        return busiest;
+    }
+}

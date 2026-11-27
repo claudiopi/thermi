@@ -1,0 +1,14 @@
+[
+  {
+    "name": "NVIDIA GeForce RTX 3060",
+    "temperature": 39,
+    "load": 0,
+    "memoryLoad": 0,
+    "power": 15.473,
+    "fan": 0,
+    "memoryUsed": 0.4852294921875,
+    "memoryTotal": 12,
+    "coreClock": 210,
+    "memoryClock": 405
+  }
+]

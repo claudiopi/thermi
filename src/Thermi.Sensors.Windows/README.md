@@ -9,7 +9,6 @@ Fewer dependencies in a SYSTEM process is a security property, so it takes no lo
 | `Reading` | LibreHardwareMonitor, each device updated on its own thread, so one that stalls holds back none (`docs/adr/0015-a-stalled-device-holds-back-none.md`), and what the service mends before it sends. |
 | `Pipe` | The `thermi-sensors` pipe: the whole snapshot once, then the values alone (`docs/adr/0012-sensor-pipe-catalog-once.md`). |
 | `Service` | The command line, what the service reaches outside its code (which tests replace), and the `thermi-elevated` service that runs the window's two fixes. |
-| `Recording` | `--dump <file> --seconds <n>`: a series for tests to replay. |
 | `Frames` | The frames games present, from ETW (`docs/adr/0014-frames-from-etw.md`). |
 | `Updates` | The updater and the watchdog that switches versions and rolls back (`docs/adr/0008-updates.md`). |
 | `Install` | `--adopt` and `--remove`: lay a version down or take thermi off, for the MSI and `scripts/install.ps1`. |

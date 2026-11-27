@@ -1,6 +1,4 @@
-using System.Net;
 using System.Net.NetworkInformation;
-using System.Net.Sockets;
 using Thermi.Core.Frames;
 using Thermi.Core.Pipe;
 using Thermi.Core.Sensors;
@@ -17,9 +15,6 @@ namespace Thermi.Windows.Win32;
 /// </summary>
 internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISensorFeed
 {
-    // Any address beyond the local network: connecting a datagram socket only picks the route, and sends nothing.
-    private static readonly IPEndPoint Beyond = new(IPAddress.Parse("192.0.2.1"), 9);
-
     private static readonly Snapshot NoSensors = new([]);
 
     private readonly ISensorFeed _sensors = sensors;
@@ -75,7 +70,7 @@ internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISens
 
             var (front, fills) = _front.Front();
             var with = GameSensors.With(
-                SystemSensors.With(read, new WindowsFacts(TimeSpan.FromMilliseconds(Environment.TickCount64), Address(), now)),
+                SystemSensors.With(read, new SystemFacts(TimeSpan.FromMilliseconds(Environment.TickCount64), Address(), now)),
                 _game.Next(FrameSlots.Read(read), front, fills, _front.Windows));
             _last = (read, second, with);
             return with;
@@ -94,27 +89,10 @@ internal sealed class SystemFeed(ISensorFeed sensors, TimeProvider time) : ISens
     {
         if (!_addressKnown)
         {
-            _address = DefaultRouteAddress();
+            _address = SystemSensors.DefaultRouteAddress();
             _addressKnown = true;
         }
 
         return _address;
-    }
-
-    private static uint? DefaultRouteAddress()
-    {
-        try
-        {
-            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            socket.Connect(Beyond);
-            return socket.LocalEndPoint is IPEndPoint { Address: var local } && !IPAddress.IsLoopback(local)
-                ? SystemSensors.AddressOf(local.GetAddressBytes())
-                : null;
-        }
-        catch (SocketException)
-        {
-            // No route out: no network.
-            return null;
-        }
     }
 }

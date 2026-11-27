@@ -8,7 +8,7 @@ public sealed partial class RepoRulesTests
     // The files of the Windows projects that call no Windows-only API, and why each stays there all the same.
     private static readonly Dictionary<string, string> NeedNoWindowsApi = new(StringComparer.Ordinal)
     {
-        ["Thermi.Windows/Commands/ThermiCommands.cs"] = "thermi.exe's command line: the overlay, the window, preview and cpu-load, each a Windows program",
+        ["Thermi.Windows/Commands/ThermiCommands.cs"] = "thermi.exe's command line: the overlay, the window and preview, each a Windows program",
         ["Thermi.Windows/Gestures/HotkeyPresses.cs"] = "what thermi's hotkeys do, which Windows' RegisterHotKey delivers anywhere in Windows",
         ["Thermi.Windows/Logging/LogEvents.cs"] = "the events of the Windows code's classes, which log nothing else",
         ["Thermi.Windows/Tray/TrayChoices.cs"] = "what a row of the tray's and an overlay's Win32 menus does",
@@ -26,8 +26,6 @@ public sealed partial class RepoRulesTests
         ["Thermi.Sensors.Windows/Reading/ReadPace.cs"] = "LibreHardwareMonitor's update pace and its speeds, for its devices alone",
         ["Thermi.Sensors.Windows/Reading/ReadingRules.cs"] = "what the service mends in what LibreHardwareMonitor reads",
         ["Thermi.Sensors.Windows/Reading/UpdateThreads.cs"] = "the threads LibreHardwareMonitor's updates block on, in a driver",
-        ["Thermi.Sensors.Windows/Recording/SeriesRecorder.cs"] =
-            "thermi-sensors' --dump --seconds: the series is Core's SnapshotJson, which another OS's host writes alike",
         ["Thermi.Sensors.Windows/Service/SensorCommands.cs"] = "thermi-sensors' command line: the Windows service, its install and fixes",
         ["Thermi.Sensors.Windows/Updates/ManifestClient.cs"] = "the Windows service's update downloads, which only it makes, as LocalSystem",
         ["Thermi.Sensors.Windows/Updates/Unpacker.cs"] = "the Windows updater's unpacking under Program Files, checked against its signed catalog",
@@ -35,7 +33,13 @@ public sealed partial class RepoRulesTests
     };
 
     // The files of the Linux projects that call no Linux-only API, and why each stays there all the same.
-    private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal)
+    {
+        ["Thermi.Linux/Agents/LinuxAgentEnvironment.cs"] = "Linux's answers to the agents' commands, each through a file of its project that calls Linux",
+        ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
+        ["Thermi.Sensors.Linux/Reading/Counters.cs"] = "the kernel's counters turned into changes, which no other OS's service reads",
+        ["Thermi.Sensors.Linux/Serving/SensorCommands.cs"] = "the Linux service's own command line, whose trees and roots are the kernel's files",
+    };
 
     // The libraries a Linux project calls by hand, and why: GirCore generates the rest from GObject's introspection data
     // (docs/adr/0019-linux.md), as CsWin32 does Win32's.
