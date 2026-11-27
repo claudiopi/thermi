@@ -1,6 +1,6 @@
 # 006-linux: Tasks
 
-**Status**: approved; 3 of 30 tasks; current block B2.
+**Status**: approved; 11 of 30 tasks; current block B4.
 
 ## B1. The ground
 
@@ -10,17 +10,17 @@
 
 ## B2. The sensors
 
-- [ ] T4. The trees of the 5900X desktop recorded with `--tree`, as the service's user and as a plain user, and of a virtual machine, and their snapshots. (R7)
-- [ ] T5. `Thermi.Sensors.Linux`'s readers over a root folder: `hwmon`, `/proc`, `/sys`, the energy counters, the uptime, local IP and clock. (R3)
-- [ ] T6. NVML, loaded only when present. (R3)
-- [ ] T7. Linux's names and the -40 °C rule in Core's `SensorMap`. (R6)
-- [ ] T8. The socket's server and client, with the peer check and the share of connections. (R5)
-- [ ] T9. The systemd units, the udev rule and the sandbox. (R4, R5)
+- [x] T4. The trees of the 5900X desktop recorded with `--tree`, as the service's user and as a plain user, and of a virtual machine, and their snapshots. (R7)
+- [x] T5. `Thermi.Sensors.Linux`'s readers over a root folder: `hwmon`, `/proc`, `/sys`, the energy counters, the uptime, local IP and clock. (R3)
+- [x] T6. NVML, loaded only when present. (R3)
+- [x] T7. Linux's names and the -40 °C rule in Core's `SensorMap`. (R6)
+- [x] T8. The socket's server and client, with the peer check and the share of connections. (R5)
+- [x] T9. The systemd units, the udev rule and the sandbox. (R4, R5)
 
 ## B3. thermi-cli
 
-- [ ] T10. `Thermi.Linux`'s `IAgentEnvironment` and `thermi-cli`. (R2, R15)
-- [ ] T11. The SDK finding `thermi-cli` on Linux, and `status` on frames and desktops. (R15, R16)
+- [x] T10. `Thermi.Linux`'s `IAgentEnvironment` and `thermi-cli`. (R2, R15)
+- [x] T11. The SDK finding `thermi-cli` on Linux, and `status` on frames and desktops. (R15, R16)
 
 ## B4. The overlay
 

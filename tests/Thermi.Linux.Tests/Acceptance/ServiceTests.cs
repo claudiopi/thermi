@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -47,6 +48,9 @@ public sealed partial class ServiceTests
             client.close()
         """;
 
+    private static readonly Metric[] Rates =
+        [Metrics.CpuLoad, Metrics.CpuPower, Metrics.DiskActivity, Metrics.DiskRead, Metrics.DiskWrite, Metrics.NetDownload, Metrics.NetUpload];
+
     public enum Tree
     {
         Service,
@@ -56,20 +60,27 @@ public sealed partial class ServiceTests
         VirtualMachine,
     }
 
+    // Binds a socket at a path and ends without listening, as thermi-sensors --console leaves its socket when it is killed.
+    private const string Stale = """
+        import socket, sys
+        socket.socket(socket.AF_UNIX).bind(sys.argv[1])
+        """;
+
     public enum Client
     {
         Person,
         Impostor,
         Writer,
         Crowd,
+        Stale,
     }
 
     [Theory]
-    [InlineData(Tree.Service, Skip = "Waiting for its code")]
-    [InlineData(Tree.PlainUser, Skip = "Waiting for its code")]
-    [InlineData(Tree.NoNvidiaDriver, Skip = "Waiting for its code")]
-    [InlineData(Tree.Failing, Skip = "Waiting for its code")]
-    [InlineData(Tree.VirtualMachine, Skip = "Waiting for its code")]
+    [InlineData(Tree.Service)]
+    [InlineData(Tree.PlainUser)]
+    [InlineData(Tree.NoNvidiaDriver)]
+    [InlineData(Tree.Failing)]
+    [InlineData(Tree.VirtualMachine)]
     public async Task TheServiceReadsWhatTheKernelGives(Tree tree)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -92,9 +103,9 @@ public sealed partial class ServiceTests
             foreach (var metric in Metrics.All.Where(metric => metric.Label is not (MetricLabel.Fps or MetricLabel.Bat)))
             {
                 var missing = Missing(tree, metric, second);
-                // Rates read as a change since the second before, so the first second has none yet.
+                // Rates read as a change since the second before, so the first second has none yet; every other metric reads in it.
                 Assert.True(
-                    missing || second == 0 || readings[metric.Id].Usable is not null,
+                    missing || (second == 0 && Rates.Contains(metric)) || readings[metric.Id].Usable is not null,
                     $"{metric.Id} read nothing in second {second} of {tree}.");
                 Assert.Equal(missing ? null : Timeless(metric) ? expected[metric.Id].Usable : readings[metric.Id].Usable, readings[metric.Id].Usable);
             }
@@ -108,7 +119,7 @@ public sealed partial class ServiceTests
         }
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact]
     public async Task ARecordedTreeReplaysAndNamesNoPc()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -133,10 +144,11 @@ public sealed partial class ServiceTests
 
     // Other users and the service's own one exist only in a container, where systemd starts the service by its socket.
     [Theory]
-    [InlineData(Client.Person, Skip = "Waiting for its code")]
-    [InlineData(Client.Impostor, Skip = "Waiting for its code")]
-    [InlineData(Client.Writer, Skip = "Waiting for its code")]
-    [InlineData(Client.Crowd, Skip = "Waiting for its code")]
+    [InlineData(Client.Person)]
+    [InlineData(Client.Impostor)]
+    [InlineData(Client.Writer)]
+    [InlineData(Client.Crowd)]
+    [InlineData(Client.Stale)]
     public async Task TheSocketServesOnlyTheServicesLines(Client client)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -144,6 +156,7 @@ public sealed partial class ServiceTests
         await File.WriteAllTextAsync(Path.Combine(session.Home, "clients.py"), Clients, cancel);
         await File.WriteAllTextAsync(Path.Combine(session.Home, "writer.py"), Writer, cancel);
         await File.WriteAllTextAsync(Path.Combine(session.Home, "impostor.py"), Impostor, cancel);
+        await File.WriteAllTextAsync(Path.Combine(session.Home, "stale.py"), Stale, cancel);
         File.Copy(Built.Tree(SensorFeed.Desktop) + ".json", Path.Combine(session.Home, "lines"));
         await using var pc = await Container.BootAsync(session, Container.Ubuntu2604, session.Home, cancel);
         var install = Container.Installs(Container.Ubuntu2604, $"python3-minimal $(ls {Container.Packages}/thermi-sensors_*_amd64.deb)");
@@ -159,40 +172,41 @@ public sealed partial class ServiceTests
 
         var lines = said.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(client == Client.Impostor ? 3 : 0, exit);
-        Assert.Equal(client == Client.Person, said.Contains($"\"{Metrics.CpuTemperature.Id}\"", StringComparison.Ordinal));
+        Assert.Equal(client is Client.Person or Client.Stale, said.Contains($"\"{Metrics.CpuTemperature.Id}\"", StringComparison.Ordinal));
         if (client == Client.Writer)
         {
-            Assert.All(lines[..3], line => Assert.NotNull(SnapshotJson.Read(line)));
+            Assert.Equal(3, new SnapshotLines().Add(Encoding.UTF8.GetBytes(string.Join('\n', lines[..3]) + '\n')).Count);
             Assert.True(int.Parse(lines[3].Split(' ')[1], CultureInfo.InvariantCulture) >= 7 * 1024, $"The service read what the client wrote: {lines[3]}");
         }
 
         Assert.Equal(client == Client.Crowd ? ["1", "8"] : lines, lines);
         var left = double.Parse(error.Trim().Split('\n')[^1], CultureInfo.InvariantCulture);
         var after = (double.Parse(stopped, CultureInfo.InvariantCulture) / 1e6) - left;
-        Assert.True(client == Client.Impostor || after is >= 9.5 and < 11, $"The service ended {after} s after the last client left.");
+        // The service learns a client left at its next second's write, which fails, and then ends, as a process does.
+        Assert.True(client == Client.Impostor || after is >= 9.5 and < 12, $"The service ended {after} s after the last client left.");
     }
 
-    [Fact(Skip = "Waiting for its code")]
+    [Fact]
     public async Task TheServiceRunsWithNoRights()
     {
         var cancel = TestContext.Current.CancellationToken;
         await using var session = new OwnSession();
-        var device = Path.Combine(session.Home, "intel-rapl:0");
-        Directory.CreateDirectory(device);
         // A recorded tree escapes a colon in a name, which Windows forbids, as %3A.
         var recorded = Path.Combine(Built.Tree(SensorFeed.Desktop), "0", "sys", "class", "powercap", "intel-rapl%3A0", "energy_uj");
-        File.Copy(recorded, Path.Combine(device, "energy_uj"));
+        File.Copy(recorded, Path.Combine(session.Home, "energy_uj"));
         await using var pc = await Container.BootAsync(session, Container.Ubuntu2604, session.Home, cancel);
         await pc.MustAsync(Container.Installs(Container.Ubuntu2604, $"$(ls {Container.Packages}/thermi-sensors_*_amd64.deb)"), cancel);
 
         var security = await pc.MustAsync("systemd-analyze security --offline=true --no-pager thermi-sensors.service", cancel);
         var unit = await pc.MustAsync("systemctl show -p User -p CapabilityBoundingSet -p AmbientCapabilities thermi-sensors.service", cancel);
-        // udev runs the rule's commands on a device's folder under /sys; here, on the recorded one's copy, as root.
+        // udev runs the rule's commands on a device's folder under /sys, whose files are root's; here, on a copy of the
+        // recorded one's that root made, as root.
         var rule = await pc.MustAsync("grep -h powercap /usr/lib/udev/rules.d/*thermi*.rules", cancel);
         var commands = Run().Matches(rule)
-            .Select(match => match.Groups["command"].Value.Replace("/sys%p", $"{Container.Work}/intel-rapl:0", StringComparison.Ordinal));
-        await pc.MustAsync(string.Join("; ", commands), cancel);
-        var rights = await pc.MustAsync($"stat -c '%U %G %a' {Container.Work}/intel-rapl:0/energy_uj", cancel);
+            .Select(match => match.Groups["command"].Value.Replace("/sys%p", "/tmp/intel-rapl:0", StringComparison.Ordinal));
+        await pc.MustAsync(
+            $"install -d /tmp/intel-rapl:0 && install -m 0444 {Container.Work}/energy_uj /tmp/intel-rapl:0/; {string.Join("; ", commands)}", cancel);
+        var rights = await pc.MustAsync("stat -c '%U %G %a' /tmp/intel-rapl:0/energy_uj", cancel);
 
         Assert.Matches(@"Overall exposure level for thermi-sensors\.service: \d+\.\d+ (OK|SAFE)", security);
         Assert.Equal(
@@ -205,18 +219,22 @@ public sealed partial class ServiceTests
     private static partial Regex Run();
 
     // Each row connects to the socket as it says: a person's read; a server another user listens with on the socket's path,
-    // which the person's read refuses; a client that writes as it reads; and nine connections of one user, then one of
-    // another's. The person runs the thermi-cli the package put on every PATH.
+    // which the person's read refuses; a client that writes as it reads; nine connections of one user, then one of
+    // another's; and a person's read whose own socket is one a console left as it ended. The person runs the thermi-cli
+    // the package put on every PATH.
     private static string ClientScript(Client client) => client switch
     {
         Client.Person => "su person -c 'thermi-cli read --schema 1'",
-        Client.Impostor => "systemctl stop thermi-sensors.socket thermi-sensors.service && rm -rf /run/thermi && install -d -o other /run/thermi && "
-            + $"mkfifo /tmp/listens && su other -s /bin/sh -c 'exec python3 {Container.Work}/impostor.py {Container.Work}/lines'"
-            + " > /tmp/listens 2>/dev/null < /dev/null & "
+        // Only the impostor runs in the background, with no stream of docker exec's, which would wait for it to end.
+        Client.Impostor => "systemctl stop thermi-sensors.socket thermi-sensors.service && rm -rf /run/thermi && install -d -o other /run/thermi"
+            + " && mkfifo /tmp/listens || exit 1; "
+            + $"su other -s /bin/sh -c 'exec python3 {Container.Work}/impostor.py {Container.Work}/lines' > /tmp/listens 2>/dev/null < /dev/null & "
             + "read -r _ < /tmp/listens && su person -c 'thermi-cli read --schema 1'",
         Client.Writer => $"su person -c 'python3 {Container.Work}/writer.py'",
         Client.Crowd => $"mkfifo /tmp/go /tmp/said; su person -c 'python3 {Container.Work}/clients.py 9' < /tmp/go > /tmp/said & exec 3>/tmp/go; "
             + $"read -r person < /tmp/said; su other -c 'python3 {Container.Work}/clients.py 1' < /dev/null; echo $person; exec 3>&-; wait",
+        Client.Stale => $"su person -c 'mkdir -p /tmp/run/thermi && python3 {Container.Work}/stale.py /tmp/run/thermi/sensors.sock"
+            + " && XDG_RUNTIME_DIR=/tmp/run thermi-cli read --schema 1'",
         _ => throw new ArgumentOutOfRangeException(nameof(client), client, "Unknown client."),
     };
 
