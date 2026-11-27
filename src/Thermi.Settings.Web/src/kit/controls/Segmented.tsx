@@ -2,6 +2,7 @@ import { steady } from '../steady';
 import { Radio, RadioGroup, ToggleButton, makeStyles, mergeClasses, tokens } from '@fluentui/react-components';
 import type { Choice } from './Dropdown';
 import { radius } from '../theme/look';
+import type { KeyboardEvent } from 'react';
 
 export interface SegmentedProps {
   label: string;
@@ -87,11 +88,39 @@ const useChipStyles = makeStyles({
   text: { padding: '0 12px', lineHeight: '20px', whiteSpace: 'nowrap', color: tokens.colorNeutralForeground1 },
 });
 
+/**
+ * The arrows move to the next choice or the one before and choose it, as Edge does for radios by itself and WebKit does
+ * not: the page moves them alike in both.
+ */
+function arrowsChoose(choices: readonly Choice[], value: string, onChange: (value: string) => void) {
+  return (event: KeyboardEvent<HTMLDivElement>): void => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+    const from = choices.findIndex((choice) => choice.value === value);
+    if (step === undefined || from < 0 || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+
+    event.preventDefault();
+    const next = choices[(from + step + choices.length) % choices.length];
+    if (next !== undefined) {
+      onChange(next.value);
+      event.currentTarget.querySelector<HTMLInputElement>(`input[value="${CSS.escape(next.value)}"]`)?.focus();
+    }
+  };
+}
+
 /** Filters as a row of chips, one chosen: the arrows move and choose, and the row is one Tab stop. */
 function ChipsDrawn({ label, choices, value, onChange }: Omit<SegmentedProps, 'disabled'>) {
   const styles = useChipStyles();
   return (
-    <RadioGroup className={styles.group} aria-label={label} layout="horizontal" value={value} onChange={(_, data) => onChange(data.value)}>
+    <RadioGroup
+      className={styles.group}
+      aria-label={label}
+      layout="horizontal"
+      value={value}
+      onChange={(_, data) => onChange(data.value)}
+      onKeyDown={arrowsChoose(choices, value, onChange)}
+    >
       {choices.map((choice) => (
         <Radio
           key={choice.value}
@@ -144,7 +173,15 @@ function ToggleChipDrawn({ text, pressed, onChange }: ToggleChipProps) {
 function SegmentedDrawn({ label, choices, value, onChange, disabled = false }: SegmentedProps) {
   const styles = useStyles();
   return (
-    <RadioGroup className={styles.group} aria-label={label} layout="horizontal" value={value} disabled={disabled} onChange={(_, data) => onChange(data.value)}>
+    <RadioGroup
+      className={styles.group}
+      aria-label={label}
+      layout="horizontal"
+      value={value}
+      disabled={disabled}
+      onChange={(_, data) => onChange(data.value)}
+      onKeyDown={disabled ? undefined : arrowsChoose(choices, value, onChange)}
+    >
       {choices.map((choice) => (
         <Radio
           key={choice.value}
