@@ -27,6 +27,9 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private readonly OverlayLink _overlay;
     private WindowTheme _theme;
     private ExtensionState? _extension;
+
+    // The Shell did not install the extension whose files are in place: only the next sign-in shows the overlay.
+    private bool _installRefused;
     private bool? _signIn;
 
     public LinuxHost(ILogger log)
@@ -222,6 +225,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
             // Declined, offline, or the prompt outlasted the call: what the Shell has now says which.
         }
 
+        _installRefused = fix == ExtensionState.Missing && _link.State() == Gnome.ExtensionState.Unread;
         _extension = ExtensionOf();
         return fix == ExtensionState.OtherVersion || _extension == ExtensionState.Enabled;
     }
@@ -301,7 +305,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         : _link.State() switch
         {
             Gnome.ExtensionState.Missing => ExtensionState.Missing,
-            Gnome.ExtensionState.NextSignIn => ExtensionState.NextSignIn,
+            Gnome.ExtensionState.Unread => _installRefused ? ExtensionState.NextSignIn : ExtensionState.Missing,
             Gnome.ExtensionState.Off => ExtensionState.Disabled,
             Gnome.ExtensionState.OtherVersion => ExtensionState.OtherVersion,
             Gnome.ExtensionState.Ours or Gnome.ExtensionState.Starting => ExtensionState.Enabled,

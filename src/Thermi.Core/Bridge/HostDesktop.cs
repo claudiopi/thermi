@@ -21,8 +21,8 @@ public enum ExtensionState
     OtherVersion,
 
     /// <summary>
-    /// Installed, as a package or GNOME's Extensions app put it, but the running Shell has not read it: it reads it at the
-    /// next sign-in, so only signing out and in again shows the overlay, and installing it again does nothing.
+    /// Installed, as a package put it, but the running Shell has not read it, and did not install it from extensions.gnome.org
+    /// either, declined, offline or not on the site: only signing out and in again shows the overlay.
     /// </summary>
     NextSignIn,
     Enabled,

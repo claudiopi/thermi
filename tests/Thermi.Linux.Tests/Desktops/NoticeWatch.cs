@@ -136,9 +136,6 @@ internal sealed class NoticeWatch
     public Task NextUpdateCheckAsync(CancellationToken cancel) =>
         _watcher.Out.NextAsync(line => JsonNode.Parse(line)?["updates"] is not null, cancel);
 
-    /// <summary>How many times the Shell was asked to install an extension so far.</summary>
-    public int Installs => _watcher.Out.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Count(line => JsonNode.Parse(line)?["install"] is not null);
-
     /// <summary>How many notices with a button of <paramref name="action"/> were sent so far.</summary>
     public int Count(string action) => _watcher.Out.Text.Split('\n').Count(line => Of(line)?.Actions.Contains(action) == true);
 

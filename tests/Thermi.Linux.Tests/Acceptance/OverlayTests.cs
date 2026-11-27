@@ -280,18 +280,21 @@ public sealed class OverlayTests
         Assert.True(asked, thermi.Error.Text);
     }
 
-    // With no extension, thermi asks the Shell to install its own from extensions.gnome.org, which GNOME confirms itself.
-    // With its files in place that the running Shell has not read, as right after a package put them there, it asks
-    // nothing: its notice has no button, as only signing in again shows the overlay.
+    // With no extension, thermi asks the Shell to install its own from extensions.gnome.org, which GNOME confirms itself,
+    // and its notice offers to ask again. With its files in place that the running Shell has not read, as right after a
+    // package put them there, it asks the same; the Shell, offline, installs nothing, so its notice says to sign in again,
+    // with no button.
     private static async Task NoneIsInstalledFromTheStoreAsync(CancellationToken cancel)
     {
         await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], extension: null, cancel);
         var notices = await NoticeWatch.StartAsync(desktop, cancel);
         await desktop.WriteSettingsAsync(ThermiConfig.New, cancel);
         var asked = notices.NextInstallAsync(cancel);
+        var offered = notices.NextAsync(ExtensionArrival.InstallAction, cancel);
         var missing = await desktop.StartThermiAsync([], cancel);
         var uuid = (string)JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(TestShell.Thermi, "metadata.json"), cancel))!["uuid"]!;
         Assert.Equal(uuid, await asked);
+        await offered;
         missing.Kill();
         await missing.WaitForExitAsync(cancel);
 
@@ -301,11 +304,11 @@ public sealed class OverlayTests
             File.Copy(file, Path.Combine(placed, Path.GetFileName(file)));
         }
 
+        var again = notices.NextInstallAsync(cancel);
         var told = notices.NextAsync(notice => notice.Actions.Count == 0, cancel);
         await desktop.StartThermiAsync([], cancel);
+        Assert.Equal(uuid, await again);
         await told;
-        await notices.SyncAsync(cancel);
-        Assert.Equal(1, notices.Installs);
     }
 
     // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts; the tree is read once a menu shows.

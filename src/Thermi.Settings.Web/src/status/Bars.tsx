@@ -172,8 +172,8 @@ function ServiceBar({ data }: { data: WindowData }) {
 
 /**
  * The GNOME Shell extension's bar, while C# offers its fix: missing, to install behind GNOME's own prompt, or off, to
- * turn on; refused, it says so and offers it again. Installed but not read yet by the Shell, it says to sign in again,
- * with no button, as nothing here can do that. Once the Shell has it on, C# offers no fix and the bar goes.
+ * turn on; refused, it says so and offers it again. Installed but not read by the Shell, which did not install it from
+ * extensions.gnome.org, it says to sign in again, with no button, as nothing here can do that. Once the Shell has it on, C# offers no fix and the bar goes.
  */
 function ExtensionBar({ fix }: { fix: ExtensionState | null }) {
   const t = useText();
@@ -192,15 +192,16 @@ function ExtensionBar({ fix }: { fix: ExtensionState | null }) {
     'next-sign-in': ['WindowText.ExtensionNextSignIn', 'WindowText.ExtensionNextSignInMore', null],
   } as const;
   const [title, message, button] = words[fix];
+  const failed = refused && button !== null;
   return (
     <InfoBar
-      intent={refused ? 'error' : 'warning'}
-      title={t(refused ? 'WindowText.ExtensionRefused' : title)}
+      intent={failed ? 'error' : 'warning'}
+      title={t(failed ? 'WindowText.ExtensionRefused' : title)}
       message={t(message)}
       actions={
         button === null ? undefined : (
-          <Button ref={refused ? focusOnMount : null} onClick={() => void install()}>
-            {t(refused ? 'WindowText.TryAgain' : button)}
+          <Button ref={failed ? focusOnMount : null} onClick={() => void install()}>
+            {t(failed ? 'WindowText.TryAgain' : button)}
           </Button>
         )
       }

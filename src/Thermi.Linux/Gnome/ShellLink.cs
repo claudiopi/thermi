@@ -41,10 +41,10 @@ internal enum ExtensionState
     Missing,
 
     /// <summary>
-    /// Its files are where the Shell looks, as a package or GNOME's Extensions app put them, but the running Shell has not
-    /// read them: it reads them at the next sign-in.
+    /// Its files are where the Shell looks, as a package put them, but the running Shell has not read them: it reads them at
+    /// the next sign-in, unless it installs the extension from extensions.gnome.org first.
     /// </summary>
-    NextSignIn,
+    Unread,
     Off,
 
     /// <summary>Installed and on, but not up yet, as while the Shell starts: its Ready signal says when.</summary>
@@ -180,7 +180,7 @@ internal sealed class ShellLink : IDisposable
 
         if (info.NChildren() == 0)
         {
-            return OnDisk() ? ExtensionState.NextSignIn : ExtensionState.Missing;
+            return OnDisk() ? ExtensionState.Unread : ExtensionState.Missing;
         }
 
         return info.LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is 1 or 6 or 8 ? ExtensionState.Starting : ExtensionState.Off;
