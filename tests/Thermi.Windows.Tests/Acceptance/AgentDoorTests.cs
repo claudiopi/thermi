@@ -62,8 +62,8 @@ public sealed class AgentDoorTests : IDisposable
         // JSON is read.
         Assert.Equal(2, (await DesktopProcess.RunAsync(Cli, ["elevated", "start-sensors"], TimeSpan.FromSeconds(60), _folder.Profile)).Code);
         var png = Path.Combine(folder, "preview.png");
-        var saved = await DesktopProcess.RunAsync(Cli, ["preview", TestRecordings.Path(TestRecordings.Admin), png], TimeSpan.FromSeconds(60), _folder.Profile);
-        Assert.Equal(0, saved.Code);
+        var (painted, _) = await DesktopProcess.RunAsync(Cli, ["preview", TestRecordings.Path(TestRecordings.Admin), png], TimeSpan.FromSeconds(60), _folder.Profile);
+        Assert.Equal(0, painted);
         using (var picture = new System.Drawing.Bitmap(png))
         {
             Assert.True(picture.Width > 0);
