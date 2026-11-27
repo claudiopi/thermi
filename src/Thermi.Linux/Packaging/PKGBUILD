@@ -4,8 +4,6 @@
 pkgbase=thermi-bin
 pkgname=(thermi-sensors-bin thermi-bin)
 pkgver=@VERSION@
-# The build's own version, which names its tarball and the folder in it, where pacman's version has no dash.
-_build=@BUILD@
 pkgrel=1
 pkgdesc="A light, always-on-top hardware monitor"
 arch=(x86_64 aarch64)
@@ -13,8 +11,8 @@ url="https://github.com/claudiopi/thermi"
 license=(MIT)
 # Self-contained .NET: nothing to strip, and its own debug files are none.
 options=(!strip !debug)
-source_x86_64=("thermi-${_build}-linux-x64.tar.gz::@TARBALLS@thermi-${_build}-linux-x64.tar.gz")
-source_aarch64=("thermi-${_build}-linux-arm64.tar.gz::@TARBALLS@thermi-${_build}-linux-arm64.tar.gz")
+source_x86_64=("thermi-${pkgver}-linux-x64.tar.gz::@TARBALLS@thermi-${pkgver}-linux-x64.tar.gz")
+source_aarch64=("thermi-${pkgver}-linux-arm64.tar.gz::@TARBALLS@thermi-${pkgver}-linux-arm64.tar.gz")
 sha256sums_x86_64=(@SHA256_X64@)
 sha256sums_aarch64=(@SHA256_ARM64@)
 
@@ -25,7 +23,7 @@ package_thermi-sensors-bin() {
     provides=(thermi-sensors)
     conflicts=(thermi-sensors)
     install=thermi-sensors-bin.install
-    cp -a "thermi-${_build}/thermi-sensors/." "${pkgdir}/"
+    cp -a "thermi-${pkgver}/thermi-sensors/." "${pkgdir}/"
     install -Dm644 "${pkgdir}/usr/share/doc/thermi-sensors/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 }
 
@@ -35,6 +33,6 @@ package_thermi-bin() {
     provides=(thermi)
     conflicts=(thermi)
     install=thermi-bin.install
-    cp -a "thermi-${_build}/thermi/." "${pkgdir}/"
+    cp -a "thermi-${pkgver}/thermi/." "${pkgdir}/"
     install -Dm644 "${pkgdir}/usr/share/doc/thermi/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 }

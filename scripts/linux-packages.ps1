@@ -8,12 +8,13 @@ Each processor's build is one dotnet publish of the service and one of thermi, s
 staged as the packages install it: thermi-sensors' tree, with thermi-cli and the service's units, user and rule from
 src/Thermi.Sensors.Linux/Packaging; thermi's, with the overlay's launcher, its user unit and launcher's entry from
 src/Thermi.Linux/Packaging, the icons of src/Thermi.Windows/thermi.ico and the GNOME Shell extension of src/Thermi.Gnome.
-The tarball, thermi-<version>-linux-<processor>.tar.gz, is both trees; nfpm (scripts/nfpm.ps1) packs each package from
-it with its nfpm.yaml, and signs the .rpm, which dnf checks (docs/adr/0019-linux.md).
+The tarball, thermi-<version>-linux-<processor>.tar.gz, is both trees and, in packaging/, each package's nfpm.yaml and
+scripts; nfpm (scripts/nfpm.ps1) packs each package from it with them, and signs the .rpm, which dnf checks
+(docs/adr/0019-linux.md). A rollback packs a tarball again with the packaging it holds, as that version shipped.
 
 .PARAMETER Version
 The build's version, as Directory.Build.props writes it; a beta's "-beta.<n>" packs as "~beta.<n>", which sorts before
-the release in apt, dnf and pacman alike.
+the release in apt and dnf. pacman has no such sort, and the AUR takes only releases, so a beta writes no PKGBUILD.
 
 .PARAMETER PackageVersion
 The packages' version when it is not the build's, as a rollback's, which offers the build before under a higher number.
@@ -65,6 +66,8 @@ $nfpm = Get-Nfpm
 $processors = [ordered]@{ 'x64' = 'amd64'; 'arm64' = 'arm64' }
 $stages = Join-Path $root 'artifacts' 'linux-build' $PackageVersion
 
+$packages = @{ Name = 'thermi-sensors'; Project = 'Thermi.Sensors.Linux' }, @{ Name = 'thermi'; Project = 'Thermi.Linux' }
+
 # A file of the package with its text as Linux reads it, LF line endings, and its mode.
 function Write-Text([string]$Text, [string]$Path, [string]$Mode = '644') {
     New-Item -ItemType Directory -Force (Split-Path $Path) | Out-Null
@@ -76,7 +79,11 @@ function Copy-Text([string]$From, [string]$To, [string]$Mode = '644') { Write-Te
 
 function Publish-Build([string]$Rid, [string]$Lib) {
     foreach ($project in 'Thermi.Sensors.Linux', 'Thermi.Linux') {
-        dotnet publish (Join-Path $root 'src' $project) -c Release -r $Rid --self-contained -o $Lib -p:Version=$Version -p:DebugType=none --nologo -v quiet
+        # The packages' versions as the lock file holds them, as the Windows build's are.
+        dotnet restore (Join-Path $root 'src' $project) --locked-mode -p:SelfContained=true --nologo -v quiet
+        if ($LASTEXITCODE -ne 0) { throw "Restoring $project failed." }
+        dotnet publish (Join-Path $root 'src' $project) -c Release -r $Rid --self-contained --no-restore -o $Lib -p:Version=$Version -p:DebugType=none `
+            --nologo -v quiet
         if ($LASTEXITCODE -ne 0) { throw "Publishing $project for $Rid failed." }
     }
     # What a build leaves beside the programs, which runs nothing.
@@ -126,18 +133,21 @@ function New-Trees([string]$Rid, [string]$Files) {
         $doc = Join-Path $package 'usr' 'share' 'doc' (Split-Path $package -Leaf)
         foreach ($file in 'LICENSE', 'THIRD-PARTY-NOTICES.md') { Copy-Text (Join-Path $root $file) (Join-Path $doc $file) }
     }
+    foreach ($package in $packages) {
+        Get-ChildItem (Join-Path $root 'src' $package.Project 'Packaging') -File | Where-Object { $_.Name -eq 'nfpm.yaml' -or $_.Extension -eq '.sh' } |
+            ForEach-Object { Copy-Text $_.FullName (Join-Path $Files 'packaging' $package.Project $_.Name) }
+    }
     # The build host's umask, which a package does not keep.
     chmod -R u=rwX,go=rX $Files
 }
 
-$packages = @{ Name = 'thermi-sensors'; Project = 'Thermi.Sensors.Linux' }, @{ Name = 'thermi'; Project = 'Thermi.Linux' }
 
 function Get-Script([string]$Path) { (Get-Content $Path -Raw).Replace('@REPOSITORY@', "${UpdatesFrom}linux/").Replace('@CHANNEL@', $Channel) }
 
-function New-Inputs([string]$Stage) {
+function New-Inputs([string]$Stage, [string]$Files) {
     Write-Text (Get-PublicKey $Key) (Join-Path $Stage 'key' 'thermi.asc')
     foreach ($package in $packages) {
-        Get-ChildItem (Join-Path $root 'src' $package.Project 'Packaging') -Filter '*.sh' | ForEach-Object {
+        Get-ChildItem (Join-Path $Files 'packaging' $package.Project) -Filter '*.sh' | ForEach-Object {
             Write-Text (Get-Script $_.FullName) (Join-Path $Stage 'scripts' $package.Name $_.Name) '755'
         }
     }
@@ -146,7 +156,7 @@ function New-Inputs([string]$Stage) {
 function Invoke-Nfpm([string]$Stage, [string]$Files, [string]$Arch) {
     $tokens = @{ THERMI_VERSION = $PackageVersion; THERMI_ARCH = $Arch; THERMI_STAGE = $Stage; THERMI_FILES = $Files; THERMI_KEY = $Key }
     foreach ($package in $packages) {
-        $config = Get-Content (Join-Path $root 'src' $package.Project 'Packaging' 'nfpm.yaml') -Raw
+        $config = Get-Content (Join-Path $Files 'packaging' $package.Project 'nfpm.yaml') -Raw
         foreach ($token in $tokens.GetEnumerator()) { $config = $config.Replace("`${$($token.Key)}", $token.Value) }
         $yaml = Join-Path $Stage "$($package.Name).yaml"
         Write-Text $config $yaml
@@ -165,8 +175,8 @@ function Write-Aur([hashtable]$Tarballs) {
     $aur = Join-Path $Output 'aur'
     Remove-Item -Recurse -Force $aur -ErrorAction SilentlyContinue
     $packaging = Join-Path $root 'src' 'Thermi.Linux' 'Packaging'
-    $pkgbuild = (Get-Content (Join-Path $packaging 'PKGBUILD') -Raw).Replace('@VERSION@', $PackageVersion.Replace('~', '_')).
-        Replace('@BUILD@', $Version).Replace('@TARBALLS@', "${UpdatesFrom}linux/tarballs/$Version/").
+    $pkgbuild = (Get-Content (Join-Path $packaging 'PKGBUILD') -Raw).Replace('@VERSION@', $PackageVersion).
+        Replace('@TARBALLS@', "${UpdatesFrom}linux/tarballs/$Version/").
         Replace('@SHA256_X64@', (Get-FileHash $Tarballs['x64'] -Algorithm SHA256).Hash.ToLowerInvariant()).
         Replace('@SHA256_ARM64@', (Get-FileHash $Tarballs['arm64'] -Algorithm SHA256).Hash.ToLowerInvariant())
     Write-Text $pkgbuild (Join-Path $aur 'PKGBUILD')
@@ -215,9 +225,9 @@ foreach ($processor in $processors.GetEnumerator()) {
         tar --owner=0 --group=0 --numeric-owner -czf $tarballs[$processor.Key] -C $stage (Split-Path $files -Leaf)
         if ($LASTEXITCODE -ne 0) { throw "The tarball for $rid was not written." }
     }
-    New-Inputs $stage
+    New-Inputs $stage $files
     Invoke-Nfpm $stage $files $processor.Value
 }
-if (-not $From) { Write-Aur $tarballs }
+if (-not $From -and -not $Version.Contains('-')) { Write-Aur $tarballs }
 Remove-Item -Recurse -Force $stages
 Write-Host "Packed thermi $PackageVersion into $Output"
