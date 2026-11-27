@@ -75,7 +75,7 @@ internal sealed class ShellLink : IDisposable
     public const string Uuid = "thermi@claudiopi.github.io";
 
     /// <summary>The protocol's version, which the extension's metadata.json says as <c>thermi-protocol</c>.</summary>
-    public const uint Protocol = 2;
+    public const uint Protocol = 3;
 
     public const string Shell = "org.gnome.Shell";
     public const string Interface = "io.github.claudiopi.thermi.Shell";
@@ -246,6 +246,12 @@ internal sealed class ShellLink : IDisposable
             GLib.Variant.NewBoolean(row.Grayed),
             GLib.Variant.NewBoolean(row.Starts),
         ]))]));
+
+    /// <summary>
+    /// The Shell's token for a program thermi starts on a person's click at <paramref name="time"/>, the click's, or now for
+    /// 0, empty if it gave none: the window that program shows with it comes in front.
+    /// </summary>
+    public async Task<string> ActivationAsync(uint time) => (await Own("Activation", GLib.Variant.NewUint32(time))).GetChildValue(0).GetString(out _);
 
     public async Task<IReadOnlyList<ShellMonitor>> MonitorsAsync() => MonitorsOf((await Own("Monitors")).GetChildValue(0));
 
