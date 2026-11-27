@@ -21,10 +21,16 @@ env:
   TESTINGPLATFORM_TELEMETRY_OPTOUT: 1
 
 jobs:
-  core:
-    name: 🐛 Bug hunt · Thermi.Core and Thermi.Cli
+  # One run on a 4-core CI machine took longer than the 90 minutes a job had, so each job mutates a share of the files,
+  # balanced by what each cost the last night: the six took 10 to 32 minutes when split by size.
+  shares:
+    name: 🐛 Bug hunt · Thermi.Core and Thermi.Cli, share ${{ matrix.share }}
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        share: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,14 +38,43 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
+      # The gate saves each file's cost of the last run, to balance the shares.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: TestResults/bughunt-costs.json
+          key: bughunt-costs-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: bughunt-costs-
       # The script writes the job's summary itself.
-      - run: pwsh -NoProfile -File scripts/mutation.ps1
+      - env:
+          SHARE: ${{ matrix.share }}/${{ strategy.job-total }}
+        run: pwsh -NoProfile -File scripts/mutation.ps1 -Shard $env:SHARE --concurrency $env:NUMBER_OF_PROCESSORS
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: mutation-core
-          path: TestResults/mutation/**/reports
+          name: mutation-share-${{ matrix.share }}
+          path: TestResults/mutation
           if-no-files-found: ignore
+
+  core:
+    name: 🐛 Bug hunt · Thermi.Core and Thermi.Cli
+    needs: shares
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: mutation-share-*
+          path: TestResults/shares
+      # The script writes the job's summary itself.
+      - run: pwsh -NoProfile -File scripts/mutation.ps1 -Gate TestResults/shares
+      - if: always() && hashFiles('TestResults/bughunt-costs.json') != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: TestResults/bughunt-costs.json
+          key: bughunt-costs-${{ github.run_id }}-${{ github.run_attempt }}
       # Caught and missed, which CI's 📊 Stats dashboard reads from the last run.
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

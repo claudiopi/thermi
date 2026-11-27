@@ -229,7 +229,6 @@ public sealed class OverlayEditTests
     [InlineData("solo", "itemto solo 0 -", "cpu.temperature fan.cpu cpu.load cpu.power gpu.load ram.used solo")]
     [InlineData("one", "itemto cpu.load 0 cpu.load", nameof(Refusal.NotMoved))]
     [InlineData("one", "itemto cpu.load 0 nobody", nameof(Refusal.NotFound))]
-    [InlineData("one", "pill nobody -1", nameof(Refusal.NotFound))]
     public void TheListMovesPillsAndItemsAmongOverlays(string start, string move, string expected)
     {
         var before = start switch

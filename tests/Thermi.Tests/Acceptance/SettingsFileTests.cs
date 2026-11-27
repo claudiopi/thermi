@@ -278,7 +278,7 @@ public sealed class SettingsFileTests
     // Only the settings file carries what a later version added: a field no thermi knows in an edit's value, from the page
     // or an agent, or in a look file never reaches the file, and what the file had where the edit lands stays, unless a
     // look takes the style's place. Where the file has a later field, the value set there, and the later fields written.
-    [Theory]
+    [Theory] // Rows: each a place the fix keeps the file's later fields at, an assignment Stryker makes no mutant of
     [InlineData("overlays/0/style/colors", """{ "normal": "#112233", "later": "page" }""", "file")]
     [InlineData("overlays/0/style/label", """{ "size": 15, "weight": "bold", "later": "page" }""", "file")]
     [InlineData("overlays/0/style/opacity", """{ "background": 0.5, "overlay": 1, "later": "page" }""", "file")]
