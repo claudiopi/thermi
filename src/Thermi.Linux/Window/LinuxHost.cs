@@ -201,7 +201,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     /// </summary>
     public async Task<bool> InstallExtension()
     {
-        if (_link is null || _extension is not { } fix)
+        // Read by the Shell only at the next sign-in, the extension is the person's to apply.
+        if (_link is null || _extension is not { } fix || fix == ExtensionState.NextSignIn)
         {
             return false;
         }
@@ -212,7 +213,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
             {
                 ExtensionState.Missing => _link.InstallAsync(),
                 ExtensionState.Disabled => _link.EnableAsync(),
-                ExtensionState.OtherVersion or ExtensionState.Enabled => _link.CheckForUpdatesAsync(),
+                ExtensionState.OtherVersion or ExtensionState.Enabled or ExtensionState.NextSignIn => _link.CheckForUpdatesAsync(),
                 _ => _link.CheckForUpdatesAsync(),
             });
         }
@@ -300,6 +301,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         : _link.State() switch
         {
             Gnome.ExtensionState.Missing => ExtensionState.Missing,
+            Gnome.ExtensionState.NextSignIn => ExtensionState.NextSignIn,
             Gnome.ExtensionState.Off => ExtensionState.Disabled,
             Gnome.ExtensionState.OtherVersion => ExtensionState.OtherVersion,
             Gnome.ExtensionState.Ours or Gnome.ExtensionState.Starting => ExtensionState.Enabled,

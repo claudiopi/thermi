@@ -7,9 +7,9 @@ namespace Thermi.Linux.Gnome;
 
 /// <summary>
 /// Whether the overlays may show through the Shell's extension, and what thermi does while not: missing, it asks GNOME to
-/// install it, which GNOME asks the person; missing, off or of another protocol, nothing shows, and one notice of the
-/// desktop's says why, once a run, with a button that asks GNOME again. Once the extension runs thermi's protocol, as its
-/// Ready says, the overlays show.
+/// install it, which GNOME asks the person; missing, off, of another protocol or not read yet by the Shell, nothing shows,
+/// and one notice of the desktop's says why, once a run, with a button that asks GNOME again where GNOME can fix it. Once
+/// the extension runs thermi's protocol, as its Ready says, the overlays show.
 /// </summary>
 internal sealed class ExtensionArrival
 {
@@ -90,6 +90,7 @@ internal sealed class ExtensionArrival
         {
             ExtensionState.Missing => (HostText.GnomeExtensionMissing, ((string, HostText)?)(InstallAction, HostText.GnomeExtensionInstall)),
             ExtensionState.OtherVersion => (HostText.GnomeExtensionOtherVersion, (UpdateAction, HostText.GnomeExtensionUpdate)),
+            ExtensionState.NextSignIn => (HostText.GnomeExtensionNextSignIn, null),
             ExtensionState.Off or ExtensionState.Ours or ExtensionState.Starting => (HostText.GnomeExtensionOff, null),
             _ => (HostText.GnomeExtensionOff, null),
         };

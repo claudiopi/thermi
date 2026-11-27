@@ -66,7 +66,10 @@ public enum WindowText
     ServiceStoppedMore,
     StartIt,
 
-    /// <summary>The GNOME Shell extension's bar, while it is missing, off or of another version, and when GNOME did not fix it.</summary>
+    /// <summary>
+    /// The GNOME Shell extension's bar, while it is missing, off, of another version or not read yet by the Shell, and when
+    /// GNOME did not fix it.
+    /// </summary>
     ExtensionMissing,
     ExtensionMissingMore,
     InstallExtension,
@@ -75,6 +78,8 @@ public enum WindowText
     EnableExtension,
     ExtensionOtherVersion,
     ExtensionOtherVersionMore,
+    ExtensionNextSignIn,
+    ExtensionNextSignInMore,
     ExtensionRefused,
 
     /// <summary>The overlay's bar, once its Start started nothing.</summary>

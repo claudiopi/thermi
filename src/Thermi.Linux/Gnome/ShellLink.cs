@@ -39,6 +39,12 @@ internal enum ExtensionState
     Ours,
     OtherVersion,
     Missing,
+
+    /// <summary>
+    /// Its files are where the Shell looks, as a package or GNOME's Extensions app put them, but the running Shell has not
+    /// read them: it reads them at the next sign-in.
+    /// </summary>
+    NextSignIn,
     Off,
 
     /// <summary>Installed and on, but not up yet, as while the Shell starts: its Ready signal says when.</summary>
@@ -174,11 +180,16 @@ internal sealed class ShellLink : IDisposable
 
         if (info.NChildren() == 0)
         {
-            return ExtensionState.Missing;
+            return OnDisk() ? ExtensionState.NextSignIn : ExtensionState.Missing;
         }
 
         return info.LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is 1 or 6 or 8 ? ExtensionState.Starting : ExtensionState.Off;
     }
+
+    // Where the Shell looks for extensions as it starts, as it asks GLib: the person's data folder, then the system's.
+    private static bool OnDisk() =>
+        new[] { GLib.Functions.GetUserDataDir() }.Concat(GLib.Functions.GetSystemDataDirs())
+            .Any(folder => File.Exists(Path.Combine(folder, "gnome-shell", "extensions", Uuid, "metadata.json")));
 
     /// <summary>
     /// Asks the Shell to install the extension from extensions.gnome.org, which GNOME confirms with the person itself; the

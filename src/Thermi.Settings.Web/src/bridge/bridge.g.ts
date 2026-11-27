@@ -132,7 +132,7 @@ export type Edit =
   | { kind: 'resetLines'; item: string }
   | { kind: 'sensorName'; sensor: string; name: string };
 
-export type ExtensionState = 'missing' | 'disabled' | 'other-version' | 'enabled';
+export type ExtensionState = 'missing' | 'disabled' | 'other-version' | 'next-sign-in' | 'enabled';
 
 export type FanFinderRefusal = 'no-board-fans' | 'driver-may-be-missing';
 
