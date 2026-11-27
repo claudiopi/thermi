@@ -241,6 +241,9 @@
   <data name="CatalogText.Added" xml:space="preserve">
     <value>{0} agregado a {1}.</value>
   </data>
+  <data name="CatalogText.CatalogStopped" xml:space="preserve">
+    <value>Sensores detenidos: vuelven aquí cuando arranquen.</value>
+  </data>
   <data name="CatalogText.CatalogEmpty" xml:space="preserve">
     <value>El servicio de sensores todavía no lee ningún sensor.</value>
   </data>

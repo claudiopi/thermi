@@ -57,6 +57,7 @@ export interface CatalogView {
   count: number;
   hidden: number;
   suggestion: string | null;
+  stopped: boolean;
 }
 
 export type ChartEmpty = 'stopped' | 'driver' | 'none';

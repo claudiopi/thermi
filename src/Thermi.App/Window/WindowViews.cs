@@ -91,7 +91,8 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
             .Select(device => new CatalogGroup(device.Id, device.Name, device.Kind, [.. device.Sensors.Select(sensor => Row(sensor, format))], device.Marks))
             .ToList();
         var count = groups.Sum(group => group.Sensors.Count);
-        return new CatalogView(groups, count, hidden, count + hidden == 0 ? SensorCatalog.Suggest(devices, search, texts) : null);
+        var suggestion = count + hidden == 0 ? SensorCatalog.Suggest(devices, search, texts) : null;
+        return new CatalogView(groups, count, hidden, suggestion, sensors.State == ServiceState.Stopped);
     }
 
     /// <summary>Where each overlay shows on <paramref name="screens"/>, as its own window places it while the window is open.</summary>
