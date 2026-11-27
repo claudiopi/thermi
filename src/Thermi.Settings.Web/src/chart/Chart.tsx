@@ -5,7 +5,7 @@ import { Creature } from '../app/Creature';
 import { useMeasured } from '../app/measured';
 import { useText } from '../texts/Texts';
 import { ChartFoot } from './ChartFoot';
-import { chartHeight, knobColumn, knobTops, nearestLine, valueAt, type Plot } from './geometry';
+import { chartHeight, emptyBand, knobColumn, knobTops, nearestLine, valueAt, type Plot } from './geometry';
 import { Knob } from './Knob';
 import { useKeyMoves } from './useKeyMoves';
 import { PlotDrawing } from './PlotDrawing';
@@ -75,11 +75,12 @@ function useFocusHandOver(chart: ChartView): { focused: (target: string) => void
   };
 }
 
-/** Why there is no line: the mark asleep beside the reason, over the plot. */
-function EmptyNote({ why, width }: { why: ChartEmpty; width: number }) {
+/** Why there is no line: the mark asleep beside the reason, over the plot between its lines. */
+function EmptyNote({ why, plot }: { why: ChartEmpty; plot: Plot }) {
   const t = useText();
+  const band = emptyBand(plot);
   return (
-    <p className="t-chart-empty" style={{ width: `${width}px` }}>
+    <p className="t-chart-empty" style={{ width: `${plot.width}px`, top: `${band.top}px`, height: `${band.height}px` }}>
       <Creature state="calm" className="t-chart-empty-mark" />
       <span>{t(empties[why])}</span>
     </p>
@@ -213,7 +214,7 @@ export function Chart({ item, name, chart: given, edit, metered, options }: Char
             <span>{chart.fromText}</span>
           </div>
         ) : (
-          <EmptyNote why={chart.empty} width={plot.width} />
+          <EmptyNote why={chart.empty} plot={plot} />
         )}
         <div className="t-knobs">
           {lines.map((one) => {

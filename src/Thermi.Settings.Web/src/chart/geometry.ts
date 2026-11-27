@@ -149,6 +149,21 @@ export function knobTops(plot: Plot): Record<Line, number | null> {
   return { warning: middle + apart, critical: middle - apart };
 }
 
+/** Where a chart without readings says why: the widest band its lines leave, the higher of two alike, so no line crosses the words. */
+export function emptyBand(plot: Plot): { top: number; height: number } {
+  const lines = [plot.chart.warning, plot.chart.critical].flatMap((value) =>
+    value === null ? [] : [Math.min(plot.height, Math.max(0, yOf(plot, value)))],
+  );
+  const edges = [0, ...lines.sort((one, other) => one - other), plot.height];
+  return edges.slice(1).reduce(
+    (widest, bottom, index) => {
+      const top = edges[index] ?? 0;
+      return bottom - top > widest.height ? { top, height: bottom - top } : widest;
+    },
+    { top: 0, height: 0 },
+  );
+}
+
 /** The faint bands of the warning and critical zones, top down, where the chart's colors say a level past normal. */
 export function tintsOf(plot: Plot): { level: Exclude<Level, 'normal'>; top: number; height: number }[] {
   const { colors } = plot.chart;
