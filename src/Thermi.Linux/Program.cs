@@ -32,6 +32,7 @@ internal static class Program
         {
             BuiltInRequest builtIn => await builtIn.Parsed.InvokeAsync(),
             PreviewRequest preview => await Preview.RunAsync(preview, time),
+            SettingsRequest settings => await Window.WindowProcess.RunAsync(settings, args, new Window.QuietFeed(), time),
             _ => await NotHereAsync(),
         };
     }

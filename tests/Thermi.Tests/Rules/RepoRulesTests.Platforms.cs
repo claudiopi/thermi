@@ -36,6 +36,8 @@ public sealed partial class RepoRulesTests
     private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal)
     {
         ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
+        ["Thermi.Linux/Window/WindowPainter.cs"] = "the window's previews painted by Linux's Cairo painter, as Windows' Painter paints them with GDI+",
+        ["Thermi.Linux/Window/QuietFeed.cs"] = "what the window reads where the service's socket is not read: no reading, as a stopped service",
     };
 
     // The libraries a Linux project calls by hand, and why: GirCore generates the rest from GObject's introspection data

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=thermi
+GenericName=Hardware monitor
+Comment=Set up thermi's overlay: CPU, GPU, RAM, fans and voltages, always on top
+Exec=thermi settings
+Icon=io.github.claudiopi.thermi
+Terminal=false
+Categories=System;Monitor;
+Keywords=temperature;fan;cpu;gpu;sensors;overlay;
+StartupNotify=true
+DBusActivatable=false

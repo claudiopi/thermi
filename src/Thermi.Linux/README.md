@@ -8,4 +8,6 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | --- | --- |
 | `Commands` | `thermi`'s commands on Linux beside the shared ones, as `thermi preview`. |
 | `Desktop` | What the overlay reads from the desktop and the machine: high contrast, the panels, the CPU's base clock. |
+| `Packaging` | What the packages install beside thermi for the desktop: the app launcher's entry. |
 | `Painting` | The overlay painted with Cairo and Pango, from Core's look, layout and shapes, as Windows' GDI+ painter does. |
+| `Window` | `thermi settings`: one GTK 4 window per session with the page in WebKitGTK, served from the install's `web` folder, and the bridge's host on Linux: the portal's look, the GNOME extension's and the service's fixes behind the desktop's prompts, and the overlay's user unit. |

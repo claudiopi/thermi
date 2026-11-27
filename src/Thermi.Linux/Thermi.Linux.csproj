@@ -7,6 +7,8 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>thermi</AssemblyName>
     <RootNamespace>Thermi.Linux</RootNamespace>
+    <!-- The settings window's page, beside thermi as web/, which WebKitGTK is served from. -->
+    <SettingsWebFiles>true</SettingsWebFiles>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,7 +17,9 @@
 
   <ItemGroup>
     <PackageReference Include="GirCore.Gdk-4.0" />
+    <PackageReference Include="GirCore.Gtk-4.0" />
     <PackageReference Include="GirCore.PangoCairo-1.0" />
+    <PackageReference Include="GirCore.WebKit-6.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,5 +27,12 @@
     <ProjectReference Include="..\Thermi.Cli\Thermi.Cli.csproj" />
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- What the desktop's launcher shows, which block B7's packages install. -->
+    <None Include="Packaging\**" />
+  </ItemGroup>
+
+  <Import Project="..\SettingsPage.targets" />
 
 </Project>
