@@ -2,6 +2,7 @@ using System.Globalization;
 using Thermi.Core.Look;
 using Thermi.Core.Painting;
 using Thermi.Core.Settings;
+using Thermi.Core.Tray;
 
 namespace Thermi.Tests.Acceptance;
 
@@ -95,6 +96,29 @@ public sealed class PaintedShapesTests
 
     private static string Shown(PillBox box) =>
         string.Create(CultureInfo.InvariantCulture, $"{box.Left:0.#},{box.Top:0.#},{box.Width:0.#},{box.Height:0.#}");
+
+    // thermi's mark at a tray icon's side in pixels, as every painter fills its cells: the body's cells, its eyes', its
+    // leftmost and rightmost colors, or - for the ink of a mark with none; past 31 px it is drawn, with no cells.
+    [Theory] // Rows: each eye at each hand-placed size, a three-color gradient, a mark of the ink alone, and one drawn
+    [InlineData(16, MarkState.Calm, "16: 92 body, 4 eyes, #405BFF to #824EFF")]
+    [InlineData(24, MarkState.Hot, "24: 180 body, 32 eyes, #FF761B to #FF422D")]
+    [InlineData(20, MarkState.App, "16: 88 body, 8 eyes, #415AFF to #E26F53")]
+    [InlineData(28, MarkState.Stopped, "24: 188 body, 0 eyes, - to -")]
+    [InlineData(32, MarkState.Warm, "drawn")]
+    public void TheMarkIsHandPlacedAtATrayIconsSizes(int side, MarkState state, string expected)
+    {
+        var look = MarkLook.Of(state);
+        var said = MarkPixels.For(side) is not { } pixels ? "drawn" : Said(pixels, [.. pixels.Body(look)]);
+
+        Assert.Equal(expected, said);
+
+        static string Said(MarkPixels pixels, List<MarkCell> cells)
+        {
+            var body = cells.Where(cell => cell.Color != MarkLook.EyeInk).OrderBy(cell => cell.X).ToList();
+            var (left, right) = (body[0].Color?.ToString() ?? "-", body[^1].Color?.ToString() ?? "-");
+            return string.Create(CultureInfo.InvariantCulture, $"{pixels.Size}: {body.Count} body, {cells.Count - body.Count} eyes, {left} to {right}");
+        }
+    }
 
     // A click passes through a rounded pill's corners, where nothing is drawn: it takes clicks in bands inside its curve.
     [Theory] // Rows: square, round, and too narrow for its round ends' bands
