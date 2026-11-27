@@ -82,6 +82,17 @@ test.describe('TheWindowFollowsTheLinuxDesktop', () => {
       await page.getByRole('button', { name: text('WindowText.Maximize') }).click();
       await expect(page.getByRole('button', { name: text('WindowText.RestoreDown') })).toBeVisible();
       await expect(page.getByRole('button', { name: text('WindowText.Minimize') })).toBeVisible();
+      // A press on the title row let go below it moves nothing, nor does a drag that comes into the row from below; one held
+      // in the row moves the window once.
+      const row = (await page.locator('header').first().boundingBox())!;
+      const [x, y] = [row.x + row.width / 2, row.y + row.height - 2];
+      for (const [from, to] of [[y, y + 6], [y + 60, y - 10], [y - 10, y - 30]] as const) {
+        await page.mouse.move(x, from);
+        await page.mouse.down();
+        await page.mouse.move(x, to, { steps: 4 });
+        await page.mouse.up();
+      }
+      expect((await fakeOf(page)).moves).toBe(1);
       await page.keyboard.press('Control+Comma');
       await expect(page.getByRole('switch', { name: text('UiText.StartAtSignIn') })).toBeVisible();
       await expect(page.getByRole('button', { name: text('WindowText.InstallDriver') })).toHaveCount(0);

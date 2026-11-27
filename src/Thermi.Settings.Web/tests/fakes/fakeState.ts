@@ -97,6 +97,7 @@ function startOf(change: Partial<FakeState>): FakeState {
     accent: null,
     contrast: false,
     maximized: false,
+    moves: 0,
     bar: 'taskbar',
     extension: null,
     extensionAnswer: 'accepted',

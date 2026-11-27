@@ -194,8 +194,9 @@ function installFake(initial: FakeState): void {
       changed();
       return true;
     },
-    // The window's own state, which only the maximize button changes in a page.
+    // The window's own state, which only the maximize button changes in a page; a move is only counted.
     caption: async (action) => {
+      state.moves += action === 'move' ? 1 : 0;
       if (action === 'maximize') {
         state.maximized = !state.maximized;
         changed();

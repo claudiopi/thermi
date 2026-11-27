@@ -70,6 +70,8 @@ export interface FakeState {
   bar: string;
   /** Whether the window is maximized, which the caption the page draws on Linux says. */
   maximized: boolean;
+  /** How many times the page asked the window to move from its title row. */
+  moves: number;
   /** Whether the desktop is in high contrast, as Linux's settings portal says. */
   contrast: boolean;
   /** Where thermi's GNOME Shell extension is in a GNOME session, as C# names it, or null for none. */

@@ -1,4 +1,4 @@
-import { useRef, type MouseEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, type MouseEvent, type PointerEvent } from 'react';
 import type { CaptionAction, WindowCaption } from '../bridge/bridge.g';
 import { bridge } from '../bridge/useWindow';
 import { Icon } from '../kit';
@@ -20,6 +20,20 @@ export function useCaptionRow(caption: WindowCaption | null) {
   // held move right after one with no button down in the row is that press.
   const moved = useRef(false);
   const up = useRef(false);
+  const drawn = caption !== null;
+  // A press is let go wherever the pointer is, and one let go outside the row would move the window under a later drag
+  // that comes into the row from elsewhere, as a slider's.
+  useEffect(() => {
+    if (!drawn) {
+      return undefined;
+    }
+    const ended = (): void => {
+      moved.current = false;
+      pressed.current = null;
+    };
+    window.addEventListener('pointerup', ended);
+    return () => window.removeEventListener('pointerup', ended);
+  }, [drawn]);
   if (caption === null) {
     return {};
   }
@@ -41,10 +55,6 @@ export function useCaptionRow(caption: WindowCaption | null) {
         moved.current = true;
         ask('move');
       }
-    },
-    onPointerUp: () => {
-      moved.current = false;
-      pressed.current = null;
     },
     // A press held down from elsewhere into the row moves nothing.
     onPointerLeave: () => {
