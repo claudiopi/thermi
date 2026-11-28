@@ -263,7 +263,8 @@ public sealed partial class OverlayTests
         await Traced.NextAsync(units.Trace, Traced.Paint, cancel);
         var shownFirst = await desktop.ScreenshotAsync(cancel);
         var pill = config.Overlays[0].Items[0].Id;
-        var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false) { CanCopy = false }, pill);
+        // The overlay shows the feed's readings, so its menu offers Copy as image, as Windows' does on a painted overlay.
+        var rows = Menus.OfOverlay(config, 0, new MenuState(false, false, ServiceState.Running, null, [], false), pill);
 
         Assert.Equal((shows, rows.Count), await OpenMenuAsync(desktop, cancel));
         // Open, the menu takes the keys, and Esc closes it, as a click outside it does.
