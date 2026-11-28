@@ -8,12 +8,15 @@ namespace Thermi.Linux.LayerShell;
 
 /// <summary>
 /// KDE Plasma's panels along the top or the bottom of a monitor, as GNOME's extension tells its top bar's boxes: the start,
-/// the launcher and what sits before the task manager, and the end, the tray, the clock and what follows them, which no
-/// overlay covers. Plasma tells a program none of it on Wayland or on its panel's surface; plasmashell's scripting does
-/// (<c>org.kde.PlasmaShell.evaluateScript</c>), each widget's place on its panel, which spans its monitor where it fills
-/// it, as by default. A panel that does not fill its monitor is left out, and its overlay keeps Core's reserve. The tray
-/// grows as programs come, thermi first, so the panels are read as the monitors change, once thermi's icons are in, and
-/// once a minute.
+/// the launcher and what sits before the task manager; the centre, the task manager, whose buttons fill it from its start;
+/// and the end, the tray, the clock and what follows them. No overlay covers the start or the end, and one with no room
+/// beside the task manager, as on the default panel, where it fills what the others leave, sits beside the tray, as
+/// Windows' sits beside the notification area, so none covers the task manager's buttons. Plasma tells a program none of
+/// it on Wayland or on its panel's surface; plasmashell's scripting does (<c>org.kde.PlasmaShell.evaluateScript</c>), each
+/// widget's place on its panel, which spans its monitor where it fills it, as by default. A panel that does not fill its
+/// monitor is left out, and one with no tray tells no end: an overlay there keeps Core's reserve. The tray grows as
+/// programs come, thermi first, so the panels are read as the monitors change, once thermi's icons are in, and once a
+/// minute.
 /// </summary>
 internal sealed class PlasmaPanels : IDisposable
 {
@@ -58,18 +61,21 @@ internal sealed class PlasmaPanels : IDisposable
     /// <summary>Called on the main loop each time a reading finds the panels changed.</summary>
     public Action Changed { get; set; } = () => { };
 
+    /// <summary>The monitor with the boxes of the panels last read on it, as <see cref="Boxed(ShellMonitor, IReadOnlyList{PlasmaPanel})"/>.</summary>
+    public ShellMonitor Boxed(ShellMonitor monitor) => Boxed(monitor, _panels);
+
     /// <summary>
-    /// A monitor with the start and the end of Plasma's panel on it, as the stage has them: the panel along the edge whose
-    /// room is the deeper, the top one where both keep as much, which the overlays take for the taskbar. As it was where
-    /// that edge keeps no room or has no such panel.
+    /// A monitor with the start, the centre and the end of Plasma's panel on it of <paramref name="panels"/>, as the stage
+    /// has them: the panel along the edge whose room is the deeper, the top one where both keep as much, which the overlays
+    /// take for the taskbar. As it was where that edge keeps no room or has no such panel.
     /// </summary>
-    public ShellMonitor Boxed(ShellMonitor monitor)
+    public static ShellMonitor Boxed(ShellMonitor monitor, IReadOnlyList<PlasmaPanel> panels)
     {
         var room = monitor.Room ?? new PanelRoom(0, monitor.Bar, 0, 0);
         var bottom = room.Bottom > room.Top;
         var place = ((int)Math.Round(monitor.X), (int)Math.Round(monitor.Y), (int)Math.Round(monitor.Width), (int)Math.Round(monitor.Height));
-        return Math.Max(room.Top, room.Bottom) > 0 && _panels.FirstOrDefault(panel => panel.Place == place && panel.Bottom == bottom) is { } on
-            ? monitor with { Start = on.Start, End = on.End }
+        return Math.Max(room.Top, room.Bottom) > 0 && panels.FirstOrDefault(panel => panel.Place == place && panel.Bottom == bottom) is { } on
+            ? monitor with { Start = on.Start, Centre = on.Centre, End = on.End }
             : monitor;
     }
 
@@ -118,9 +124,9 @@ internal sealed class PlasmaPanels : IDisposable
     }
 
     /// <summary>
-    /// The panels as the script prints them: on each, the start ends where the task manager begins, and the end begins
-    /// where it ends, each from the first widget that takes room to the last; with no task manager, the end is the tray's
-    /// and what follows it. Nothing for what is not the script's JSON, as plasmashell's error.
+    /// The panels as the script prints them: on each, the start is what lies before the task manager, or before the tray
+    /// with none, the centre the task manager, and the end the tray and what follows it, each from the first widget that
+    /// takes room to the last. Nothing for what is not the script's JSON, as plasmashell's error.
     /// </summary>
     public static IReadOnlyList<PlasmaPanel> Parse(string printed)
     {
@@ -154,21 +160,27 @@ internal sealed class PlasmaPanels : IDisposable
             .Where(widget => widget.Width > 1)
             .ToList();
         var tasks = widgets.FindIndex(widget => widget.Type is "org.kde.plasma.icontasks" or "org.kde.plasma.taskmanager");
-        var start = tasks >= 0 ? widgets[..tasks] : [];
-        var end = tasks >= 0 ? widgets[(tasks + 1)..] : [.. widgets.SkipWhile(widget => widget.Type != "org.kde.plasma.systemtray")];
+        var tray = widgets.FindIndex(widget => widget.Type == "org.kde.plasma.systemtray");
+        var start = widgets[..Math.Max(0, tasks >= 0 ? tasks : tray)];
+        List<(string Type, double Left, double Width)> centre = tasks >= 0 ? [widgets[tasks]] : [];
+        var end = tray >= 0 ? widgets[tray..] : [];
         static (double, double) Span(List<(string Type, double Left, double Width)> part)
         {
             return part.Count == 0 ? (0, 0) : (part.Min(widget => widget.Left), part.Max(widget => widget.Left + widget.Width));
         }
 
         var bottom = panel.GetProperty("location").GetString() == "bottom";
-        return new PlasmaPanel((x, Of("y"), Of("width"), Of("height")), bottom, Span(start), Span(end));
+        return new PlasmaPanel((x, Of("y"), Of("width"), Of("height")), bottom, Span(start), Span(centre), Span(end));
     }
 }
 
 /// <summary>
-/// A Plasma panel's monitor, by its place on the stage, whether it is along its bottom, and its start and end along it,
-/// (0, 0) for none.
+/// A Plasma panel's monitor, by its place on the stage, whether it is along its bottom, and its start, centre and end
+/// along it, (0, 0) for none.
 /// </summary>
 internal sealed record PlasmaPanel(
-    (int X, int Y, int Width, int Height) Place, bool Bottom, (double Left, double Right) Start, (double Left, double Right) End);
+    (int X, int Y, int Width, int Height) Place,
+    bool Bottom,
+    (double Left, double Right) Start,
+    (double Left, double Right) Centre,
+    (double Left, double Right) End);

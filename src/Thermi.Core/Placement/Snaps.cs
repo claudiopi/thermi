@@ -232,7 +232,8 @@ public static class Snaps
         return mark ?? new SnapConfig(SnapSpot.Taskbar, screen.Primary ? null : screen.Id) { Offset = offset };
     }
 
-    // Over a part of the taskbar no overlay covers, it goes beside that part, on the side nearer its middle where it fits.
+    // Over a part of the taskbar no overlay covers, it goes beside that part, on the side nearer its middle where it fits;
+    // where it fits on neither, as beside a task manager that fills what the others leave, beside the notification area.
     private static int Beside(Screen screen, PixelRect bar, int left, int width)
     {
         foreach (var kept in new[] { screen.Start, screen.Centre, screen.End }.OfType<PixelRect>().ToList())
@@ -240,7 +241,9 @@ public static class Snaps
             if (left < kept.Right && left + width > kept.Left)
             {
                 var (before, after) = (kept.Left - Scaled(Margin, screen) - width, kept.Right + Scaled(Margin, screen));
-                left = ((left * 2) + width < kept.Left + kept.Right && before >= bar.Left) || after + width > bar.Right ? before : after;
+                left = before < bar.Left && after + width > bar.Right ? RightEnd(screen, bar) - width
+                    : ((left * 2) + width < kept.Left + kept.Right && before >= bar.Left) || after + width > bar.Right ? before
+                    : after;
             }
         }
 

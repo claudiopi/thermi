@@ -33,6 +33,17 @@ public sealed class TaskbarDropTests
         Centre = new PixelRect(3420, 0, 3620, 40),
     };
 
+    // A third monitor at its right, 1638 × 800, with KDE Plasma's default panel along its bottom, 54 px: the launcher, the
+    // task manager filling what the others leave, from 4538 to 5718, and the tray and the clock from 5727.
+    private static readonly Screen Plasma = new("plasma", false, new PixelRect(4480, 0, 6118, 800), new PixelRect(4480, 0, 6118, 746), 1)
+    {
+        Taskbar = new PixelRect(4480, 746, 6118, 800),
+        Tray = new PixelRect(5727, 746, 6110, 800),
+        Start = new PixelRect(4488, 746, 4534, 800),
+        Centre = new PixelRect(4538, 746, 5718, 800),
+        End = new PixelRect(5727, 746, 6110, 800),
+    };
+
     // The QA PC with a 96 px taskbar, on which an overlay shows at its size up to 250 %, so a row's widths are what its size asks for.
     private static readonly Screen Tall = Pc with
     {
@@ -43,7 +54,7 @@ public sealed class TaskbarDropTests
 
     // An overlay 550 × 38 dragged and dropped with its top-left corner at `drop`, with Alt held, or vertical, when it says
     // so. Where it lands: its snap and where it shows, or "free" where it is kept.
-    [Theory] // Rows: a mark's or an edge's reach at 96 and 97 px, each corner and taskbar, Alt on the taskbar, near a corner and off both, the top bar's start
+    [Theory] // Rows: a mark's or an edge's reach at 96 and 97 px, each corner and taskbar, Alt on it, near a corner and off both, the top bar's, Plasma's start
     // On the taskbar, anywhere along it, over the app buttons or the notification area too, kept whole on it.
     [InlineData("300,1420", "Taskbar 300,1397")]
     [InlineData("2200,1397", "Taskbar 2010,1397")]
@@ -71,18 +82,22 @@ public sealed class TaskbarDropTests
     [InlineData("3300,136", "Taskbar 3628,1")]
     [InlineData("2600,1", "Taskbar 2668,1")]
     [InlineData("vertical 1200,1397", "free 1200,1354")]
+    // On Plasma's panel, past its launcher, there is no room beside the task manager: it sits beside the tray, as by
+    // default, never over the task manager's buttons (block 4's final pass on Plasma 6.6, 2026-11-28).
+    [InlineData("4540,754", "Taskbar 5169,754")]
     public void ADropLandsWhereItIsLetGoOrOnAMarkInReach(string drop, string lands)
     {
         var words = drop.Split(' ');
         var at = words[^1].Split(',').Select(each => int.Parse(each, CultureInfo.InvariantCulture)).ToArray();
         var dropped = new Position(at[0], at[1]);
         var orientation = words[0] == "vertical" ? Orientation.Vertical : Orientation.Horizontal;
+        Screen[] screens = [Pc, Side, Plasma];
 
-        var snap = Snaps.Near([Pc, Side], orientation, Width, Height, dropped, magnets: words[0] != "alt");
+        var snap = Snaps.Near(screens, orientation, Width, Height, dropped, magnets: words[0] != "alt");
 
         var landed = snap is null
-            ? Snaps.Inside(dropped, [Pc, Side], Width, Height)
-            : Snaps.Locate(new OverlayConfig { Snap = snap }, [Pc, Side], Width, Height)!;
+            ? Snaps.Inside(dropped, screens, Width, Height)
+            : Snaps.Locate(new OverlayConfig { Snap = snap }, screens, Width, Height)!;
         Assert.Equal(lands, string.Create(CultureInfo.InvariantCulture, $"{snap?.Spot.ToString() ?? "free"} {landed.X},{landed.Y}"));
     }
 
