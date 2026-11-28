@@ -140,9 +140,9 @@ public sealed partial class DesktopTests
         await ClosedAsync(mac, opened[0], cancel);
     }
 
-    // The window's process, the one thermi's of the session that is not the overlay's: there is one window, or none.
+    // The window's process, the one thermi's of the session that is not the overlay's, of which there is one.
     private static async Task<int> WindowAsync(TestMac mac, SessionProcess thermi, CancellationToken cancel) =>
-        Assert.Single((await ThermisAsync(mac, cancel)).Where(pid => pid != thermi.Id));
+        Assert.Single(await ThermisAsync(mac, cancel), pid => pid != thermi.Id);
 
     // Esc closes the window in front, whose process ends.
     private static async Task ClosedAsync(TestMac mac, int window, CancellationToken cancel)
