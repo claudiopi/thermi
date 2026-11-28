@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Thermi.Core.Agents;
+using Thermi.Core.Bridge;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 
@@ -53,7 +54,7 @@ internal interface IAgentEnvironment
     bool HeldElsewhere(IOException error);
 
     /// <summary>The OS this runs on, which says whether the frames of the game in front are read and which fixes a person reads.</summary>
-    AgentOs Os => AgentOs.Windows;
+    HostOs Os => HostOs.Windows;
 
     /// <summary>Whether this desktop can show an overlay at all, which every Windows desktop can.</summary>
     bool OverlayCanShow() => true;

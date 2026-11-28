@@ -5,9 +5,12 @@ using Thermi.Core.Translations;
 
 namespace Thermi.Core.Bridge;
 
+/// <summary>The OS thermi runs on, whose fixes a person follows, in the window and in an agent's answers alike.</summary>
 public enum HostOs
 {
     Windows,
+
+    /// <summary>Where thermi reads no game's frames, and systemd keeps the service.</summary>
     Linux,
 }
 

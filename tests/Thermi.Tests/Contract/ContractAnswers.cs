@@ -1,4 +1,5 @@
 using Thermi.Core.Agents;
+using Thermi.Core.Bridge;
 using Thermi.Core.Editing;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -25,7 +26,7 @@ internal static class ContractAnswers
             var running = new AgentFacts(ServiceState.Running, Installed: true, Taken: false, snapshot, ConfigProblem.Missing);
             yield return ("status", AgentJson.Write(AgentStatus.Of(running)));
             yield return ("status", AgentJson.Write(AgentStatus.Of(running with { Settings = ConfigProblem.Locked("locked"), SensorsOnly = true })));
-            yield return ("status", AgentJson.Write(AgentStatus.Of(running with { Os = AgentOs.Linux, OverlayCanShow = false })));
+            yield return ("status", AgentJson.Write(AgentStatus.Of(running with { Os = HostOs.Linux, OverlayCanShow = false })));
         }
 
         foreach (var series in new[] { TestRecordings.CpuLoad, TestRecordings.IntelCpuLoad }.Select(TestFiles.Series))
@@ -48,7 +49,7 @@ internal static class ContractAnswers
                 SensorsOnly = sensorsOnly,
             };
             yield return ("status", AgentJson.Write(AgentStatus.Of(facts)));
-            yield return ("status", AgentJson.Write(AgentStatus.Of(facts with { Os = AgentOs.Linux })));
+            yield return ("status", AgentJson.Write(AgentStatus.Of(facts with { Os = HostOs.Linux })));
         }
 
         var perUser = new AgentFacts(ServiceState.Stopped, Installed: false, Taken: false, Latest: null, ConfigProblem.Missing) { PerUser = true };

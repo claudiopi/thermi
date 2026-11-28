@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;
 using Thermi.Core.Agents;
+using Thermi.Core.Bridge;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -119,7 +120,7 @@ internal sealed class AgentRig : IDisposable
 
     public bool Raised { get; set; }
 
-    public AgentOs Os { get; set; }
+    public HostOs Os { get; set; }
 
     public bool OverlayCanShow { get; set; } = true;
 
@@ -207,7 +208,7 @@ internal sealed class AgentRig : IDisposable
 
         public bool Raised() => rig.Raised;
 
-        public AgentOs Os => rig.Os;
+        public HostOs Os => rig.Os;
 
         public bool OverlayCanShow() => rig.OverlayCanShow;
 

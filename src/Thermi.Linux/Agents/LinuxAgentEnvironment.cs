@@ -81,7 +81,7 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public bool HeldElsewhere(IOException error) => error.HResult == WouldBlock;
 
-    public AgentOs Os => AgentOs.Linux;
+    public Core.Bridge.HostOs Os => Core.Bridge.HostOs.Linux;
 
     // The running overlay says whether its surfaces show. With none, one that ran here and found none, as on Weston, says
     // no; GNOME shows it only through thermi's extension, on; whether another desktop can, through layer-shell or X11, only

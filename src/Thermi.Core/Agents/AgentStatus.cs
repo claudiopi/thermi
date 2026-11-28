@@ -1,3 +1,4 @@
+using Thermi.Core.Bridge;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -33,15 +34,6 @@ public enum AgentProblem
 
     /// <summary>No overlay runs to tell the monitors, which on Linux only the overlay measures, as <c>monitors</c> says.</summary>
     OverlayNotRunning,
-}
-
-/// <summary>The OS an agent's command runs on, whose fixes a person follows.</summary>
-public enum AgentOs
-{
-    Windows,
-
-    /// <summary>Where thermi reads no game's frames, and systemd keeps the service.</summary>
-    Linux,
 }
 
 /// <summary>Each problem's cause and fix, as an agent reads them; the contract answers them in English.</summary>
@@ -114,7 +106,7 @@ public sealed record AgentFacts(ServiceState Service, bool Installed, bool Taken
     /// <summary>Whether this is a per-user install, which has no service: the user's own host serves while thermi runs.</summary>
     public bool PerUser { get; init; }
 
-    public AgentOs Os { get; init; }
+    public HostOs Os { get; init; }
 
     public bool OverlayCanShow { get; init; } = true;
 
@@ -146,7 +138,7 @@ public static class AgentStatus
             _ => [],
         });
         // On Linux a CPU whose module is not loaded has no temperature at all, where Windows' reads zero without its driver.
-        if (facts.Latest is { } latest && (SensorMap.DriverMayBeMissing(latest) || (facts.Os == AgentOs.Linux && !SensorMap.HasCpuTemperature(latest))))
+        if (facts.Latest is { } latest && (SensorMap.DriverMayBeMissing(latest) || (facts.Os == HostOs.Linux && !SensorMap.HasCpuTemperature(latest))))
         {
             problems.Add(AgentProblem.DriverMissing);
         }
@@ -156,7 +148,7 @@ public static class AgentStatus
             problems.Add(AgentProblem.SettingsBroken);
         }
 
-        if (facts.Os == AgentOs.Linux)
+        if (facts.Os == HostOs.Linux)
         {
             problems.Add(AgentProblem.FramesNotRead);
         }
@@ -184,9 +176,9 @@ public static class AgentStatus
     /// A problem's cause and fix; with the sensors alone installed, a fix sends the person to no menu or window, and on
     /// Linux to systemd and the package rather than to Windows.
     /// </summary>
-    public static ProblemAnswer Said(AgentProblem problem, bool sensorsOnly = false, AgentOs os = AgentOs.Windows)
+    public static ProblemAnswer Said(AgentProblem problem, bool sensorsOnly = false, HostOs os = HostOs.Windows)
     {
-        var (cause, fix) = (os == AgentOs.Linux ? OnLinux(problem, sensorsOnly) : null) ?? problem switch
+        var (cause, fix) = (os == HostOs.Linux ? OnLinux(problem, sensorsOnly) : null) ?? problem switch
         {
             AgentProblem.ServiceMissing => (AgentText.ServiceMissingCause, AgentText.ServiceMissingFix),
             AgentProblem.ServiceStopped when sensorsOnly => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFixSensorsOnly),

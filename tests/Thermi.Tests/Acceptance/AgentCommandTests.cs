@@ -150,7 +150,7 @@ public sealed class AgentCommandTests : IDisposable
             : admin with { Sensors = [.. admin.Sensors.Where(sensor => sensor is not { HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) })] };
         _rig.Sensors = () => new RecordedFeed([snapshot]);
         _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
-        _rig.Os = AgentOs.Linux;
+        _rig.Os = HostOs.Linux;
         _rig.OverlayCanShow = overlayCanShow;
         _rig.Screens = overlayCanShow ? _rig.Screens : [];
         _rig.WhyNoScreens = overlayCanShow ? null : AgentProblem.OverlayCannotShow;

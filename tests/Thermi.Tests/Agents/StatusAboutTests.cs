@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.Core.Agents;
+using Thermi.Core.Bridge;
 using Thermi.Core.Tray;
 using Thermi.Core.Translations;
 using Thermi.Core.Updates;
@@ -18,7 +19,7 @@ public sealed class StatusAboutTests
     {
         var facts = new AgentFacts(ServiceState.Running, Installed: true, Taken: false, Latest: null, Settings: null)
         {
-            Os = AgentOs.Linux,
+            Os = HostOs.Linux,
             About = SystemRepository.About("1.2.3", installed: true, aptSources, dnfRepo),
         };
 
@@ -40,7 +41,7 @@ public sealed class StatusAboutTests
         var line = SystemRepository.Line(about);
         var status = AgentStatus.Of(new AgentFacts(ServiceState.Running, Installed: true, Taken: false, Latest: null, Settings: null)
         {
-            Os = AgentOs.Linux,
+            Os = HostOs.Linux,
             About = about,
         });
 
