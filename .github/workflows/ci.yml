@@ -231,9 +231,9 @@ jobs:
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-      # .NET for macOS 26.5, the workload set 10.0.401 pins, binds the SDK of Xcode 26.5; the image's default Xcode is newer,
-      # and the workload's later sets need an Xcode it does not have yet.
-      - run: sudo xcode-select -s /Applications/Xcode_26.5.app
+      # The workload set 10.0.401 pins .NET for macOS 26.5.10318, which builds only with Xcode 26.6: both are pinned together,
+      # as the image's default Xcode moves on, and the workload's later sets need an Xcode the image does not have yet.
+      - run: sudo xcode-select -s /Applications/Xcode_26.6.app
       - run: dotnet workload install macos --version 10.0.401
       - run: echo "THERMI_TEST_SESSION=$(id -un)" >> "$GITHUB_ENV"
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part MacOS
