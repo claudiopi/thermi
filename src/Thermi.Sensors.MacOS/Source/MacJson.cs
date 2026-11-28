@@ -66,7 +66,11 @@ internal static class MacJson
     public static SystemAnswers ReadSystem(string? json) => Parse(json, MacJsonContext.Default.SystemAnswers) ?? new SystemAnswers();
 
     /// <summary>A number of a JSON value, or null for anything else, as a key whose read failed.</summary>
-    public static double? Number(JsonNode? node) => node is JsonValue value && value.TryGetValue<double>(out var number) ? number : null;
+    public static double? Number(JsonNode? node) =>
+        node is not JsonValue value ? null
+        : value.TryGetValue<double>(out var real) ? real
+        : value.TryGetValue<long>(out var whole) ? whole
+        : null;
 
     /// <summary>A string of a JSON value, or null for anything else.</summary>
     public static string? Text(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
@@ -97,12 +101,12 @@ internal sealed record SystemAnswers
     public MemoryPages? Memory { get; init; }
 }
 
+// A value a source did not give is left out of the file, so a record's parameter it fills reads as missing, never as an error.
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = true,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    RespectNullableAnnotations = true,
-    RespectRequiredConstructorParameters = true)]
+    RespectNullableAnnotations = true)]
 [JsonSerializable(typeof(HidReading[]))]
 [JsonSerializable(typeof(ReportChannel[]))]
 [JsonSerializable(typeof(Adapter[]))]
