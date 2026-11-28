@@ -41,6 +41,9 @@ internal sealed class PictureWindow : IDisposable
         Window.SetResizable(false);
         Window.SetTitle("thermi");
         _area.SetDrawFunc(Draw);
+        // The window takes the pointer itself: GTK shows a press's pointer as the widget it pressed asks, the window here,
+        // whose Cursor the shape is.
+        _area.SetCanTarget(false);
         Window.SetChild(_area);
         _pointer = new PicturePointer(id, Window, () => Origin, leaveLoses);
         Window.OnRealize += (_, _) => Region();
@@ -228,34 +231,16 @@ internal sealed class PictureWindow : IDisposable
         window.GetSurface()?.SetInputRegion(region);
     }
 
-    // The box on the window a menu points at: a popup is pointed only at its own surface, inside it.
-    private Gdk.Rectangle Pointing(PillBox anchor)
-    {
-        var (width, height) = (Math.Max(_area.GetContentWidth(), 1), Math.Max(_area.GetContentHeight(), 1));
-        var (left, top) = (
-            Math.Clamp((int)Math.Round(anchor.Left - Origin.X), 0, width - 1), Math.Clamp((int)Math.Round(anchor.Top - Origin.Y), 0, height - 1));
-        return new Gdk.Rectangle
-        {
-            X = left,
-            Y = top,
-            Width = Math.Clamp((int)Math.Round(anchor.Width), 1, width - left),
-            Height = Math.Clamp((int)Math.Round(anchor.Height), 1, height - top),
-        };
-    }
-
     /// <summary>
-    /// Shows a menu of <paramref name="rows"/> against <paramref name="anchor"/>, a box of the stage, on its
-    /// <paramref name="side"/>, as GTK's own, in place of one open; <paramref name="closed"/> follows once it closes, chosen
-    /// or not.
+    /// Shows a menu of <paramref name="rows"/> against <paramref name="anchor"/>, a box of the stage, as GTK's own, in place
+    /// of one open, where <see cref="PictureMenu.Place"/> puts it off the <paramref name="room"/> the monitor's panels keep;
+    /// <paramref name="closed"/> follows once it closes, chosen or not.
     /// </summary>
-    public void Menu(IReadOnlyList<ShellRow> rows, PillBox anchor, Gtk.PositionType side, Action<int> chosen, Action closed)
+    public void Menu(IReadOnlyList<ShellRow> rows, PillBox anchor, PanelRoom room, Action<int> chosen, Action closed)
     {
         _unmenu();
         var menu = PictureMenu.New(rows, chosen);
         menu.SetParent(_area);
-        using var at = Pointing(anchor);
-        menu.SetPointingTo(at);
-        menu.SetPosition(side);
         var open = true;
         void Unmenu()
         {
@@ -285,7 +270,18 @@ internal sealed class PictureWindow : IDisposable
             }
         };
         _unmenu = Unmenu;
-        menu.Popup();
+        // GTK shows a menu's separators only in an idle of its own, while a menu shown before it keeps the height it had
+        // without them, its foot cut off: the menu is measured and shown once that idle ran.
+        GLib.Functions.IdleAdd(GLib.Constants.PRIORITY_DEFAULT_IDLE, () =>
+        {
+            if (open)
+            {
+                PictureMenu.Place(menu, anchor, Origin, (_area.GetContentWidth(), _area.GetContentHeight()), Window.GetSurface(), room);
+                menu.Popup();
+            }
+
+            return false;
+        });
     }
 
     public void Dispose()

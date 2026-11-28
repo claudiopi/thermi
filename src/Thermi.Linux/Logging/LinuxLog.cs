@@ -60,6 +60,10 @@ internal static partial class LinuxLog
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The compositor tells no edge its panels keep room along: the snaps take it to be the left and the top")]
     public static partial void PanelEdgesUntold(this ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "plasmashell told nothing of its panels' tray and launcher: an overlay beside them keeps room")]
+    public static partial void PlasmaPanelsUnread(this ILogger logger, Exception error);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "The {Role} hotkey, {Combination}, is held by another program or the desktop: thermi could not take it")]
     public static partial void HotkeyRefused(this ILogger logger, HotkeyRole role, string combination);
 

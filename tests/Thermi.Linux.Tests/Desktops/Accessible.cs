@@ -12,8 +12,8 @@ namespace Thermi.Linux.Tests.Desktops;
 internal static class Accessible
 {
     // AT-SPI from Python: each open menu's program and the number of its entries, one menu a line, the entry at an index of
-    // the open menu chosen, each program's windows, where the first knob of thermi's window is in it, or a line once the
-    // window of a title is the active one.
+    // the open menu chosen, how many of its entries reach past its edges, each program's windows, where the first knob of
+    // thermi's window is in it, or a line once the window of a title is the active one.
     private const string Code = """
         import sys, gi
         gi.require_version('Atspi', '2.0')
@@ -51,7 +51,7 @@ internal static class Accessible
         def menus(node, app):
             if role(node) in (Atspi.Role.MENU, Atspi.Role.POPUP_MENU) and has(node, Atspi.StateType.SHOWING):
                 shown = list(entries(node))
-                if shown: yield app, shown
+                if shown: yield app, shown, node
                 return
             for child in children(node):
                 yield from menus(child, app)
@@ -62,7 +62,7 @@ internal static class Accessible
 
         # Only what asks of menus looks for them: the search reads every node of every program, the thousands of a page's
         # among them, which a busy PC takes minutes to answer.
-        found = open_menus() if sys.argv[1] in ('closed', 'list', 'choose') else []
+        found = open_menus() if sys.argv[1] in ('closed', 'list', 'choose', 'cut') else []
         if sys.argv[1] == 'closed' and found:
             def gone(event):
                 if not open_menus(): Atspi.event_quit()
@@ -70,7 +70,7 @@ internal static class Accessible
             for kind in ('object:state-changed:showing', 'object:children-changed', 'window:deactivate'):
                 listener.register(kind)
             if open_menus(): Atspi.event_main()
-        if sys.argv[1] in ('list', 'choose') and not found:
+        if sys.argv[1] in ('list', 'choose', 'cut') and not found:
             def heard(event):
                 if open_menus(): Atspi.event_quit()
             listener = Atspi.EventListener.new(heard)
@@ -88,7 +88,14 @@ internal static class Accessible
 
         apps = list(children(desktop))
         if sys.argv[1] == 'list':
-            for app, shown in found: print(app, len(shown))
+            for app, shown, _ in found: print(app, len(shown))
+        elif sys.argv[1] == 'cut':
+            _, shown, menu = found[0]
+            box = menu.get_extents(Atspi.CoordType.WINDOW)
+            def cut(entry):
+                each = entry.get_extents(Atspi.CoordType.WINDOW)
+                return each.y < box.y or each.y + each.height > box.y + box.height
+            print(sum(1 for entry in shown if cut(entry)))
         elif sys.argv[1] == 'windows':
             for app in apps:
                 frames = sum(1 for child in children(app) if role(child) == Atspi.Role.FRAME)
@@ -126,6 +133,10 @@ internal static class Accessible
         return [.. said.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Split(' '))
             .Select(words => (string.Join(' ', words[..^1]), int.Parse(words[^1], CultureInfo.InvariantCulture)))];
     }
+
+    /// <summary>How many entries of the menu open on screen reach past its top or its bottom, cut off or scrolled away.</summary>
+    public static async Task<int> CutEntriesAsync(OwnSession session, CancellationToken cancel) =>
+        int.Parse(await RunAsync(session, ["cut"], cancel).ConfigureAwait(false), CultureInfo.InvariantCulture);
 
     /// <summary>Done once no menu is open on screen.</summary>
     public static Task ClosedAsync(OwnSession session, CancellationToken cancel) => RunAsync(session, ["closed"], cancel);

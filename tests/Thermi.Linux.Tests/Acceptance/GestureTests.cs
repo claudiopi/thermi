@@ -1,6 +1,7 @@
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Linux.Tests.Desktops;
+using Thermi.Linux.Tests.Desktops.X11;
 
 namespace Thermi.Linux.Tests.Acceptance;
 
@@ -39,6 +40,10 @@ public sealed partial class GestureTests
         var thermi = await desktop.ShowThermiAsync([], cancel);
         var (width, height) = await Pictures.SizeAsync(desktop.Session, await desktop.PreviewAsync(feed.Snapshot, 1, cancel), cancel);
         var right = TwoMonitors[0].Width + TwoMonitors[1].Width;
+        if (row == Desktop.X11)
+        {
+            await ResizePointerAsync(desktop, thermi, (Scene.OnWindow.X + width - 2, Scene.OnWindow.Y + height - 2), cancel);
+        }
 
         // Into the second monitor's bottom right corner, then by its middle onto the primary monitor's top bar or panel.
         await DragAsync(desktop, thermi, (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8), (right - 4, TwoMonitors[1].Height - 4), cancel);
@@ -125,6 +130,39 @@ public sealed partial class GestureTests
         }
 
         await FadesAsync(desktop, thermi, row, cancel);
+    }
+
+    // On a floating overlay's corner the pointer shows the resize arrows, as on Windows, and keeps them while the press drags
+    // the corner, until Esc takes the drag back; X11 tells a test the pointer the screen shows. Each read waits for
+    // thermi's next second, by which it took the pointer's last move.
+    private static async Task ResizePointerAsync(TestDesktop desktop, SessionProcess thermi, (int X, int Y) corner, CancellationToken cancel)
+    {
+        async Task<string> ShownAsync(CancellationToken token)
+        {
+            await Traced.NextAsync(thermi.Error, Traced.Paint, token);
+            return await XServers.PointerAsync(desktop.Session, token);
+        }
+
+        await desktop.Input.MoveAsync(corner.X - 40, corner.Y - 40, cancel);
+        var away = await ShownAsync(cancel);
+        await desktop.Input.MoveAsync(corner.X, corner.Y, cancel);
+        var over = await ShownAsync(cancel);
+        var held = "";
+        var dropped = Traced.NextAsync(thermi.Error, Traced.Dropped, cancel);
+        await desktop.Input.HoldAsync(
+            corner,
+            (corner.X + 30, corner.Y),
+            _ => Task.CompletedTask,
+            async there =>
+            {
+                held = await ShownAsync(there);
+                await desktop.Input.PressAsync("Escape", there);
+                await dropped.WaitAsync(there);
+            },
+            cancel);
+
+        Assert.NotEqual(away, over);
+        Assert.Equal(over, held);
     }
 
     // Behind another program's window, a double-click on an overlay opens the settings window in front of it, with the

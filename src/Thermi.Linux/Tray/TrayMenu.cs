@@ -5,8 +5,10 @@ namespace Thermi.Linux.Tray;
 
 /// <summary>
 /// A tray icon's menu as <c>com.canonical.dbusmenu</c>, which KDE Plasma's tray and the other freedesktop trays draw
-/// themselves: its rows are asked again each time the menu opens, as Windows builds its menu then, a row's id is its place
-/// plus one, 0 the menu itself, and a separator stands before each row that starts a group. A click on a row chooses it.
+/// themselves: its rows are asked again each time the menu opens, as Windows builds its menu then, 0 is the menu itself, and
+/// a separator stands before each row that starts a group. Each time, every row takes an id never given before: a tray
+/// keeps what it made of a row by its id, and gives a row the check it was first made with only, as Plasma's does, so a row
+/// checked since would show none. A click on a row chooses it.
 /// </summary>
 internal sealed class TrayMenu(Func<IReadOnlyList<ShellRow>> rowsNow, Action<int> chosen) : IBusObject
 {
@@ -23,8 +25,9 @@ internal sealed class TrayMenu(Func<IReadOnlyList<ShellRow>> rowsNow, Action<int
         [("Version", "u"), ("TextDirection", "s"), ("Status", "s"), ("IconThemePath", "as")]);
 
     private IReadOnlyList<ShellRow> _rows = [];
-    private List<Entry> _entries = [new(0, -1, [])];
+    private List<Entry> _entries = [new(0, -1, -1, [])];
     private uint _revision;
+    private int _last;
 
     public BusInterface Interface => Shape;
 
@@ -56,17 +59,18 @@ internal sealed class TrayMenu(Func<IReadOnlyList<ShellRow>> rowsNow, Action<int
     {
         _rows = rowsNow();
         _revision++;
-        var entries = new List<Entry> { new(0, -1, []) };
-        var separators = _rows.Count;
+        var ids = _rows.Select(_ => ++_last).ToList();
+        var entries = new List<Entry> { new(0, -1, -1, []) };
         for (var at = 0; at < _rows.Count; at++)
         {
             var row = _rows[at];
-            if (row.Starts && entries.Any(entry => entry.Parent == row.Parent + 1))
+            var parent = row.Parent < 0 ? 0 : ids[row.Parent];
+            if (row.Starts && entries.Any(entry => entry.Parent == parent))
             {
-                entries.Add(new Entry(++separators, row.Parent + 1, new() { ["type"] = GLib.Variant.NewString("separator") }));
+                entries.Add(new Entry(++_last, parent, -1, new() { ["type"] = GLib.Variant.NewString("separator") }));
             }
 
-            entries.Add(new Entry(at + 1, row.Parent + 1, PropertiesOf(row, opens: _rows.Any(child => child.Parent == at))));
+            entries.Add(new Entry(ids[at], parent, at, PropertiesOf(row, opens: _rows.Any(child => child.Parent == at))));
         }
 
         _entries = entries;
@@ -137,14 +141,14 @@ internal sealed class TrayMenu(Func<IReadOnlyList<ShellRow>> rowsNow, Action<int
     // Only a click chooses, and only a row with no rows under it, as Windows' menus do.
     private bool Clicked(int id, string happened)
     {
-        if (_entries.All(entry => entry.Id != id))
+        if (_entries.Find(entry => entry.Id == id) is not { } clicked)
         {
             return false;
         }
 
-        if (happened == "clicked" && id > 0 && id <= _rows.Count && _rows.All(row => row.Parent != id - 1))
+        if (happened == "clicked" && clicked.Row >= 0 && _rows.All(row => row.Parent != clicked.Row))
         {
-            chosen(id - 1);
+            chosen(clicked.Row);
         }
 
         return true;
@@ -176,5 +180,6 @@ internal sealed class TrayMenu(Func<IReadOnlyList<ShellRow>> rowsNow, Action<int
 
     private static ArgumentException Unknown(int id) => new($"The menu has no row {id}.", nameof(id));
 
-    private sealed record Entry(int Id, int Parent, Dictionary<string, GLib.Variant> Properties);
+    // An entry of the menu: Row is its row's place, -1 for the menu itself and a separator.
+    private sealed record Entry(int Id, int Parent, int Row, Dictionary<string, GLib.Variant> Properties);
 }

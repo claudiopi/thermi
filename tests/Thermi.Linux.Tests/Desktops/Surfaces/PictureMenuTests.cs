@@ -51,14 +51,15 @@ public sealed class PictureMenuTests
 
         var menu = PictureMenu.Of([shown], _ => { });
 
+        // Each attribute read as GTK's popover menu reads it: the label and use-markup as strings, the target as any value.
         var section = menu.Model.GetItemLink(0, "section")!;
-        string Read(string attribute)
+        string Read(string attribute, string? type)
         {
-            return section.GetItemAttributeValue(0, attribute, null) is { } value ? Text(value) : "";
+            return section.GetItemAttributeValue(0, attribute, type is null ? null : GLib.VariantType.New(type)) is { } value ? Text(value) : "";
         }
 
         var state = menu.Actions.GetActionState("row0") is { } now ? Text(now) : "";
-        Assert.Equal(drawn, $"{Read("label")}|{state}|{Read("target")}|{Read("use-markup")}");
+        Assert.Equal(drawn, $"{Read("label", "s")}|{state}|{Read("target", null)}|{Read("use-markup", "s")}");
     }
 
     // An item named with an "&" and a "_" of its own, which its rows show as they read, as every other row's text.
@@ -95,7 +96,7 @@ public sealed class PictureMenuTests
             for (var each = 0; each < section.GetNItems(); each++)
             {
                 var label = Text(section.GetItemAttributeValue(each, "label", null)!);
-                var bold = section.GetItemAttributeValue(each, "use-markup", null) is not null;
+                var bold = section.GetItemAttributeValue(each, "use-markup", GLib.VariantType.New("s")) is not null;
                 var unbold = label.Replace("<b>", "", StringComparison.Ordinal).Replace("</b>", "", StringComparison.Ordinal);
                 labels.Add(bold ? WebUtility.HtmlDecode(unbold) : label);
             }

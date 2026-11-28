@@ -28,7 +28,8 @@ internal sealed class PicturePointer
     private readonly uint _id;
     private readonly Func<(double X, double Y)> _origin;
     private readonly bool _leaveLoses;
-    private (double X, double Y) _heardAt;
+    // Where on the stage the pointer last was, as the last event that told a point said.
+    private (double X, double Y) _stage;
     private bool _pressed;
 
     /// <summary>
@@ -44,10 +45,10 @@ internal sealed class PicturePointer
         window.AddController(events);
         // GTK tells a pointer's coming and going only to a motion controller: where it came is its first point on the window.
         var crossing = Gtk.EventControllerMotion.New();
-        crossing.OnEnter += (controller, args) => Crossed(controller, "motion", (args.X, args.Y));
+        crossing.OnEnter += (controller, args) => Crossed(controller, "motion", Told(args.X, args.Y));
         crossing.OnLeave += (controller, _) =>
         {
-            Crossed(controller, "leave", _heardAt);
+            Crossed(controller, "leave", _stage);
             if (_leaveLoses || (controller.GetCurrentEvent() is { } left && Gdk.Internal.CrossingEvent.GetMode(left.Handle) == Gdk.CrossingMode.Grab))
             {
                 Lose();
@@ -72,11 +73,14 @@ internal sealed class PicturePointer
         }
     }
 
-    private void Crossed(Gtk.EventController crossing, string kind, (double X, double Y) at)
+    private void Crossed(Gtk.EventController crossing, string kind, (double X, double Y) at) =>
+        Pointer(new ShellPointer(_id, kind, at.X, at.Y, 0, (uint)crossing.GetCurrentEventState(), crossing.GetCurrentEventTime(), 0, 0));
+
+    // A point on the window, told on the stage from where the window's corner is now, and kept as the pointer's last.
+    private (double X, double Y) Told(double x, double y)
     {
-        _heardAt = at;
         var (left, top) = _origin();
-        Pointer(new ShellPointer(_id, kind, left + at.X, top + at.Y, 0, (uint)crossing.GetCurrentEventState(), crossing.GetCurrentEventTime(), 0, 0));
+        return _stage = (left + x, top + y);
     }
 
     private bool Heard(Gdk.Event heard)
@@ -96,18 +100,19 @@ internal sealed class PicturePointer
             return false;
         }
 
-        // A turn of the wheel on Wayland tells no point: it is where the pointer last was on the window.
-        var (x, y) = _heardAt = heard.GetPosition(out var px, out var py) ? (px, py) : _heardAt;
         if (!Kinds.TryGetValue(type, out var kind))
         {
             return false;
         }
 
+        // Wayland tells a button and a turn of the wheel no point: GTK gives the last motion's on the window, which a window
+        // moved since, under a pointer that did not, makes stale, as KWin tells no motion for it. Each is where the pointer
+        // last was on the stage.
+        var (left, top) = type == Gdk.EventType.MotionNotify && heard.GetPosition(out var x, out var y) ? Told(x, y) : _stage;
         _pressed = type == Gdk.EventType.ButtonPress || (_pressed && type != Gdk.EventType.ButtonRelease);
         var button = type is Gdk.EventType.ButtonPress or Gdk.EventType.ButtonRelease ? Gdk.Internal.ButtonEvent.GetButton(heard.Handle) : 0;
         var (dx, dy) = type == Gdk.EventType.Scroll ? Turned(heard.Handle) : (0, 0);
-        var (left, top) = _origin();
-        Pointer(new ShellPointer(_id, kind, left + x, top + y, button, (uint)heard.GetModifierState(), heard.GetTime(), dx, dy));
+        Pointer(new ShellPointer(_id, kind, left, top, button, (uint)heard.GetModifierState(), heard.GetTime(), dx, dy));
         return false;
     }
 

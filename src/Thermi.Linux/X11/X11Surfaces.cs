@@ -127,13 +127,13 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
 
     public Task Fade(uint id, double opacity) => _shown.TryGetValue(id, out var shown) ? shown.Window.Fade(opacity) : Task.CompletedTask;
 
-    // GTK grabs the keyboard for its menu itself, as the window takes none on a click.
+    // GTK grabs the keyboard for its menu itself, as the window takes none on a click, and chooses the side again, knowing
+    // the menu's height; on X11 GTK itself keeps a menu in its monitor's work area, so no room is given.
     public Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side)
     {
         if (_shown.TryGetValue(id, out var shown))
         {
-            var at = side == MenuSide.Below ? Gtk.PositionType.Bottom : Gtk.PositionType.Top;
-            shown.Window.Menu(rows, anchor, at, row => Chosen(id, row), () => Chosen(id, -1));
+            shown.Window.Menu(rows, anchor, default, row => Chosen(id, row), () => Chosen(id, -1));
         }
 
         return Task.CompletedTask;

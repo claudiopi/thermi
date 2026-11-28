@@ -56,7 +56,8 @@ internal interface IOverlaySurfaces : IDisposable
     /// <summary>
     /// Shows a menu of <paramref name="rows"/> on picture <paramref name="id"/> against <paramref name="anchor"/>, a box of
     /// the stage, on the side Core's <see cref="MenuSpots.Beside"/> chose, so it covers none of the overlay's pills, as the
-    /// desktop's own; done once it was sent.
+    /// desktop's own; done once it was sent. A surface that knows the menu's height before it shows, as GTK's, chooses the
+    /// side again for it.
     /// </summary>
     Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side);
 

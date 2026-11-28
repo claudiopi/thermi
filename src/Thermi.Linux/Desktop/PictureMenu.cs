@@ -1,4 +1,7 @@
 using System.Text;
+using Thermi.Core.Look;
+using Thermi.Core.Placement;
+using Thermi.Core.Settings;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Hotkeys;
 
@@ -65,6 +68,49 @@ internal sealed class PictureMenu
     }
 
     /// <summary>
+    /// Points <paramref name="menu"/> at <paramref name="anchor"/>, a box of the stage, from a window whose corner is at
+    /// <paramref name="origin"/> of it and is <paramref name="size"/> big: below the box where the menu fits in the work
+    /// area of the window's monitor, off the <paramref name="room"/> its panels keep, else above, as Core's
+    /// <see cref="MenuSpots"/> says for the height of the menu's rows, which GTK knows once it made them. A compositor
+    /// may neither flip a popup that does not fit nor keep it on its monitor, and may keep it in the work area, as KWin
+    /// does over a layer surface: the side is chosen here, and a menu of an overlay on a panel starts at the panel's edge.
+    /// </summary>
+    public static void Place(
+        Gtk.PopoverMenu menu, PillBox anchor, (double X, double Y) origin, (int Width, int Height) size, Gdk.Surface? surface, PanelRoom room)
+    {
+        // A popup is pointed only at its own surface, inside it.
+        var (width, height) = (Math.Max(size.Width, 1), Math.Max(size.Height, 1));
+        var (left, top) = (
+            Math.Clamp((int)Math.Round(anchor.Left - origin.X), 0, width - 1), Math.Clamp((int)Math.Round(anchor.Top - origin.Y), 0, height - 1));
+        using var at = new Gdk.Rectangle
+        {
+            X = left,
+            Y = top,
+            Width = Math.Clamp((int)Math.Round(anchor.Width), 1, width - left),
+            Height = Math.Clamp((int)Math.Round(anchor.Height), 1, height - top),
+        };
+        menu.SetPointingTo(at);
+        // GTK measures a widget that does not show yet as nothing: the menu's rows, which show already, say its height.
+        (menu.GetChild() ?? menu).Measure(Gtk.Orientation.Vertical, -1, out _, out var tall, out _, out _);
+        var (side, shift) = (MenuSide.Below, 0);
+        if (surface is not null && Gdk.Display.GetDefault()?.GetMonitorAtSurface(surface)?.Geometry is { } on)
+        {
+            var (x, y) = ((int)Math.Floor(anchor.Left), (int)Math.Floor(anchor.Top));
+            var box = new PixelRect(x, y, (int)Math.Ceiling(anchor.Left + anchor.Width), (int)Math.Ceiling(anchor.Top + anchor.Height));
+            var work = new PixelRect(
+                (int)Math.Ceiling(on.X + room.Left),
+                (int)Math.Ceiling(on.Y + room.Top),
+                (int)Math.Floor(on.X + on.Width - room.Right),
+                (int)Math.Floor(on.Y + on.Height - room.Bottom));
+            side = MenuSpots.Beside(box, new Position(x, y), work, tall).Side;
+            shift = side == MenuSide.Below ? Math.Max(0, work.Top - box.Bottom) : Math.Min(0, work.Bottom - box.Top);
+        }
+
+        menu.SetPosition(side == MenuSide.Below ? Gtk.PositionType.Bottom : Gtk.PositionType.Top);
+        menu.SetOffset(0, shift);
+    }
+
+    /// <summary>
     /// A text with its access key marked as Windows' menus mark it, "&amp;" before the key and "&amp;&amp;" for one of its
     /// own, as GTK and a tray's menus underline it: "_" before the key, and "__" for one of its own.
     /// </summary>
@@ -125,7 +171,8 @@ internal sealed class PictureMenu
         item.SetActionAndTargetValue($"{Group}.{name}", row.Radio ? GLib.Variant.NewString(On) : null);
         if (row.Default)
         {
-            item.SetAttributeValue("use-markup", GLib.Variant.NewBoolean(true));
+            // GTK reads the attribute as a string, whatever it says, and takes a boolean for none.
+            item.SetAttributeValue("use-markup", GLib.Variant.NewString("true"));
         }
 
         if (row.Note is { } note && row.Grayed)

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Thermi.Linux.Logging;
@@ -274,19 +275,12 @@ internal sealed class BusObjects : IDisposable
 internal static class Callbacks
 {
     /// <summary>
-    /// Done on the GLib main loop's thread once it is free: awaited after a call that answered on another thread, as GirCore's
-    /// and a signal's tasks do, it brings what follows back to the thread every object of GTK's and thermi's is used on.
+    /// Awaited after a call that answered on another thread, as GirCore's and a signal's tasks do, it goes on on the GLib
+    /// main loop's thread once it is free, the thread every object of GTK's and thermi's is used on. What follows is handed
+    /// to the main loop only as it is awaited: a task the main loop completed before, while the thread that awaits it was
+    /// busy, would go on on that thread instead.
     /// </summary>
-    public static Task OnMainLoop()
-    {
-        var back = new TaskCompletionSource();
-        GLib.Functions.IdleAdd(0, () =>
-        {
-            back.SetResult();
-            return false;
-        });
-        return back.Task;
-    }
+    public static MainLoopTurn OnMainLoop() => new();
 
     public static void Safely(Action action, Action<Exception> failed)
     {
@@ -300,5 +294,24 @@ internal static class Callbacks
         {
             failed(ex);
         }
+    }
+}
+
+/// <summary>An await that goes on on the GLib main loop's thread, never done before it is awaited (<see cref="Callbacks.OnMainLoop"/>).</summary>
+internal sealed class MainLoopTurn : INotifyCompletion
+{
+    public bool IsCompleted => false;
+
+    public MainLoopTurn GetAwaiter() => this;
+
+    public void OnCompleted(Action continuation) => GLib.Functions.IdleAdd(0, () =>
+    {
+        continuation();
+        return false;
+    });
+
+    public void GetResult()
+    {
+        // It gives nothing: what it does is the thread what follows runs on.
     }
 }

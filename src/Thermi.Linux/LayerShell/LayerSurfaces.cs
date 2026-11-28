@@ -19,11 +19,14 @@ namespace Thermi.Linux.LayerShell;
 /// own there, while the one pressed stays, drawing nothing, until the press ends on it. Surfaces of one layer stack as
 /// they were mapped, so what a press moves, the overlay or the pill it lifted, goes up to the overlay layer until the press
 /// ends, above the snap marks mapped after it, as GNOME's extension raises it. Each monitor's panels are measured as it
-/// comes, and again each time they change (<see cref="LayerProbe"/>). A compositor closes a surface only as its monitor
-/// goes: it is taken off, and shown again where thermi places it next.
+/// comes, and again each time they change (<see cref="LayerProbe"/>), and on KDE Plasma what its panels hold, read as they
+/// change too (<see cref="PlasmaPanels"/>). A compositor closes a surface only as its monitor goes: it is taken off, and
+/// shown again where thermi places it next.
 /// </summary>
-internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
+internal sealed class LayerSurfaces(ILogger log, Gio.DBusConnection bus, TimeProvider time, Action<Action> post) : IOverlaySurfaces
 {
+    private readonly PlasmaPanels _plasma = new(bus, Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"), time, post, log);
+
     private readonly Dictionary<uint, (PictureWindow Window, Gdk.Monitor Monitor)> _shown = [];
     private readonly HashSet<uint> _held = [];
     private readonly Dictionary<uint, PictureWindow> _pressed = [];
@@ -58,6 +61,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
             list.OnItemsChanged += (_, _) => Probe();
         }
 
+        _plasma.Changed = Tell;
         Probe();
     }
 
@@ -110,7 +114,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
     public Task Fade(uint id, double opacity) => _shown.TryGetValue(id, out var shown) ? shown.Window.Fade(opacity) : Task.CompletedTask;
 
     // The compositor gives a popup the keyboard only through a surface that takes it, which an overlay does only while its
-    // menu is open.
+    // menu is open. GTK chooses the side again, knowing the menu's height, in the work area the compositor keeps it in.
     public Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side)
     {
         if (_shown.TryGetValue(id, out var shown))
@@ -120,7 +124,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
             window.Menu(
                 rows,
                 anchor,
-                side == MenuSide.Below ? Gtk.PositionType.Bottom : Gtk.PositionType.Top,
+                _rooms.GetValueOrDefault(shown.Monitor),
                 row => Chosen(id, row),
                 () =>
                 {
@@ -178,6 +182,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
 
     public void Dispose()
     {
+        _plasma.Dispose();
         _probes.Values.ToList().ForEach(probe => probe.Dispose());
         _probes.Clear();
         foreach (var (window, _) in _shown.Values)
@@ -308,6 +313,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
 
         Ready = Ready && _monitors.Count > 0;
         Tell();
+        _ = _plasma.ReadAsync();
     }
 
     private void Measured(LayerProbe probe)
@@ -321,6 +327,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
         }
 
         Tell();
+        _ = _plasma.ReadAsync();
     }
 
     // A monitor whose restless probe went is measured by a new one, which goes as the last did.
@@ -384,5 +391,5 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
     }
 
     public IReadOnlyList<ShellMonitor> Monitors() =>
-        [.. GdkMonitors.Read(_monitors, monitor => _rooms.GetValueOrDefault(monitor), primary: null)];
+        [.. GdkMonitors.Read(_monitors, monitor => _rooms.GetValueOrDefault(monitor), primary: null).Select(_plasma.Boxed)];
 }

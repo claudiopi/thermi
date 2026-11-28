@@ -8,6 +8,28 @@ namespace Thermi.Linux.Tests.Desktops.X11;
 /// </summary>
 internal static class XServers
 {
+    // The pointer's picture the X server shows now, through XFixes: its size and a digest of its pixels.
+    private const string Pointer = """
+        import ctypes, hashlib
+        class Image(ctypes.Structure):
+            _fields_ = [('x', ctypes.c_short), ('y', ctypes.c_short), ('width', ctypes.c_ushort), ('height', ctypes.c_ushort),
+                        ('xhot', ctypes.c_ushort), ('yhot', ctypes.c_ushort), ('serial', ctypes.c_ulong), ('pixels', ctypes.POINTER(ctypes.c_ulong))]
+        x11, fixes = ctypes.CDLL('libX11.so.6'), ctypes.CDLL('libXfixes.so.3')
+        x11.XOpenDisplay.restype, fixes.XFixesGetCursorImage.restype = ctypes.c_void_p, ctypes.POINTER(Image)
+        image = fixes.XFixesGetCursorImage(ctypes.c_void_p(x11.XOpenDisplay(None))).contents
+        pixels = bytes(memoryview(ctypes.cast(image.pixels, ctypes.POINTER(ctypes.c_ulong * (image.width * image.height))).contents))
+        print(image.width, image.height, hashlib.sha256(pixels).hexdigest()[:16])
+        """;
+
+    /// <summary>The pointer's picture on the session's X server now: two the same are the same pointer.</summary>
+    public static async Task<string> PointerAsync(OwnSession session, CancellationToken cancel)
+    {
+        var script = Path.Combine(session.Home, "pointer.py");
+        await File.WriteAllTextAsync(script, Pointer, cancel).ConfigureAwait(false);
+        var read = await session.RunAsync("python3", [script], cancel: cancel).ConfigureAwait(false);
+        return read.Exit == 0 ? read.Out.Trim() : throw new InvalidOperationException($"The pointer was not read: {read.Error}");
+    }
+
     /// <summary>Xvfb as wide as the monitors side by side; its one output is the screen.</summary>
     public static async Task StartXvfbAsync(OwnSession session, IReadOnlyList<TestMonitor> monitors, CancellationToken cancel)
     {

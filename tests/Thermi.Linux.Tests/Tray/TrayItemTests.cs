@@ -1,3 +1,4 @@
+using System.Globalization;
 using Thermi.Core.Settings;
 using Thermi.Linux.Tests.Desktops;
 
@@ -36,6 +37,27 @@ public sealed class TrayItemTests
         print(got, said.unpack()[0], flush=True)
         """;
 
+    // Opens the icon's menu as KDE Plasma's tray does, which keeps each row it made by its id and makes a row checkable only
+    // as it first sees the row: says how many rows show a check, and keeps what it made in the file it is given.
+    private const string Opener = """
+        import sys, json, os, gi
+        from gi.repository import Gio, GLib
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        made = json.load(open(sys.argv[3])) if os.path.exists(sys.argv[3]) else {}
+        root = bus.call_sync(sys.argv[1], sys.argv[2], 'com.canonical.dbusmenu', 'GetLayout', GLib.Variant('(iias)', (0, -1, [])),
+                             None, Gio.DBusCallFlags.NONE, 5000, None).unpack()[1]
+        def rows(entry):
+            yield entry
+            for child in entry[2]:
+                yield from rows(child)
+        shown = 0
+        for row_id, properties, _ in rows(root):
+            checkable = made.setdefault(str(row_id), properties.get('toggle-type', '') != '')
+            shown += checkable and properties.get('toggle-state', 0) == 1
+        json.dump(made, open(sys.argv[3], 'w'))
+        print(shown, flush=True)
+        """;
+
     [Theory(Timeout = Bound.Test)]
     [InlineData("wrong-arguments")]
     [InlineData("no-such-method")]
@@ -59,6 +81,32 @@ public sealed class TrayItemTests
         var called = await session.RunAsync("python3", [script, name, row], cancel: cancel);
 
         Assert.Equal("refused thermi", called.Out.Trim());
+    }
+
+    // A row checked since the tray first opened the menu shows its check the next time it opens, as on Windows, which builds
+    // its menu each time: a tray that keeps what it made of each row, as Plasma's, would show the row as it first made it.
+    [Fact(Timeout = Bound.Test)]
+    public async Task ARowCheckedSinceTheMenuLastOpenedShowsItsCheck()
+    {
+        var cancel = TestContext.Current.CancellationToken;
+        await using var desktop = await TestDesktop.StartAsync(DesktopKind.X11, [new TestMonitor(1280, 720)], cancel);
+        var session = desktop.Session;
+        var tray = await TrayWatcher.ServeAsync(session, cancel);
+        var overlay = Scene.Overlay with { Position = Scene.OnWindow };
+        await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [overlay] }, cancel);
+        var thermi = await desktop.ShowThermiAsync([], cancel);
+        var (name, _) = await tray.NextAsync(cancel);
+        var script = Path.Combine(session.Home, "opener.py");
+        await File.WriteAllTextAsync(script, Opener, cancel);
+        string[] open = [script, name, "/MenuBar", Path.Combine(session.Home, "made.json")];
+        var before = await session.RunAsync("python3", open, cancel: cancel);
+        var edited = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
+        await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [overlay with { ClickThrough = true }] }, cancel);
+        await edited;
+
+        var after = await session.RunAsync("python3", open, cancel: cancel);
+
+        Assert.Equal(int.Parse(before.Out, CultureInfo.InvariantCulture) + 1, int.Parse(after.Out, CultureInfo.InvariantCulture));
     }
 
     // A left click on thermi's icon does what it does on Windows: it opens the menu, which the icon says it is so a tray

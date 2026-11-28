@@ -68,7 +68,7 @@ internal sealed class OverlayHost : IDisposable
         _link = new ShellLink(bus, log);
         _notices = new DesktopNotices(bus, log);
         var arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log, Post);
-        _surfaces = SurfacesOf(kind, _link, arrival, log);
+        _surfaces = SurfacesOf(kind, arrival, time, log);
         _firstStart = start.FirstStart;
         _channel = ChannelOf(bus, log, trace);
         _parts = new OverlayParts(settings, _link, _surfaces, time, CultureInfo.CurrentCulture, log)
@@ -99,12 +99,12 @@ internal sealed class OverlayHost : IDisposable
         _channel.Failed = _desk.Notices.WindowFailed;
     }
 
-    private static IOverlaySurfaces SurfacesOf(SurfaceKind kind, ShellLink link, ExtensionArrival arrival, ILogger log) => kind switch
+    private IOverlaySurfaces SurfacesOf(SurfaceKind kind, ExtensionArrival arrival, TimeProvider time, ILogger log) => kind switch
     {
-        SurfaceKind.Layer => new LayerSurfaces(log),
+        SurfaceKind.Layer => new LayerSurfaces(log, _bus, time, Post),
         SurfaceKind.X11 => new X11Surfaces(log),
-        SurfaceKind.Shell or SurfaceKind.None or SurfaceKind.NoDisplay => new ShellSurfaces(link, arrival),
-        _ => new ShellSurfaces(link, arrival),
+        SurfaceKind.Shell or SurfaceKind.None or SurfaceKind.NoDisplay => new ShellSurfaces(_link, arrival),
+        _ => new ShellSurfaces(_link, arrival),
     };
 
     private WindowChannel ChannelOf(Gio.DBusConnection bus, ILogger log, TraceEvents trace) => new(bus, log)

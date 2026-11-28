@@ -131,6 +131,34 @@ public sealed partial class OverlayTests
             await desktop.OpenWindowAsync(fullScreen: true, cancel);
             Assert.Equal(0, await CoveredAsync(scene, Scene.OnWindow, cancel));
         }
+        else if (row == LayerCase.KWinBottomPanel)
+        {
+            // The menu of an overlay on a panel along the bottom opens above it, where it fits, as KWin keeps it where told,
+            // and whole, every entry in it.
+            await desktop.Input.ClickAsync(onPanel.X + 8, onPanel.Y + (height / 2), cancel, button: 3);
+            _ = Assert.Single(await Accessible.OpenMenusAsync(desktop.Session, cancel));
+            var opened = await desktop.ScreenshotAsync(cancel);
+            Assert.NotEqual(0, await Pictures.ChangedAsync(desktop.Session, scene.Screen, opened, (onPanel.X, onPanel.Y - 110, 100, 100), cancel));
+            Assert.Equal(0, await Accessible.CutEntriesAsync(desktop.Session, cancel));
+            await desktop.Input.PressAsync("Escape", cancel);
+            await Accessible.ClosedAsync(desktop.Session, cancel);
+            await DroppedWhereLetGoAsync(scene, onPanel, height, cancel);
+        }
+    }
+
+    // Dragged off the panel by its first pill, it stays where the pointer let it go, though the pointer stood still on it a
+    // while as the overlay moved under it, as KWin tells no motion for that.
+    private static async Task DroppedWhereLetGoAsync(Scene scene, Position onPanel, int height, CancellationToken cancel)
+    {
+        var dropped = Traced.NextAsync(scene.Thermi.Error, Traced.Dropped, cancel);
+        await scene.Desktop.Input.HoldAsync(
+            (onPanel.X + 16, onPanel.Y + (height / 2)),
+            (Free.X + 16, Free.Y + (height / 2)),
+            _ => Task.CompletedTask,
+            there => Traced.NextAsync(scene.Thermi.Error, Traced.Paint, there),
+            cancel);
+        await dropped;
+        Assert.Equal<Position?>(Free, (await Settings.ReadAsync(scene.Desktop.Session, cancel)).Overlays[0].Position);
     }
 
     [Theory(Timeout = Bound.Test)]
