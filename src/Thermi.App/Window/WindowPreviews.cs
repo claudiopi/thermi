@@ -52,18 +52,18 @@ internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, W
         // Smaller where the overlay would not fit its monitor, as the overlay shows itself.
         using var painter = host.Painter();
         var scale = painter.Fitting(items, drawn.Look, OverlayPlaces.ScaleOf(OverlayPlaces.Dpi, one, drawn.Screens), Snaps.Most(one, drawn.Screens));
-        var picture = Painted(painter, items, drawn.Stopped, drawn.Look, scale, texts);
-        var taskbar = OnTaskbar(one, drawn.Screens, picture) ? Taskbar.Of(light).Background.ToString() : null;
+        var (size, picture) = Sized(painter, drawn, scale);
+        var taskbar = OnTaskbar(one, drawn.Screens, size) ? Taskbar.Of(light).Background.ToString() : null;
 
-        // Painted again at the scale that fits, as the overlay paints itself smaller beside another; rounding up may leave a
-        // pixel over, which another round takes off.
-        for (var round = 0; room > 0 && picture.Width > room && round < 3; round++)
+        // The overlay paints itself smaller beside another; rounding up may leave a pixel over, which another round takes off.
+        // Rounds measure, not paint: the page asks each second, and a picture made only for its size is encoded for nothing.
+        for (var round = 0; room > 0 && size.Width > room && round < 3; round++)
         {
-            scale *= (float)room / picture.Width;
-            picture = Painted(painter, items, drawn.Stopped, drawn.Look, scale, texts);
+            scale *= (float)room / size.Width;
+            (size, picture) = Sized(painter, drawn, scale);
         }
 
-        var shown = PictureOf(picture, taskbar);
+        var shown = PictureOf(picture ?? Painted(painter, items, drawn.Stopped, drawn.Look, scale, texts), taskbar);
         _last[overlay] = (drawn, shown);
         return shown;
     }
@@ -99,8 +99,22 @@ internal sealed class WindowPreviews(WindowEditor editor, ISensorFeed sensors, W
         return sensorsStopped ? painter.Stopped(texts.Of(OverlayText.SensorsStopped), look, scale, shown) : painter.Picture(shown, look, scale);
     }
 
+    // The size a preview paints at; the service's stopped pill is not the items', so that one is painted to learn it.
+    private static ((int Width, int Height) Size, PaintedPicture? Picture) Sized(IOverlayPainter painter, Drawn drawn, float scale)
+    {
+        var (shown, stopped) = PicturedItems.Of(drawn.Items, drawn.Stopped);
+        if (stopped)
+        {
+            var picture = Painted(painter, drawn.Items, drawn.Stopped, drawn.Look, scale, drawn.Texts);
+            return ((picture.Width, picture.Height), picture);
+        }
+
+        var size = painter.Measure(shown, drawn.Look, scale);
+        return ((size.Width, size.Height), null);
+    }
+
     // By its middle, as a horizontal overlay snapped to a taskbar sits on it.
-    private static bool OnTaskbar(OverlayConfig overlay, IReadOnlyList<Screen> screens, PaintedPicture size) =>
+    private static bool OnTaskbar(OverlayConfig overlay, IReadOnlyList<Screen> screens, (int Width, int Height) size) =>
         Snaps.Locate(overlay, screens, size.Width, size.Height) is { } at
         && Snaps.ScreenOf(overlay, screens)?.Taskbar is { } bar
         && bar.Contains(new PixelRect(at.X + (size.Width / 2), at.Y + (size.Height / 2), at.X + (size.Width / 2) + 1, at.Y + (size.Height / 2) + 1));
