@@ -75,6 +75,9 @@ internal static class DesktopSession
         return layer && LayerShellLibrary.Supported() ? SurfaceKind.Layer : SurfaceKind.None;
     }
 
-    // An X server's name holds its display's number after a colon, ":0" or "host:0.0"; a Wayland socket's holds none.
-    private static bool Wayland(Gdk.Display display) => !display.GetName().Contains(':', StringComparison.Ordinal);
+    /// <summary>
+    /// Whether GTK's display is a Wayland compositor's: an X server's name holds its display's number after a colon, ":0"
+    /// or "host:0.0", and a Wayland socket's holds none.
+    /// </summary>
+    public static bool Wayland(Gdk.Display display) => !display.GetName().Contains(':', StringComparison.Ordinal);
 }

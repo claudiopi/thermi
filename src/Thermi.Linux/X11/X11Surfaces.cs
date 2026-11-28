@@ -189,14 +189,16 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
         _shown.Clear();
     }
 
-    public IReadOnlyList<ShellMonitor> Monitors()
-    {
-        if (Gdk.Display.GetDefault() is not { } display)
-        {
-            return [];
-        }
+    public IReadOnlyList<ShellMonitor> Monitors() =>
+        Gdk.Display.GetDefault() is { } display ? MonitorsOf(log, display, XWindows.FullScreen(display, Ours())) : [];
 
-        var covered = XWindows.FullScreen(display, Ours());
+    /// <summary>
+    /// The monitors of an X11 desktop, as GDK, RandR and the panels' struts tell them, the one under the middle of
+    /// <paramref name="covered"/>, a full-screen window's box, full screen: the settings window's map reads them so too, so
+    /// a spot picked on it names the overlay's monitor.
+    /// </summary>
+    public static IReadOnlyList<ShellMonitor> MonitorsOf(ILogger log, Gdk.Display display, (double X, double Y, double Width, double Height)? covered)
+    {
         bool FullScreen(Gdk.Monitor monitor)
         {
             return covered is var (x, y, width, height) && monitor.Geometry.ContainsPoint((int)(x + (width / 2)), (int)(y + (height / 2)));

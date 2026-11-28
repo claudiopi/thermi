@@ -1,7 +1,10 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
+using Thermi.Linux.Desktop;
 using Thermi.Linux.Tests.Desktops;
 using Thermi.Linux.Tests.Desktops.X11;
+using Thermi.Linux.Window;
 
 namespace Thermi.Linux.Tests.Acceptance;
 
@@ -11,6 +14,9 @@ namespace Thermi.Linux.Tests.Acceptance;
 /// </summary>
 public sealed partial class GestureTests
 {
+    /// <summary>The tests' own program, started in a desktop's session with it, names the window's map's monitors (<see cref="SayWindowMap"/>).</summary>
+    public const string WindowMap = "--window-map";
+
     // The first is the primary monitor, where the top bar or the panel is.
     private static readonly TestMonitor[] TwoMonitors = [new(1920, 1080), new(1920, 1080)];
 
@@ -48,6 +54,7 @@ public sealed partial class GestureTests
         // Into the second monitor's bottom right corner, then by its middle onto the primary monitor's top bar or panel.
         await DragAsync(desktop, thermi, (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8), (right - 4, TwoMonitors[1].Height - 4), cancel);
         var cornered = (await Settings.ReadAsync(desktop.Session, cancel)).Overlays[0];
+        var mapped = await desktop.Session.RunAsync(Built.Program("Thermi.Linux.Tests"), [WindowMap], cancel: cancel);
         await DragAsync(desktop, thermi, (right - (width / 2) - 8, TwoMonitors[1].Height - (height / 2) - 8), (900, 4), cancel);
         var onPanel = (await Settings.ReadAsync(desktop.Session, cancel)).Overlays[0];
         thermi.Kill();
@@ -60,6 +67,13 @@ public sealed partial class GestureTests
         Assert.Equal(SnapSpot.BottomRight, cornered.Snap?.Spot);
         Assert.NotNull(cornered.Snap!.Monitor);
         Assert.Null(cornered.Position);
+        // Off GNOME's extension the settings window's map names the monitors as the overlay does, so a spot picked on it is
+        // the overlay's: on GNOME the map waits on the Shell, which a test's program does not.
+        if (row != Desktop.Gnome)
+        {
+            Assert.Contains(cornered.Snap.Monitor, mapped.Out.Split('\n'));
+        }
+
         Assert.Equal(SnapSpot.Taskbar, onPanel.Snap?.Spot);
         Assert.Null(onPanel.Snap!.Monitor);
         Assert.NotNull(onPanel.Snap.Offset);
@@ -130,6 +144,27 @@ public sealed partial class GestureTests
             await InFrontAsync(desktop, thermi, (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8), cancel);
             await StaysWholeAsync(desktop, thermi, row, cancel);
         }
+    }
+
+    /// <summary>
+    /// The tests' own program as <see cref="TheOverlayIsDraggedAndStaysOnGnome"/> starts it in a desktop's session: the ids of
+    /// the monitors the settings window's map draws without GNOME's extension, one a line.
+    /// </summary>
+    public static int SayWindowMap()
+    {
+        DesktopSession.Paints();
+        Gtk.Module.Initialize();
+        if (!Gtk.Functions.InitCheck())
+        {
+            return 1;
+        }
+
+        foreach (var screen in new WindowScreens(null, null, _ => { }, () => { }, NullLogger.Instance).Screens)
+        {
+            Console.WriteLine(screen.Id);
+        }
+
+        return 0;
     }
 
     // On a floating overlay's corner the pointer shows the resize arrows, as on Windows, and keeps them while the press drags
