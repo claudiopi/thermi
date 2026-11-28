@@ -12,10 +12,9 @@ public sealed class ExtensionTests
     // Owns thermi's name and shows an overlay of 40 by 20 at (100, 100), all of it a box that takes the pointer. "refuse"
     // makes a case's calls, then its last, and says whether the first were taken, what the last got, and how many actors
     // it added to the Shell or its top bar. "shows" makes a case's calls and says what the Shell shows of them, read through
-    // its Eval once it painted a frame. "hold" and "icons" print the key focus, then each signal of the extension's, a line
-    // each: "hold" shows the overlay, prints the key focus again at each press of the first button, and answers a right
-    // press with a menu, as thermi does, saying once the Shell took it; "icons" shows an icon and puts the top bar's focus
-    // on it.
+    // its Eval once it painted a frame. "hold" shows the overlay and prints the key focus, then each signal of the
+    // extension's, a line each, the key focus again at each press of the first button, and answers a right press with a
+    // menu, as thermi does, saying once the Shell took it.
     private const string Caller = """
         import json, math, sys, gi
         from gi.repository import Gio, GLib
@@ -77,6 +76,14 @@ public sealed class ExtensionTests
             const label = (actor, text) => actor.text === text ? actor : actor.get_children().map(child => label(child, text)).find(found => found);
             const weight = text => label(open, text).get_theme_node().get_font().get_weight();
             `${top >= 519 ? 'below' : top + height <= 501 ? 'above' : 'over'} ${weight('Default') > weight('Other') ? 'bold' : 'plain'}`'''
+        WHOLE = '''const open = Main.uiGroup.get_children().find(actor => actor.visible && actor.has_style_class_name?.('popup-menu-boxpointer'));
+            const [, top] = open.get_transformed_position(); const [, height] = open.get_transformed_size();
+            const area = Main.layoutManager.getWorkAreaForMonitor(0);
+            top >= area.y && top + height <= area.y + area.height ? 'whole' : `cut at ${top} and ${top + height}` '''
+        EXPAND = '''const open = Main.uiGroup.get_children().find(actor => actor.visible && actor.has_style_class_name?.('popup-menu-boxpointer'));
+            const label = (actor, text) => actor.text === text ? actor : actor.get_children().map(child => label(child, text)).find(found => found);
+            const size = label(open, 'Size').get_parent().menu; size.open(false); global.thermiSize = size; 0'''
+        SCROLLED = "global.thermiSize.actor.has_style_pseudo_class('scrolled') ? 'scrolled' : 'unscrolled'"
         MARKS = '''const open = Main.uiGroup.get_children().find(actor => actor.visible && actor.has_style_class_name?.('popup-menu-boxpointer'));
             const label = (actor, text) => actor.text === text ? actor : actor.get_children().map(child => label(child, text)).find(found => found);
             label(open, TEXT).get_parent()._ornamentIcon.icon_name || 'none' '''
@@ -97,6 +104,17 @@ public sealed class ExtensionTests
             call(*menu(1, -1, side, (110.0, 500.0, 1.0, 20.0), [row('Default', default=True), row('Other')]))
             frame()
             return evaluate(MENU)
+
+        # Eighteen rows are taller than the room on either side of a box at 520, which has less above it.
+        def tall(rows, expand):
+            call(*menu(1, -1, 'below', (110.0, 520.0, 1.0, 20.0), rows))
+            frame()
+            if expand:
+                evaluate(EXPAND)
+                frame()
+                frame()
+                return f'{evaluate(WHOLE)} {evaluate(SCROLLED)}'
+            return evaluate(WHOLE)
 
         def marked(text):
             call(*menu(1, -1, rows=[row('Chosen', checked=True, radio=True), row('Not chosen', radio=True), row('Checked', checked=True)]))
@@ -154,7 +172,10 @@ public sealed class ExtensionTests
             frame()
             rows = {'shapes': shapes, 'menu-below': lambda: opened('below'), 'menu-above': lambda: opened('above'),
                     'radio-chosen': lambda: marked('Chosen'), 'radio-unchosen': lambda: marked('Not chosen'), 'copy': copied,
-                    'full-screen': full_screen, 'icon-menu': icon_after_its_menu}
+                    'full-screen': full_screen, 'icon-menu': icon_after_its_menu,
+                    'tall-menu': lambda: tall([row(f'Row {at}') for at in range(18)], False),
+                    'tall-submenu': lambda: tall([row('Size'), *[row(f'{at} %', 0) for at in range(18)], row('Exit')], True),
+                    'submenu-past-the-monitor': lambda: tall([row('Size'), *[row(f'{at} %', 0) for at in range(40)], row('Exit')], True)}
             print(rows[sys.argv[2]](), flush=True)
         else:
             focus = lambda: print('focus', evaluate('String(global.stage.key_focus)'), flush=True)
@@ -171,12 +192,7 @@ public sealed class ExtensionTests
                 if signal == 'Pointer' and values[1] == 'press' and values[4] == 3:
                     print('menu', call(*menu(1, -1)), flush=True)
             bus.signal_subscribe(None, None, None, PATH, None, Gio.DBusSignalFlags.NONE, heard)
-            if sys.argv[1] == 'hold':
-                shown = call(*show(1)) == 'taken'
-            else:
-                shown = call(*icons(1)) == 'taken'
-                frame()
-                shown = shown and evaluate("Main.panel.statusArea['thermi-icon0'].grab_key_focus(); 'focused'") == 'focused'
+            shown = call(*show(1)) == 'taken'
             focus()
             print('ready' if shown else 'refused', flush=True)
             GLib.MainLoop().run()
@@ -229,10 +245,13 @@ public sealed class ExtensionTests
     }
 
     // What thermi asks shows as the Shell's own: the pointer's shapes over the overlay, back to the Shell's after; a menu
-    // against a box, on the side thermi says, its default row bold; a picture on the clipboard; and the overlay over a
-    // window full screen, where thermi, not the Shell, says whether it shows.
-    // Rows: each a call of its own, the full-screen window the Shell would hide the overlay over, and an icon's menu, which
-    // leaves its icon on the top bar once it closes.
+    // against a box, on the side thermi says, its default row bold, and whole on its monitor, as Windows' menus show, even
+    // where it, or a submenu it opens, is taller than the room on either side, the submenu whole too where the monitor has
+    // room for it, and scrolling where it has not; a picture on the clipboard; and the overlay
+    // over a window full screen, where thermi, not the Shell, says whether it shows.
+    // Rows: each a call of its own, the full-screen window the Shell would hide the overlay over, an icon's menu, which
+    // leaves its icon on the top bar once it closes, a menu too tall for its side, and one a submenu makes so, for the
+    // monitor or past it.
     [Theory(Timeout = Bound.Test)]
     [InlineData("shapes", "NWSE_RESIZE NOT_ALLOWED INHERIT")]
     [InlineData("menu-below", "below bold")]
@@ -242,6 +261,9 @@ public sealed class ExtensionTests
     [InlineData("radio-unchosen", "ornament-dot-unchecked-symbolic")]
     [InlineData("full-screen", "shown")]
     [InlineData("icon-menu", "shown")]
+    [InlineData("tall-menu", "whole")]
+    [InlineData("tall-submenu", "whole unscrolled")]
+    [InlineData("submenu-past-the-monitor", "whole scrolled")]
     public async Task WhatThermiAsksShowsAsTheShellsOwn(string row, string shown)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -321,33 +343,12 @@ public sealed class ExtensionTests
         }
     }
 
-    // An icon the top bar's focus is on takes Enter, Space and the Menu key, as thermi takes a click and a right click; any
-    // other key moves the focus, as on the Shell's own icons.
-    [Fact(Timeout = Bound.Test)]
-    public async Task AnIconTakesEnterSpaceAndTheMenuKey()
-    {
-        var cancel = TestContext.Current.CancellationToken;
-        await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], cancel);
-        var caller = await CallerAsync(desktop, ["icons"], cancel);
-        var menu = caller.Out.NextAsync(line => line == "IconKey Menu", cancel);
-
-        foreach (var key in new[] { "a", "Return", "space", "Menu" })
-        {
-            await desktop.Input.PressAsync(key, cancel);
-        }
-
-        await menu;
-        var lines = caller.Out.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        string[] keys = [.. lines.Where(line => line.StartsWith("IconKey", StringComparison.Ordinal))];
-        Assert.Equal(["IconKey Return", "IconKey space", "IconKey Menu"], keys);
-    }
-
     private static async Task<SessionProcess> CallerAsync(TestDesktop desktop, string[] args, CancellationToken cancel)
     {
         var script = Path.Combine(desktop.Session.Home, "caller.py");
         await File.WriteAllTextAsync(script, Caller, cancel);
         var caller = await desktop.Session.StartAsync("python3", [script, .. args], cancel: cancel);
-        if (args[0] is "hold" or "icons")
+        if (args[0] == "hold")
         {
             Assert.Equal("ready", await caller.Out.FirstAsync(line => line is "ready" or "refused", cancel));
         }

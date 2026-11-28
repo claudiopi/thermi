@@ -7,7 +7,7 @@ thermi's GNOME Shell extension, in JavaScript, for GNOME Shell 46 to 51 (`docs/a
 | What | Who sends it |
 | --- | --- |
 | Each overlay's picture, premultiplied ARGB, its size, place and scale, and the boxes that take the pointer, where it draws, and how faded it shows | `thermi` (`Show`, `Move`, `Hide`, `Fade`) |
-| A menu's rows, each under the row it opens from, one of them the default, which reads bold, a radio's choice with a dot and the rest of its group with an empty circle, and the box and the side it opens against; the pointer's shape over an overlay; whether to tell the pointer anywhere, while an overlay fades | `thermi` (`Menu`, `Cursor`, `Watch`) |
+| A menu's rows, each under the row it opens from, one of them the default, which reads bold, a radio's choice with a dot and the rest of its group with an empty circle, and the box and the side it opens against, where the extension shows it whole on the box's monitor, on the other side or slid over the box where it must; the pointer's shape over an overlay; whether to tell the pointer anywhere, while an overlay fades | `thermi` (`Menu`, `Cursor`, `Watch`) |
 | A picture of an overlay, as a PNG, for the clipboard | `thermi` (`Copy`) |
 | The pointer on an overlay, or anywhere while watched, and a press another grab took, as a modal dialog's or the lock's, or one that came while such a grab held, of kind `cancel`; the keys pressed while it holds one, the row chosen, and -1 as the menu closes | the extension (`Pointer`, `Key`, `Chosen`) |
 | The monitors, their scales and top bar with its Activities, clock and system menu, which no overlay covers, and which shows a full-screen window | the extension (`Monitors`, `MonitorsChanged`) |

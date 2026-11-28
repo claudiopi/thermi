@@ -1,11 +1,10 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Meta from 'gi://Meta';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
-import {boxShape, isShape, leftShape, showShape} from './cursor.js';
+import {ON_X11, boxShape, coverWindows, isShape, leftShape, showShape} from './cursor.js';
 import {ThermiDesktop} from './desktop.js';
 import {closeMenu, openMenu, refuseMenu} from './overlayMenu.js';
 import {PointerWatch} from './pointerWatch.js';
@@ -57,9 +56,6 @@ function modal(box) {
 // The top bar's boxes no overlay covers, in the order Monitors tells them: the clock, the system menu, and Activities
 // with what sits beside it.
 const keptBoxes = () => [Main.panel._centerBox, Main.panel._rightBox, Main.panel._leftBox];
-
-// GNOME 50 runs on Wayland alone, and no longer has the call that asks.
-const ON_X11 = Meta.is_wayland_compositor ? !Meta.is_wayland_compositor() : false;
 
 export default class ThermiExtension extends Extension {
     enable() {
@@ -347,7 +343,7 @@ export default class ThermiExtension extends Extension {
     // focus; X11 sends them to the Shell only once its stage has the focus, which goes back at the release.
     _hold(overlay, shown, click) {
         const grab = global.stage.grab(click);
-        shown.grab = grab;
+        Object.assign(shown, {grab, cover: coverWindows()});
         grab.connect('notify::revoked', () => {
             if (shown.grab === grab && grab.is_revoked())
                 this._lose(overlay, shown);
@@ -384,7 +380,8 @@ export default class ThermiExtension extends Extension {
         if (!shown?.grab)
             return;
         shown.grab.dismiss();
-        shown.grab = null;
+        shown.cover?.destroy();
+        Object.assign(shown, {grab: null, cover: null});
         if (shown.clicks.includes(global.stage.get_key_focus()))
             global.stage.set_key_focus(shown.focus?.get_stage() ? shown.focus : null);
         shown.focus = null;

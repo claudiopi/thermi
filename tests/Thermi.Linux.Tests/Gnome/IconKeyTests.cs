@@ -7,6 +7,8 @@ namespace Thermi.Linux.Tests.Gnome;
 /// <summary>
 /// A key on thermi's icon in GNOME's top bar, once the bar's focus is on it, is the press Windows' tray makes of it: Enter
 /// and Space a click, which brings hidden overlays back and otherwise opens thermi's menu, and the Menu key the menu always.
+/// Any other key is the Shell's, as on its own icons: an "a" pressed first, were it a click, would show the hidden overlays
+/// before the Menu key opens the menu.
 /// </summary>
 public sealed class IconKeyTests
 {
@@ -38,6 +40,7 @@ public sealed class IconKeyTests
         await desktop.Input.ShellAsync($"Main.panel.statusArea['thermi-{TrayScene.ThermisId}'].grab_key_focus()", cancel);
         using var either = CancellationTokenSource.CreateLinkedTokenSource(cancel);
         var shown = Traced.NextAsync(thermi.Error, Traced.Shown, either.Token);
+        await desktop.Input.PressAsync("a", cancel);
         await desktop.Input.PressAsync(key, cancel);
         var menus = Accessible.OpenMenusAsync(session, either.Token);
         var first = await Task.WhenAny(shown, menus);

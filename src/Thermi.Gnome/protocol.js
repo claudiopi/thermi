@@ -96,7 +96,7 @@ function ornamentOf(checked, radio) {
 
 // Fills a menu with the rows; choosing one calls chosen with its index. A screen reader reads each menu as the menu it
 // is, which the Shell's own box no longer says. The default row reads bold, and a radio's choice shows a dot, as Windows'
-// menus show theirs.
+// menus show theirs. Gives the submenus it made.
 export function fillMenu(menu, rows, chosen) {
     menu.box.accessible_role = Atk.Role.MENU;
     const parents = new Map([[-1, menu]]);
@@ -120,4 +120,5 @@ export function fillMenu(menu, rows, chosen) {
         }
         into.addMenuItem(item);
     });
+    return [...parents.values()].filter(each => each !== menu);
 }
