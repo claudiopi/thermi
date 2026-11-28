@@ -91,7 +91,7 @@ internal static class Screen
     /// <summary>Once an app of <paramref name="bundle"/> runs, as Launch Services knows it, within a line's bound; false past it.</summary>
     public static async Task<bool> RunsAsync(OwnSession session, string bundle, CancellationToken cancel)
     {
-        // A look every tenth of a second, as many as the bound's seconds have tenths.
+        // Launch Services tells a program of plain .NET of no app's start, so the shell looks every tenth of a second, for a line's bound.
         string[] wait = ["-c", $"for i in $(seq {Bound.LineSeconds}0); do lsappinfo find bundleid={bundle} | grep -q . && exit 0; sleep 0.1; done; exit 1"];
         return (await session.RunAsync("/bin/sh", wait, cancel: cancel).ConfigureAwait(false)).Exit == 0;
     }

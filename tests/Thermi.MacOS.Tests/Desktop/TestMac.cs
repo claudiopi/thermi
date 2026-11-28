@@ -6,7 +6,8 @@ namespace Thermi.MacOS.Tests.Desktop;
 /// <summary>
 /// The Mac's desktop of a session made for tests, as a person uses it: the session's settings, where thermi reads them,
 /// the real service replaying a recorded Mac on the session's socket, thermi started from its app under <c>--trace</c>,
-/// what <c>thermi preview</c> paints for the same snapshot, and the main monitor as AppKit tells it.
+/// what <c>thermi preview</c> paints for the same snapshot, and the main monitor as AppKit tells it. What it changes of the
+/// Mac, the preferences it writes and where the second monitor is, it puts back as it ends, as the test Mac's user keeps it.
 /// </summary>
 internal sealed class TestMac : IAsyncDisposable
 {
@@ -23,20 +24,28 @@ internal sealed class TestMac : IAsyncDisposable
         }
         """;
 
-    // Puts the second monitor on the other side of the main one, as the person drags it in System Settings' Arrange.
+    // Puts the second monitor at the left the argument gives, or else on the other side of the main one, as the person drags
+    // it in System Settings' Arrange, until the user signs out, and says where it was: its result, then that left.
     private const string Swap = """
         ObjC.import('Cocoa');
         ObjC.import('CoreGraphics');
-        function run() {
+        function run(argv) {
           const [main, other] = $.NSScreen.screens.js;
           const id = other.deviceDescription.objectForKey('NSScreenNumber').js;
-          const x = other.frame.origin.x >= 0 ? -other.frame.size.width : main.frame.size.width;
+          const was = other.frame.origin.x;
+          const x = argv.length > 0 ? Number(argv[0]) : was >= 0 ? -other.frame.size.width : main.frame.size.width;
           const config = Ref();
           $.CGBeginDisplayConfiguration(config);
           $.CGConfigureDisplayOrigin(config[0], id, x, other.frame.origin.y);
-          return $.CGCompleteDisplayConfiguration(config[0], 2);
+          return [$.CGCompleteDisplayConfiguration(config[0], 1), was].join(' ');
         }
         """;
+
+    // Each preferences' domain the test changed, and the copy of it from before, which it takes back as it ends.
+    private readonly Dictionary<string, string> _preferences = new(StringComparer.Ordinal);
+
+    // Where the second monitor was before the test first moved it.
+    private string? _monitorWas;
 
     private TestMac(OwnSession session)
     {
@@ -112,13 +121,8 @@ internal sealed class TestMac : IAsyncDisposable
     /// <summary>The second monitor moved to the other side of the main one.</summary>
     public async Task SwapMonitorsAsync(CancellationToken cancel)
     {
-        var script = Path.Combine(Session.Temporary, "swap.js");
-        await File.WriteAllTextAsync(script, Swap, cancel).ConfigureAwait(false);
-        var swapped = await Session.RunAsync("osascript", ["-l", "JavaScript", script], cancel: cancel).ConfigureAwait(false);
-        if (swapped.Out.Trim() != "0")
-        {
-            throw new InvalidOperationException($"The monitors did not move: {swapped.Out}{swapped.Error}");
-        }
+        var was = await MoveMonitorAsync([], cancel).ConfigureAwait(false);
+        _monitorWas ??= was;
     }
 
     /// <summary>
@@ -127,12 +131,63 @@ internal sealed class TestMac : IAsyncDisposable
     /// </summary>
     public async Task DockAsync(string side, bool hides, CancellationToken cancel)
     {
-        await Session.RunAsync("defaults", ["write", "com.apple.dock", "orientation", "-string", side], cancel: cancel).ConfigureAwait(false);
-        await Session.RunAsync("defaults", ["write", "com.apple.dock", "autohide", "-bool", hides ? "true" : "false"], cancel: cancel).ConfigureAwait(false);
+        await PreferAsync("write", "com.apple.dock", ["orientation", "-string", side], cancel).ConfigureAwait(false);
+        await PreferAsync("write", "com.apple.dock", ["autohide", "-bool", hides ? "true" : "false"], cancel).ConfigureAwait(false);
         await Session.RunAsync("killall", ["Dock"], cancel: cancel).ConfigureAwait(false);
     }
 
-    public ValueTask DisposeAsync() => Session.DisposeAsync();
+    /// <summary>
+    /// A preference of <paramref name="domain"/> written or deleted, as <c>defaults</c> takes <paramref name="verb"/> and
+    /// <paramref name="setting"/>: the user's, whatever the session's home, so the domain as it was is kept to put back.
+    /// </summary>
+    public async Task PreferAsync(string verb, string domain, string[] setting, CancellationToken cancel)
+    {
+        if (!_preferences.ContainsKey(domain))
+        {
+            var kept = Path.Combine(Session.Temporary, $"{domain}.plist");
+            var exported = await Session.RunAsync("defaults", ["export", domain, kept], cancel: cancel).ConfigureAwait(false);
+            _preferences[domain] = exported.Exit == 0 ? kept : throw new InvalidOperationException($"defaults kept no {domain}: {exported.Error}");
+        }
+
+        await Session.RunAsync("defaults", [verb, domain, .. setting], cancel: cancel).ConfigureAwait(false);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var (domain, kept) in _preferences)
+        {
+            await Session.RunAsync("defaults", ["import", domain, kept]).ConfigureAwait(false);
+        }
+
+        // The Dock reads its preferences as it starts, and apps the appearance when the Mac says it changed.
+        if (_preferences.ContainsKey("com.apple.dock"))
+        {
+            await Session.RunAsync("killall", ["Dock"]).ConfigureAwait(false);
+        }
+
+        if (_preferences.Keys.Any(domain => domain != "com.apple.dock"))
+        {
+            await Session.RunAsync("notifyutil", ["-p", "AppleInterfaceThemeChangedNotification"]).ConfigureAwait(false);
+        }
+
+        if (_monitorWas is { } was)
+        {
+            await MoveMonitorAsync([was], CancellationToken.None).ConfigureAwait(false);
+        }
+
+        await Session.DisposeAsync().ConfigureAwait(false);
+    }
+
+    // The second monitor moved, and where it was.
+    private async Task<string> MoveMonitorAsync(string[] to, CancellationToken cancel)
+    {
+        var script = Path.Combine(Session.Temporary, "swap.js");
+        await File.WriteAllTextAsync(script, Swap, cancel).ConfigureAwait(false);
+        var moved = await Session.RunAsync("osascript", ["-l", "JavaScript", script, .. to], cancel: cancel).ConfigureAwait(false);
+        return moved.Out.Trim().Split(' ') is ["0", var was]
+            ? was
+            : throw new InvalidOperationException($"The monitors did not move: {moved.Out}{moved.Error}");
+    }
 }
 
 /// <summary>A monitor as AppKit tells it: in points, its whole frame, the part the menu bar and the Dock leave, and its scale.</summary>
