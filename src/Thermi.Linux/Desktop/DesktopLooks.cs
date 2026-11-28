@@ -26,21 +26,26 @@ internal static class DesktopLooks
     /// </summary>
     public static bool LightPanels()
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        string Dir(string variable, string fallback)
-        {
-            return Environment.GetEnvironmentVariable(variable) is { Length: > 0 } set ? set : Path.Combine(home, fallback);
-        }
-
         static string[] Dirs(string variable, string fallback)
         {
             return (Environment.GetEnvironmentVariable(variable) is { Length: > 0 } set ? set : fallback).Split(':', StringSplitOptions.RemoveEmptyEntries);
         }
 
-        string[] data = [Dir("XDG_DATA_HOME", ".local/share"), .. Dirs("XDG_DATA_DIRS", "/usr/local/share:/usr/share")];
-        return (Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':').Contains("KDE", StringComparer.OrdinalIgnoreCase)
-            && LightPlasmaPanels(Dir("XDG_CONFIG_HOME", ".config"), Dirs("XDG_CONFIG_DIRS", "/etc/xdg"), data);
+        string[] data = [UserDir("XDG_DATA_HOME", ".local/share"), .. Dirs("XDG_DATA_DIRS", "/usr/local/share:/usr/share")];
+        return OnPlasma() && LightPlasmaPanels(ConfigHome(), Dirs("XDG_CONFIG_DIRS", "/etc/xdg"), data);
     }
+
+    /// <summary>Whether the session is KDE Plasma's, by the names XDG_CURRENT_DESKTOP gives it.</summary>
+    public static bool OnPlasma() =>
+        (Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':').Contains("KDE", StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The person's own config folder, as the XDG base directories put it.</summary>
+    public static string ConfigHome() => UserDir("XDG_CONFIG_HOME", ".config");
+
+    private static string UserDir(string variable, string fallback) =>
+        Environment.GetEnvironmentVariable(variable) is { Length: > 0 } set
+            ? set
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), fallback);
 
     /// <summary>
     /// Whether KDE Plasma's panels are painted in a light colour, one that contrasts more with black than with white, as its

@@ -60,17 +60,14 @@ internal sealed partial class OverlayLinks : IDisposable
     // them, and the settings portal does not for the theme.
     private void Watch()
     {
-        if (!(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':').Contains("KDE", StringComparer.OrdinalIgnoreCase))
+        if (!DesktopLooks.OnPlasma())
         {
             return;
         }
 
-        var config = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") is { Length: > 0 } set
-            ? set
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
         foreach (var file in new[] { "plasmarc", "kdeglobals" })
         {
-            var monitor = Gio.FileHelper.NewForPath(Path.Combine(config, file)).MonitorFile(Gio.FileMonitorFlags.None, null);
+            var monitor = Gio.FileHelper.NewForPath(Path.Combine(DesktopLooks.ConfigHome(), file)).MonitorFile(Gio.FileMonitorFlags.None, null);
             monitor.OnChanged += (_, _) => Looked();
             _watches.Add(monitor);
         }
