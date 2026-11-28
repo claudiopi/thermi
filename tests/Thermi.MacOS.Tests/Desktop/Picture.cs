@@ -39,7 +39,7 @@ internal sealed class Picture
     /// <summary>How bright the picture is at its middle, from 0 for black to 255 for white, as the eye weighs its colors.</summary>
     public int Brightness()
     {
-        var pixel = _pixels[((Height / 2) * Width) + (Width / 2)];
+        var pixel = _pixels[(Height / 2 * Width) + (Width / 2)];
         return (int)((0.299 * ((pixel >> 16) & 0xFF)) + (0.587 * ((pixel >> 8) & 0xFF)) + (0.114 * (pixel & 0xFF)));
     }
 

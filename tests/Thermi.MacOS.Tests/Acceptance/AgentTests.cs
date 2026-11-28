@@ -121,7 +121,9 @@ public sealed class AgentTests
             "ssh",
             ["-o", "BatchMode=yes", "localhost", $"export THERMI_SENSORS_SOCKET='{session.Socket}' PATH='{AppContext.BaseDirectory}':$PATH; {line}"],
             cancel: cancel),
-        _ => session.RunAsync(row == Cli.Bash ? "/bin/bash" : "/bin/zsh", ["-c", line], cancel: cancel),
+        Cli.Bash => session.RunAsync("/bin/bash", ["-c", line], cancel: cancel),
+        Cli.Zsh or Cli.OverlayOnRetina => session.RunAsync("/bin/zsh", ["-c", line], cancel: cancel),
+        _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown shell."),
     };
 
     private static bool Read(ItemConfig item) => item.Metric != Metrics.Fps.Id && item.Metric != Metrics.FrameTime.Id;

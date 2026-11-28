@@ -97,8 +97,8 @@ public sealed partial class DesktopTests
         var critical = TimeProvider.System.GetElapsedTime(started);
         var shown = (await NoticeReader.ShownAsync(mac.Session, cancel)).Where(notice => notice.App == "thermi").ToList();
         var window = Traced.NextAsync(thermi.Error, Traced.WindowShown, cancel);
-        var withButtons = shown.First(notice => notice.Buttons.Length > 0);
-        await NoticeReader.ClickAsync(mac.Session, withButtons.Title, withButtons.Buttons[0], cancel);
+        var (_, title, buttons) = shown.First(notice => notice.Buttons.Length > 0);
+        await NoticeReader.ClickAsync(mac.Session, title, buttons[0], cancel);
 
         Assert.Equal(2, shown.Select(notice => notice.Title).Distinct(StringComparer.Ordinal).Count());
         Assert.True(critical >= NotifyMe.After, $"The critical notice came {critical} after the start.");

@@ -75,7 +75,7 @@ public sealed partial class PackageTests
     }
 
     /// <summary>A property list, as <c>plutil</c> turns it into JSON.</summary>
-    public static async Task<JsonNode> PlistAsync(OwnSession session, string plist, CancellationToken cancel)
+    internal static async Task<JsonNode> PlistAsync(OwnSession session, string plist, CancellationToken cancel)
     {
         var json = await session.RunAsync("plutil", ["-convert", "json", "-o", "-", plist], cancel: cancel);
         return json.Exit == 0 ? JsonNode.Parse(json.Out)! : throw new InvalidOperationException($"plutil did not read {plist}: {json.Error}");

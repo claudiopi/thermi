@@ -3,6 +3,7 @@ using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 using Thermi.MacOS.Tests.Desktop;
+using Screen = Thermi.MacOS.Tests.Desktop.Screen;
 
 namespace Thermi.MacOS.Tests.Acceptance;
 

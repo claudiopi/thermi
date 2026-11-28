@@ -136,11 +136,14 @@ internal sealed class TestMac : IAsyncDisposable
 }
 
 /// <summary>A monitor as AppKit tells it: in points, its whole frame, the part the menu bar and the Dock leave, and its scale.</summary>
-internal sealed record MacMonitor((int X, int Y, int Width, int Height) Frame, (int X, int Y, int Width, int Height) Visible, double Scale)
+internal sealed record MacMonitor(Area Frame, Area Visible, double Scale)
 {
     public static MacMonitor Of(string line)
     {
         var n = line.Split(' ').Select(each => double.Parse(each, CultureInfo.InvariantCulture)).ToArray();
-        return new MacMonitor(((int)n[0], (int)n[1], (int)n[2], (int)n[3]), ((int)n[4], (int)n[5], (int)n[6], (int)n[7]), n[8]);
+        return new MacMonitor(new((int)n[0], (int)n[1], (int)n[2], (int)n[3]), new((int)n[4], (int)n[5], (int)n[6], (int)n[7]), n[8]);
     }
 }
+
+/// <summary>A part of the screen, in points from the main monitor's top left.</summary>
+internal readonly record struct Area(int X, int Y, int Width, int Height);
