@@ -10,3 +10,4 @@ Icon=io.github.claudiopi.thermi
 Terminal=false
 NoDisplay=true
 X-systemd-skip=true
+Hidden=true
