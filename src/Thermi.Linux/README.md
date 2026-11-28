@@ -1,13 +1,27 @@
 # Thermi.Linux
 
-`thermi` and `thermi-cli` on Linux, as the person (`docs/adr/0019-linux.md`). The overlay reads the service's socket, lets Core decide what each overlay shows, paints it with Cairo and Pango, and shows it on the desktop's surfaces (`IOverlaySurfaces`): through the GNOME Shell extension of `src/Thermi.Gnome` over D-Bus, as GTK windows made layer surfaces on KDE Plasma, Sway and Hyprland, or as GTK windows kept above on X11. A surface only shows pictures and reports the pointer; the presses, drags and drops are `Thermi.App`'s, as on Windows. `thermi settings` opens the settings window, the page in WebKitGTK, one per session. `thermi-cli` runs `Thermi.Cli`'s commands over an `IAgentEnvironment` of Linux's, through Gio alone, never GTK, so it answers with the sensors' package alone and over SSH. Under `--trace`, the overlay writes on its standard error the events the tests wait for, one per line, as `tests/Thermi.Linux.Tests/Traced.cs` names them. On its bus name, `io.github.claudiopi.thermi.Overlay`, it exports one action, `quit`, through `org.gtk.Actions`: the settings window's "Exit thermi"; and it serves `OverlayObject`: the settings window asks its `HotkeyStatus` and tells it each message of their link through `Message`; a second start of thermi asks it to open the window through `Open`; and `thermi-cli` reads its `State` as `OverlayState`: whether the overlays can show and the monitors as the overlay places them, which only a running overlay measures.
+`thermi` and `thermi-cli` on Linux, as the person (`docs/adr/0019-linux.md`).
+
+The overlay reads the service's socket, lets Core decide what each overlay shows, paints it with Cairo and Pango, and shows it on the desktop's surfaces (`IOverlaySurfaces`). On GNOME that is the Shell extension of `src/Thermi.Gnome`, over D-Bus; on KDE Plasma, Sway and Hyprland, GTK windows made layer surfaces; on X11, GTK windows kept above. A surface only shows pictures and reports the pointer: the presses, drags and drops are `Thermi.App`'s, as on Windows.
+
+`thermi settings` opens the settings window, the page in WebKitGTK, one per session. `thermi-cli`, the same program under another name, runs `Thermi.Cli`'s commands over Linux's `IAgentEnvironment` through Gio alone, never GTK, so it answers with the sensors' package alone and over SSH.
 
 It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against compositors of their own, are in `tests/Thermi.Linux.Tests`.
+
+The running overlay holds the bus name `io.github.claudiopi.thermi.Overlay`, and answers its own programs there:
+
+| Call | Who calls it, and why |
+| --- | --- |
+| `quit`, an action of `org.gtk.Actions` | The settings window's "Exit thermi". |
+| `HotkeyStatus` | The settings window, for the hotkeys the desktop refused. |
+| `Message` | The settings window, for each message of their link. |
+| `Open` | A second start of thermi, to open the settings window. |
+| `State` | `thermi-cli`, as `OverlayState`: whether the overlays can show, and the monitors as the overlay places them, which only a running overlay measures. |
 
 | Folder | What lives there |
 | --- | --- |
 | `Agents` | What `thermi-cli`'s commands reach on Linux: the overlay's user unit for the start at sign-in, and every other answer of `IAgentEnvironment`. |
-| `Commands` | `thermi`'s commands on Linux beside the shared ones, as `thermi preview`. |
+| `Commands` | How Linux runs the shared `thermi preview`, with its Cairo painter. |
 | `Desktop` | What the overlay and the agents' commands read from the desktop and the machine: which surfaces the session has, the session's D-Bus and the objects thermi serves on it, the monitors as GNOME and GDK lay them out, high contrast, the panels, the pointer's drag distance and double-click time, the CPU's base clock; the desktop's notifications, and the GTK window a picture and its menu show in off GNOME. |
 | `Gnome` | thermi's side of the D-Bus protocol with its GNOME Shell extension, the Shell's monitors as Core's screens, the extension's arrival, and the extension as the overlay's surfaces, its icons in the top bar and its hotkeys. |
 | `Hotkeys` | thermi's four hotkeys, through GNOME's extension, the GlobalShortcuts portal or X11's grab; one another program holds is refused, which the settings window asks the overlay about. |
@@ -16,20 +30,18 @@ It targets plain `net10.0`, marked for Linux in `Program.cs`. Its tests, against
 | `Overlay` | The overlay's host on one GLib main loop: each overlay painted and placed, the pointer on it handed to `Thermi.App`'s press, the ghost and snap marks a drag shows, its menu, the `quit` it exports, and what it answers its own programs on the session's bus, as the hotkeys the desktop refused. |
 | `Overlay/Link` | The running overlay's links past its surfaces: its end of the settings window's messages over the session's bus, a second start's request to open the window, the desktop's look it follows, and systemd's watchdog. |
 | `Overlay/Tips` | Each value's tooltip as a picture of its own on the desktop's surfaces, where App's tooltips place it. |
-| `Packaging` | What the packages install beside thermi for the desktop: the systemd user unit that runs the overlay in the person's graphical session, and the app launcher's entry. |
+| `Packaging` | What the `thermi` package installs beside the program, and how: the systemd user unit that runs the overlay in the person's graphical session, the app launcher's entry, the package's nfpm config and scripts, and the AUR's `PKGBUILD` for both packages, which `scripts/linux-packages.ps1` packs with the overlay, its icons and the GNOME Shell extension. |
 | `Painting` | The overlay and the tray's icons painted with Cairo and Pango, from Core's look, layout and shapes, as Windows' GDI+ painter does. |
 | `Tray` | thermi's icons as Core's tray decides them, in GNOME's top bar or as StatusNotifierItems with their dbusmenu menus, and its notices as the desktop's notifications, each button doing what it does on Windows. |
 | `Sensors` | The service's socket: the system's, else where it is missing the user's own, of a `thermi-sensors --console`, each trusted only from who should serve it; `THERMI_SENSORS_SOCKET` names one to read alone. |
 | `Window` | `thermi settings`: one GTK 4 window per session with the page in WebKitGTK, served from the install's `web` folder, the window's end of its link with the overlay over the session's bus, and the bridge's host on Linux: the portal's look, the GNOME extension's and the service's fixes behind the desktop's prompts, and the overlay's user unit. |
 | `X11` | The overlay's surfaces on X11: GTK windows as docks, above every window but a full-screen one, which the root window's changes tell as the person's window goes full screen or comes back, off the taskbar and the pager, taking the pointer only through their input shape, faded and with menus as on layer surfaces; the work area from the panels' struts, the pointer read for Fade and drags, and thermi's hotkeys as X11's own grabs. |
 
-The `thermi` package's files, beside the code in `Packaging`, are the overlay's user unit, its launcher's entry, the package's `nfpm.yaml` and scripts, and the AUR's `PKGBUILD` for both packages; `scripts/linux-packages.ps1` packs them with the overlay, its icons and the GNOME Shell extension.
-
 ## What the tests rely on
 
 The tests drive thermi as a person's desktop does and wait for what it says it did, never for a time, so these are a contract: a change here changes `tests/Thermi.Linux.Tests` with it.
 
-Under `--trace`, each event is one line on the standard error, `<seconds on CLOCK_MONOTONIC, 3 decimals> <event>[ <about>]`, as `812.034 shown`; a line of another shape is the log's.
+Under `--trace`, the overlay and the settings window write each event as one line on their standard error, `<seconds on CLOCK_MONOTONIC, 3 decimals> <event>[ <about>]`, as `812.034 shown`, with the names `tests/Thermi.Linux.Tests/Traced.cs` gives them; a line of another shape is the log's.
 
 | Event | Written when |
 | --- | --- |
@@ -42,8 +54,9 @@ Under `--trace`, each event is one line on the standard error, `<seconds on CLOC
 | `hotkeys-refused` | The desktop gave none of the hotkeys: it has no way to give them, or the person said no. Said once, in place of a `hotkey-refused` for each. |
 | `lifted` | A hold lifted a value or a pill, and its ghost is on screen under the pointer. |
 | `faded` | An overlay with Fade, opaque until then, is on screen fainter as the pointer nears it: its surface's opacity, never a new picture. |
+| `window-shown <item>` | The settings window showed or came to the front, about the item it shows, or about nothing. The window writes it. |
 
-Notices are the desktop's own freedesktop `Notify`, also on GNOME, where the Shell serves it; a test matches their buttons by action id, never by text. Every notice also takes `default`, a click on the notice past its buttons, which does what a click on Windows' does.
+Notices are the desktop's own freedesktop `Notify`, also on GNOME, where the Shell serves it; a test matches their buttons by action id, never by text. Core's notices, the first start's, the hidden overlays' and click-through's, also take `default`, a click on the notice past its buttons, which does what a click on Windows' does.
 
 | Notice | Action ids |
 | --- | --- |

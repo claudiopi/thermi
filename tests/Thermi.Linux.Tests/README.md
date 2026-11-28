@@ -8,13 +8,13 @@ They never touch the person's desktop: each compositor and process a test starts
 | --- | --- |
 | `Acceptance` | The tests spec 006's acceptance steps name. |
 | `Desktops` | A headless desktop of the test's own, and what a person and the desktop do on it. |
-| `Desktops/Surfaces` | What a desktop off GNOME changes under a running overlay: a panel that starts later, a window gone full screen, a panel raised over it, the window manager's close; and the overlay's menu there as GTK draws it. |
+| `Desktops/Surfaces` | What a desktop off GNOME changes under a running overlay: a panel that starts later, a window gone full screen, a panel raised over it, the window manager's close, and overlays hidden and shown often; the overlay's menu there as GTK draws it; and KDE Plasma's panel, what it holds and the colour it is painted in. |
 | `Desktops/X11` | The X servers the desktops run on, Xvfb and Xorg on its dummy driver, and Xfce's desktop. |
 | `Gnome` | What thermi's GNOME Shell extension takes from the session's bus and the pointer, with a stand-in for thermi. |
-| `Hotkeys` | That every key a hotkey takes has its name on the Linux desktops, and what a desktop off GNOME gives of them. |
+| `Hotkeys` | That every key a hotkey takes has its name on the Linux desktops, what a desktop off GNOME gives of them, and that a portal's answer goes on on the GLib main loop. |
 | `Readers` | The service's readers over trees made for hardware the recorded PCs lack. |
 | `Tray` | What thermi's tray icons take from the session's bus, with a tray of the test's own. |
-| `Window` | What the settings window asks of the person's session on its own: starting at sign-in, the desktop's look from its portal, and starting and ending the overlay. |
+| `Window` | What the settings window asks of the person's session on its own: starting at sign-in, the desktop's look from its portal, and starting and ending the overlay; and what it serves the page, its own files on its own origin and nothing else. |
 
 Entry points worth knowing:
 

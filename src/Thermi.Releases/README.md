@@ -1,6 +1,6 @@
 # Thermi.Releases
 
-`thermi-releases`, the owner's levers on the update channels (`docs/adr/0008-updates.md`), which `scripts/updates.ps1` runs. Each lever writes the channel's next signed manifest into a folder laid out as the server is. Core decides every lever (`src/Thermi.Core/Updates/Levers.cs`); this only reads and writes files. Nothing of it ships.
+`thermi-releases`, the owner's levers on Windows' update channels (`docs/adr/0008-updates.md`), which `scripts/updates.ps1` runs. The same levers on Linux's repositories are `scripts/repository.ps1`'s, which `scripts/updates.ps1 --repository` runs instead. Each lever writes the channel's next signed manifest into a folder laid out as the server is. Core decides every lever (`src/Thermi.Core/Updates/Levers.cs`); this only reads and writes files. Nothing of it ships.
 
 | Lever | Does |
 | --- | --- |
