@@ -1,5 +1,3 @@
-using AppKit;
-
 namespace Thermi.MacOS;
 
 /// <summary><c>thermi</c> on macOS: the overlay, the menu bar's items, <c>thermi settings</c> and <c>thermi preview</c>.</summary>

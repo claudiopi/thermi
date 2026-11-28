@@ -301,10 +301,12 @@ public sealed partial class RepoRulesTests
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex LinuxApi();
 
-    // .NET's bindings of the Mac's frameworks, IOKit's sensors and energy counters, launchd's socket and command, a socket's
-    // peer, and the platform's attribute. A word in a plain string is no API.
+    // .NET's bindings of the Mac's frameworks, by namespace or by their types' prefixes, as .NET for macOS's implicit usings
+    // let AppKit's NSApplication go without its namespace; IOKit's sensors and energy counters, launchd's socket and
+    // command, a socket's peer, and the platform's attribute. A word in a plain string is no API.
     [GeneratedRegex(
-        @"\b(AppKit|Foundation|WebKit|CoreGraphics|CoreText|UserNotifications|ObjCRuntime)(\.|\s*;)|\bIOKit\b|\bIOReport\w*|\bIOHID\w*"
+        @"\b(AppKit|Foundation|WebKit|CoreGraphics|CoreText|UserNotifications|ObjCRuntime)(\.|\s*;)|\b(NS|CG|CT|WK|UN)[A-Z][a-z]\w*"
+            + @"|\bIOKit\b|\bIOReport\w*|\bIOHID\w*"
             + @"|\bSMC\w*|\blaunch_activate_socket\b|\bgetpeereid\b|\bSupportedOSPlatform\(""macos""|""launchctl""",
         RegexOptions.ExplicitCapture,
         matchTimeoutMilliseconds: 1000)]
