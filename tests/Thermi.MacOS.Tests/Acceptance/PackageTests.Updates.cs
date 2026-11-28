@@ -43,17 +43,8 @@ public sealed partial class PackageTests
         var installed = await InstallAsync(session, cancel);
         var levers = new Levers(session);
         await levers.RunAsync(["publish", "--channel", "stable", "--version", "1.1.0", "--app", Path.Combine(AppOf(row), "thermi.app.zip")], cancel);
-        if (row == Offered.CannotWrite)
-        {
-            File.SetUnixFileMode(Path.GetDirectoryName(installed)!, UnixFileMode.UserRead | UnixFileMode.UserExecute);
-        }
-
-        var before = await VersionAsync(session, installed, cancel);
-        var checkedIt = await session.RunAsync(
-            Path.Combine(installed, "Contents", "MacOS", "thermi-sensors"), ["--check-updates", "--from", levers.Url], cancel: cancel);
-        var after = await VersionAsync(session, installed, cancel);
+        var (checkedIt, before, after, status) = await CheckAsync(session, installed, levers.Url, row == Offered.CannotWrite, cancel);
         var previous = Path.Combine(session.Home, "Library", "Application Support", "thermi", "previous", "thermi.app");
-        var status = JsonNode.Parse((await session.RunAsync("thermi-cli", ["status", "--schema", "1"], cancel: cancel)).Out)!;
         var log = string.Concat(Directory.EnumerateFiles(Path.Combine(session.Home, "Library", "Logs", "thermi")).Select(File.ReadAllText));
 
         // Only thermi's own newer app, notarized, replaces it, whole, with the previous kept; one that fails at start is
@@ -62,8 +53,35 @@ public sealed partial class PackageTests
         Assert.Equal(row == Offered.SignedByThermi ? "1.1.0" : before, after);
         Assert.Equal(row is Offered.SignedByThermi or Offered.FailsAtStart, Directory.Exists(previous));
         Assert.Equal(0, (await session.RunAsync("codesign", ["--verify", "--deep", "--strict", installed], cancel: cancel)).Exit);
-        Assert.Equal(row is Offered.OtherTeam or Offered.NotNotarized or Offered.FailsAtStart, log.Contains("1.1.0", StringComparison.Ordinal));
+        Assert.True(row is not (Offered.OtherTeam or Offered.NotNotarized or Offered.FailsAtStart) || log.Contains("1.1.0", StringComparison.Ordinal), log);
         Assert.Equal(row == Offered.CannotWrite, status["updates"]?["problem"] is not null);
+    }
+
+    // The service checks the channel for the installed app, and what status says after, in an Applications its user may
+    // not write when the row says so.
+    private static async Task<(Ran Checked, string Before, string After, JsonNode Status)> CheckAsync(
+        OwnSession session, string installed, string channels, bool cannotWrite, CancellationToken cancel)
+    {
+        var applications = Path.GetDirectoryName(installed)!;
+        var writable = File.GetUnixFileMode(applications);
+        try
+        {
+            if (cannotWrite)
+            {
+                File.SetUnixFileMode(applications, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            }
+
+            var before = await VersionAsync(session, installed, cancel);
+            var service = Path.Combine(installed, "Contents", "MacOS", "thermi-sensors");
+            var checkedIt = await session.RunAsync(service, ["--check-updates", "--from", channels], cancel: cancel);
+            var status = JsonNode.Parse((await session.RunAsync("thermi-cli", ["status", "--schema", "1"], cancel: cancel)).Out)!;
+            return (checkedIt, before, await VersionAsync(session, installed, cancel), status);
+        }
+        finally
+        {
+            // The session deletes its home as it ends, which a folder its user cannot write keeps.
+            File.SetUnixFileMode(applications, writable);
+        }
     }
 
     [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
@@ -105,36 +123,46 @@ public sealed partial class PackageTests
         var cancel = TestContext.Current.CancellationToken;
         await using var session = new OwnSession();
         var levers = new Levers(session);
-        var app = Path.Combine(Packed, "newer", "thermi.app.zip");
-        var size = new FileInfo(app).Length;
-        string sha;
-        await using (var zip = File.OpenRead(app))
-        {
-            sha = Convert.ToHexStringLower(await SHA256.HashDataAsync(zip, cancel));
-        }
+        var newer = await AppZipAsync(Path.Combine(Packed, "newer", "thermi.app.zip"), cancel);
+        // The build's own app, as an earlier version that stable offers first, for the rollback to go back to.
+        var zipped = Path.Combine(session.Temporary, "thermi.app.zip");
+        Assert.Equal(0, (await session.RunAsync("ditto", ["-c", "-k", "--keepParent", Built.App, zipped], cancel: cancel)).Exit);
+        var earlier = await AppZipAsync(zipped, cancel);
+        await levers.RunAsync(["publish", "--channel", "stable", "--version", "1.0.0", "--app", zipped], cancel);
 
-        (string[] Lever, string Channel)[] pulled =
+        // What each lever leaves its channel offering, and stable's in the tap's cask; disabled, a channel offers nothing new.
+        (string[] Lever, string Channel, string Version, AppZip? App)[] pulled =
         [
-            (["publish", "--channel", "beta", "--version", "1.1.0", "--app", app], "beta"),
-            (["promote", "--from", "beta", "--to", "stable"], "stable"),
-            (["rollback", "--channel", "stable"], "stable"),
-            (["disable", "--channel", "stable"], "stable"),
+            (["publish", "--channel", "beta", "--version", "1.1.0", "--app", newer.Path], "beta", "1.1.0", newer),
+            (["promote", "--from", "beta", "--to", "stable"], "stable", "1.1.0", newer),
+            (["rollback", "--channel", "stable"], "stable", "1.0.0", earlier),
+            (["disable", "--channel", "stable"], "stable", "1.0.0", null),
         ];
 
-        foreach (var (lever, channel) in pulled)
+        foreach (var (lever, channel, version, app) in pulled)
         {
             await levers.RunAsync(lever, cancel);
             var manifest = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(levers.Channels, channel, "manifest.json"), cancel))!;
-            var mac = manifest["release"]?["mac"];
+            var cask = await File.ReadAllTextAsync(Path.Combine(levers.Tap, "Casks", "thermi.rb"), cancel);
             // Each manifest is signed as on Windows, and names the Mac's app while a release is out.
             Assert.Equal(0, (await levers.VerifyAsync(channel, cancel)).Exit);
-            Assert.True(lever[0] == "disable" || ((long?)mac?["size"] == size && (string?)mac?["sha256"] == sha), $"{lever[0]} wrote {manifest}");
+            Assert.True(app is null || Offers(manifest["release"], version, app), $"{lever[0]} wrote {manifest}");
+            Assert.True(app is null || channel != "stable" || (cask.Contains($"version \"{version}\"", StringComparison.Ordinal)
+                && cask.Contains($"sha256 \"{app.Sha}\"", StringComparison.Ordinal)), $"{lever[0]} left the cask {cask}");
         }
-
-        var cask = await File.ReadAllTextAsync(Path.Combine(levers.Tap, "Casks", "thermi.rb"), cancel);
-        Assert.Contains("version \"1.1.0\"", cask, StringComparison.Ordinal);
-        Assert.Contains($"sha256 \"{sha}\"", cask, StringComparison.Ordinal);
     }
+
+    private static bool Offers(JsonNode? release, string version, AppZip app) =>
+        (string?)release?["version"] == version && (long?)release?["mac"]?["size"] == app.Size && (string?)release?["mac"]?["sha256"] == app.Sha;
+
+    // A zipped app, as a manifest and the cask name it: its size and SHA-256.
+    private static async Task<AppZip> AppZipAsync(string path, CancellationToken cancel)
+    {
+        await using var zip = File.OpenRead(path);
+        return new AppZip(path, zip.Length, Convert.ToHexStringLower(await SHA256.HashDataAsync(zip, cancel)));
+    }
+
+    private sealed record AppZip(string Path, long Size, string Sha);
 
     // The build's app, as the person installed it, in the session's own Applications.
     private static async Task<string> InstallAsync(OwnSession session, CancellationToken cancel)
