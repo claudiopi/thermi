@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Thermi.Core.Agents;
 using Thermi.Core.Sensors;
@@ -14,8 +15,7 @@ namespace Thermi.MacOS.Tests.Acceptance;
 public sealed class AgentTests
 {
     // Each command of spec 003 a shell runs to its end, and what it ends with when the service serves and no overlay runs;
-    // an edit and a look change the file as no overlay holds it. find-cpu-fan loads the Mac for its run, and
-    // start-with-windows sets Open at login, which the agents' test reads.
+    // an edit and a look change the file as no overlay holds it. start-with-windows and find-cpu-fan are checked below.
     private static readonly (string Args, string? Schema, int Exit)[] Commands =
     [
         ("status --schema 1", "status", 0),
@@ -50,7 +50,8 @@ public sealed class AgentTests
             return;
         }
 
-        await using var session = new OwnSession();
+        // A shell, and ssh, start whatever they are told, so only a session made for tests runs them.
+        await using var session = OwnSession.OnScreen();
         await SensorFeed.ServeAsync(session, SensorFeed.MacMini, cancel);
 
         // Each command by the name thermi-cli has on the PATH the cask links it to; over SSH, in a login of the person's
@@ -69,6 +70,8 @@ public sealed class AgentTests
         var monitors = JsonNode.Parse((await RunAsync(session, row, "thermi-cli monitors", cancel)).Out)!;
         Assert.Equal("overlay-not-running", NotMeasured(monitors));
         Assert.Equal(("running", false), await session.SdkStatusAsync(cancel));
+        await StartsAtLoginAsync(session, row, cancel);
+        await ReachesThePerformanceCoresAsync(session, row, cancel);
     }
 
     [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
@@ -114,17 +117,52 @@ public sealed class AgentTests
     }
 
     // A command line in zsh or bash on the Mac, or in the person's login over SSH, which finds the build's programs and
-    // reads the session's socket as the shell's own would.
+    // reads the session's socket as the shell's own would; the login takes the session's home and temporary folder, where
+    // an edit and a look write, never the person's.
     private static Task<Ran> RunAsync(OwnSession session, Cli row, string line, CancellationToken cancel) => row switch
     {
         Cli.OverSsh => session.RunAsync(
             "ssh",
-            ["-o", "BatchMode=yes", "localhost", $"export THERMI_SENSORS_SOCKET='{session.Socket}' PATH='{AppContext.BaseDirectory}':$PATH; {line}"],
+            [
+                "-o", "BatchMode=yes", "localhost",
+                $"export HOME='{session.Home}' TMPDIR='{session.Temporary}' LANG=en_US.UTF-8 THERMI_SENSORS_SOCKET='{session.Socket}' "
+                    + $"PATH='{AppContext.BaseDirectory}':$PATH; {line}",
+            ],
             cancel: cancel),
         Cli.Bash => session.RunAsync("/bin/bash", ["-c", line], cancel: cancel),
         Cli.Zsh or Cli.OverlayOnRetina => session.RunAsync("/bin/zsh", ["-c", line], cancel: cancel),
         _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown shell."),
     };
+
+    // start-with-windows keeps its name on the Mac and sets Open at login, the overlay's agent's start at login, without
+    // starting the overlay.
+    private static async Task StartsAtLoginAsync(OwnSession session, Cli row, CancellationToken cancel)
+    {
+        var agent = Path.Combine(session.Home, "Library", "LaunchAgents", $"{Launchd.OverlayLabel}.plist");
+        var (gui, _) = await session.DomainsAsync(cancel);
+        foreach (var on in new[] { true, false })
+        {
+            Assert.Equal(0, (await RunAsync(session, row, $"thermi-cli start-with-windows {(on ? "on" : "off")}", cancel)).Exit);
+            Assert.Equal(on, (bool?)(await PackageTests.PlistAsync(session, agent, cancel))["RunAtLoad"] == true);
+            Assert.DoesNotContain("pid = ", await Launchd.PrintAsync(session, gui, Launchd.OverlayLabel, cancel) ?? "", StringComparison.Ordinal);
+        }
+    }
+
+    // find-cpu-fan's load takes more of the CPU than the efficiency cores alone give, where macOS keeps a background thread:
+    // its CPU time over its run, as time says it, past a core for each of them; a Mac of one kind of core has none.
+    private static async Task ReachesThePerformanceCoresAsync(OwnSession session, Cli row, CancellationToken cancel)
+    {
+        var line = "sysctl -n hw.perflevel1.logicalcpu 2>/dev/null || echo 0; /usr/bin/time -p thermi-cli find-cpu-fan 2>&1 >/dev/null";
+        var said = (await RunAsync(session, row, line, cancel)).Out.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var efficiency = int.Parse(said[0], CultureInfo.InvariantCulture);
+        Assert.True(
+            (Seconds(said, "user") + Seconds(said, "sys")) / Seconds(said, "real") > efficiency,
+            $"find-cpu-fan's load took no more than the efficiency cores: {string.Join(' ', said)}");
+    }
+
+    // A time time -p says, on its line of the name.
+    private static double Seconds(string[] said, string name) =>
+        double.Parse(said.Last(line => line.StartsWith($"{name} ", StringComparison.Ordinal))[(name.Length + 1)..], CultureInfo.InvariantCulture);
 
     private static bool Read(ItemConfig item) => item.Metric != Metrics.Fps.Id && item.Metric != Metrics.FrameTime.Id;
 
