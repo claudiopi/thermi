@@ -32,9 +32,24 @@ internal sealed class Picture
     }
 
     /// <summary>How many pixels differ from <paramref name="other"/>'s, over the whole of a picture of the same size.</summary>
-    public int Differing(Picture other) => Width == other.Width && Height == other.Height
-        ? _pixels.Where((pixel, at) => pixel != other._pixels[at]).Count()
-        : throw new InvalidOperationException($"A picture of {Width}x{Height} compared with one of {other.Width}x{other.Height}.");
+    public int Differing(Picture other)
+    {
+        var compared = Comparable(other);
+        return _pixels.Where((pixel, at) => pixel != compared._pixels[at]).Count();
+    }
+
+    /// <summary>
+    /// How many pixels differ from <paramref name="preview"/>'s where it draws opaque: <c>thermi preview</c> paints nothing
+    /// where the overlay draws nothing, which the screen shows as what is behind it, and blends its edges with it.
+    /// </summary>
+    public int DifferingWhereDrawn(Picture preview)
+    {
+        var compared = Comparable(preview);
+        var drawn = Enumerable.Range(0, _pixels.Length).Where(at => compared._pixels[at] >> 24 == 0xFF).ToList();
+        return drawn.Count > 0
+            ? drawn.Count(at => _pixels[at] != preview._pixels[at])
+            : throw new InvalidOperationException("The preview draws nothing opaque to compare the screen with.");
+    }
 
     /// <summary>How bright the picture is at its middle, from 0 for black to 255 for white, as the eye weighs its colors.</summary>
     public int Brightness()
@@ -51,6 +66,10 @@ internal sealed class Picture
             ? clear.MinBy(pixel => Math.Abs(pixel.X - (Width / 2)) + Math.Abs(pixel.Y - (Height / 2)))
             : throw new InvalidOperationException("The picture draws everywhere.");
     }
+
+    private Picture Comparable(Picture other) => Width == other.Width && Height == other.Height
+        ? other
+        : throw new InvalidOperationException($"A picture of {Width}x{Height} compared with one of {other.Width}x{other.Height}.");
 
     // A BMP's pixels start where its header says, in rows from the bottom up unless its height is negative, each of 3 or 4
     // bytes a pixel, blue first, and padded to 4 bytes.
