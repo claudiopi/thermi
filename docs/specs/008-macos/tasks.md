@@ -1,12 +1,12 @@
 # 008-macos: Tasks
 
-**Status**: draft; 0 of 27 tasks; the code starts on spec 006, once it is on main.
+**Status**: approved; 3 of 27 tasks; current block B2.
 
 ## B1. The ground
 
-- [ ] T1. ADR 0021 accepted, and the rules of `AGENTS.md` that name Windows extended to macOS: a `*.MacOS` project's files use a macOS-only API, the native calls declared by hand are listed with why, macOS's window tests run only in a session made for tests. (R9, R16)
-- [ ] T2. The macOS job in `.github/workflows/ci.yml`, required by `CI gate`, running Core's tests on macOS first, and the solution building `Thermi.MacOS` as nothing off macOS. (R1)
-- [ ] T3. The acceptance tests, written red and skipped. (all)
+- [x] T1. ADR 0021 accepted, and the rules of `AGENTS.md` that name Windows extended to macOS: a `*.MacOS` project's files use a macOS-only API, the native calls declared by hand are listed with why, macOS's window tests run only in a session made for tests. (R9, R16)
+- [x] T2. The macOS job in `.github/workflows/ci.yml`, required by `CI gate`, running Core's tests on macOS first, and the solution building `Thermi.MacOS` as nothing off macOS. (R1)
+- [x] T3. The acceptance tests, written red and skipped. (all)
 
 ## B2. The sensors
 
