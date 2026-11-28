@@ -172,8 +172,10 @@ public static class OverlayLayout
 
     // Frames read only while an app in front presents: the rest of the time there is nothing to show, not a value missing,
     // so the item takes no room, as when the service cannot read frames at all.
-    private static bool NoFrames(ItemConfig item, Reading? reading) =>
-        Threshold.KindOf(item) is SensorKind.FrameRate or SensorKind.FrameTime && reading?.Usable is null;
+    private static bool NoFrames(ItemConfig item, Reading? reading) => ReadsFrames(item) && reading?.Usable is null;
+
+    /// <summary>Whether an item shows the game's frames, FPS or frame time.</summary>
+    public static bool ReadsFrames(ItemConfig item) => Threshold.KindOf(item) is SensorKind.FrameRate or SensorKind.FrameTime;
 
     /// <summary>
     /// What an item reads now, its sensors combined and its offset added, or null when it names sensors the snapshot lacks.

@@ -57,6 +57,9 @@ internal static class TestRecordings
     /// <summary>Zwift's presents for 8 s, each with when the trace delivered it, from 0.42 s after it at the median to 0.74 s.</summary>
     public const string ZwiftArrived = "ryzen-9950x-rtx-5060-ti-zwift-arrived.jsonl";
 
+    /// <summary>What Linux's service made of the Ryzen 9 5900X and RTX 3060 desktop's recorded tree, a snapshot a second.</summary>
+    public const string Linux = "Trees/ryzen-5900x-rtx-3060-service.json";
+
     public static string Path(string name) => System.IO.Path.Combine(AppContext.BaseDirectory, "Recordings", name);
 
     public static Snapshot Read(string name) =>

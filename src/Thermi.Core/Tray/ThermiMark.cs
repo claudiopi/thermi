@@ -1,4 +1,5 @@
 using Thermi.Core.Editing;
+using Thermi.Core.Frames;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -82,6 +83,7 @@ public static class ThermiMark
     /// <summary>
     /// An overlay's scene. While the service is stopped, one pill stands in for the items it reads; while its data is
     /// stale, they show as missing. The items that read only what Windows itself says, as the clock, show live either way.
+    /// Where frames are never read, as on Linux, their items take no room, even while the window is open.
     /// A missing value says why: the driver when a CPU temperature reads zero, else that it reads nothing. Until the window
     /// has opened once, a value's tooltip offers to set thermi up.
     /// </summary>
@@ -89,7 +91,9 @@ public static class ThermiMark
     {
         var all = config.Overlays[overlay];
         var stopped = input.Service == ServiceState.Stopped;
-        var shown = stopped ? all with { Items = [.. all.Items.Where(SystemSensors.Reads)] } : all;
+        var shown = stopped ? all with { Items = [.. all.Items.Where(SystemSensors.Reads)] }
+            : GameSensors.Unread(input.Snapshot) ? all with { Items = [.. all.Items.Where(item => !OverlayLayout.ReadsFrames(item))] }
+            : all;
         var snapshot = Live(input);
         var readings = Readable(shown, input);
         var built = OverlayLayout.Build(shown, readings, input.Numbers, input.Texts, config.Temperature, input.History, input.WindowOpen);
