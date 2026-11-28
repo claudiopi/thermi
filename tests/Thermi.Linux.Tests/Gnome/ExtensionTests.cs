@@ -50,8 +50,8 @@ public sealed class ExtensionTests
                 interface = DESKTOP if method in ('Icons', 'IconMenu', 'Hotkeys') else SHELL
                 on.call_sync('org.gnome.Shell', PATH, interface, method, args, None, Gio.DBusCallFlags.NONE, 5000, None)
                 return 'taken'
-            except GLib.Error:
-                return 'refused'
+            except GLib.Error as error:
+                return 'unanswered' if error.matches(Gio.io_error_quark(), Gio.IOErrorEnum.TIMED_OUT) else 'refused'
 
         def evaluate(code):
             said = bus.call_sync('org.gnome.Shell', '/org/gnome/Shell', 'org.gnome.Shell', 'Eval',
@@ -153,6 +153,7 @@ public sealed class ExtensionTests
                 'a-menu-on-no-side': ([show(1)], menu(1, -1, side='left'), bus),
                 'a-pointer-of-no-shape': ([show(1)], ('Cursor', GLib.Variant('(us)', (1, 'wait'))), bus),
                 'a-copy-of-no-png': ([], ('Copy', GLib.Variant('(ay)', (PNG[1:],))), bus),
+                'a-place-past-the-shells-floats': ([show(1)], ('Move', GLib.Variant('(udd)', (1, 1e300, 100.0))), bus),
                 'another-caller': ([], show(1), another()),
                 'past-the-most-icons': ([], icons(65), bus),
                 'past-the-most-hotkeys': ([], hotkeys(9), bus),
@@ -211,7 +212,9 @@ public sealed class ExtensionTests
 
     private static readonly (int X, int Y) OnOverlay = (110, 110);
 
-    // Rows: each a bound of its own, which a call past it shows nothing of.
+    // A call the Shell fails on, as a place no actor of it can be at, is refused too, at once: left unanswered, thermi would
+    // wait out D-Bus's timeout for it.
+    // Rows: each a bound of its own, which a call past it shows nothing of, and a failure of the Shell's.
     [Theory(Timeout = Bound.Test)]
     [InlineData("short-pixels")]
     [InlineData("no-scale")]
@@ -221,6 +224,7 @@ public sealed class ExtensionTests
     [InlineData("a-menu-on-no-side")]
     [InlineData("a-pointer-of-no-shape")]
     [InlineData("a-copy-of-no-png")]
+    [InlineData("a-place-past-the-shells-floats")]
     [InlineData("another-caller")]
     [InlineData("past-the-most-icons")]
     [InlineData("past-the-most-hotkeys")]

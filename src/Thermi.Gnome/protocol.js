@@ -54,7 +54,9 @@ export function refuseUnless(holds, why) {
 }
 
 // Only thermi, the overlay's name's owner, changes what shows or takes a token; any other caller, or a call out of the protocol's bounds,
-// is refused whole. What the call answers is act's variant, if it gives one.
+// is refused whole. What the call answers is act's variant, if it gives one. A call the Shell fails on is answered as
+// failed too: the GJS of GNOME 49 and earlier answers no call whose handler throws, which would leave thermi waiting out
+// D-Bus's timeout.
 export function answer(owner, invocation, act) {
     if (owner === null || invocation.get_sender() !== owner) {
         invocation.return_dbus_error('org.freedesktop.DBus.Error.AccessDenied', `Only ${OVERLAY} shows thermi's overlays.`);
@@ -65,9 +67,12 @@ export function answer(owner, invocation, act) {
     try {
         answered = act();
     } catch (error) {
-        if (!(error instanceof Refused))
-            throw error;
-        invocation.return_dbus_error('org.freedesktop.DBus.Error.InvalidArgs', error.message);
+        if (error instanceof Refused) {
+            invocation.return_dbus_error('org.freedesktop.DBus.Error.InvalidArgs', error.message);
+            return;
+        }
+        console.error(`thermi: ${invocation.get_method_name()} failed:`, error);
+        invocation.return_dbus_error('org.freedesktop.DBus.Error.Failed', 'The Shell could not do it.');
         return;
     }
 
