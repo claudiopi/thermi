@@ -21,8 +21,25 @@ internal static class Input
     public const long ControlOption = 0x40000 | 0x80000;
     public const long Command = 0x100000;
 
-    // Posts the events its arguments name, each "kind x y flags": a mouse event of CGEventType's number at a point, with
-    // CGEventFlags' modifiers; "key code down flags", a key pressed or let go; "wheel x y lines flags", the wheel's notches;
+    /// <summary>Carbon's controlKey and optionKey together, as a hot key of Ctrl+Alt registers them.</summary>
+    public const int CarbonControlOption = 0x1000 | 0x800;
+
+    // Registers a hot key as any app does through Carbon, which no other app may then register while this one runs, and
+    // says "held" once it did, or why not; then it runs on, holding it.
+    private const string Hold = """
+        ObjC.import('Carbon');
+        ObjC.import('Cocoa');
+        function run([code, modifiers]) {
+          const hotKey = Ref();
+          const held = $.RegisterEventHotKey(Number(code), Number(modifiers), { signature: 0x74686d74, id: 1 }, $.GetApplicationEventTarget(), 0, hotKey);
+          console.log(held === 0 ? 'held' : `refused ${held}`);
+          $.NSRunLoop.currentRunLoop.run;
+        }
+        """;
+
+    // Posts the events its arguments name, each "kind x y clicks flags": a mouse event of CGEventType's number at a point,
+    // which counts its clicks as a double-click's second press and release say 2, with CGEventFlags' modifiers; "key code
+    // down flags", a key pressed or let go; "wheel x y lines flags", the wheel's notches;
     // "pinch x y amount phase flags", a step of a trackpad's pinch. No public API posts a pinch: it is a gesture event, of
     // type 29, whose magnification and phase sit in fields Apple does not document, as tools that post one use them.
     private const string Post = """
@@ -35,6 +52,7 @@ internal static class Input
               : kind === 'wheel' ? $.CGEventCreateScrollWheelEvent(null, 1, 1, Number(n[2]))
               : kind === 'pinch' ? $.CGEventCreate(null)
               : $.CGEventCreateMouseEvent(null, Number(kind), point, kind === '3' || kind === '4' ? 1 : 0);
+            if (!isNaN(Number(kind))) { $.CGEventSetIntegerValueField(event, 1, Number(n[2])); }
             if (kind === 'pinch') {
               $.CGEventSetType(event, 29);
               $.CGEventSetIntegerValueField(event, 110, 8);
@@ -48,7 +66,7 @@ internal static class Input
         }
         """;
 
-    // CGEventType's mouse events, and CGEventFlags' modifiers.
+    // As CGEventType and CGEventFlags number them, which osascript's bridge takes as they are.
     private const int LeftDown = 1;
     private const int LeftUp = 2;
     private const int RightDown = 3;
@@ -59,9 +77,10 @@ internal static class Input
 
     public static Task MoveAsync(OwnSession session, int x, int y, CancellationToken cancel) => PostAsync(session, cancel, Mouse(Moved, x, y));
 
-    /// <summary>A click of the left button, twice for a double-click.</summary>
+    /// <summary>A click of the left button, twice for a double-click, each counted as AppKit counts a person's.</summary>
     public static Task ClickAsync(OwnSession session, int x, int y, CancellationToken cancel, int times = 1) =>
-        PostAsync(session, cancel, [.. Enumerable.Repeat<string[]>([Mouse(LeftDown, x, y), Mouse(LeftUp, x, y)], times).SelectMany(click => click)]);
+        PostAsync(
+            session, cancel, [.. Enumerable.Range(1, times).SelectMany(click => new[] { Mouse(LeftDown, x, y, 0, click), Mouse(LeftUp, x, y, 0, click) })]);
 
     /// <summary>A right-click, or a left click with Control held, which macOS takes for one.</summary>
     public static Task MenuClickAsync(OwnSession session, int x, int y, bool control, CancellationToken cancel) => control
@@ -95,7 +114,23 @@ internal static class Input
     public static Task PinchAsync(OwnSession session, int x, int y, double amount, CancellationToken cancel) =>
         PostAsync(session, cancel, Invariant($"pinch {x} {y} 0 1 0"), Invariant($"pinch {x} {y} {amount} 2 0"), Invariant($"pinch {x} {y} 0 4 0"));
 
-    private static string Mouse(int kind, int x, int y, long flags = 0) => Invariant($"{kind} {x} {y} {flags}");
+    /// <summary>
+    /// A program of another's that holds the hot key of <paramref name="code"/> with Carbon's <paramref name="modifiers"/>
+    /// until the session ends, once it holds it.
+    /// </summary>
+    public static async Task HoldHotkeyAsync(OwnSession session, int code, int modifiers, CancellationToken cancel)
+    {
+        var script = Path.Combine(session.Temporary, "hold.js");
+        await File.WriteAllTextAsync(script, Hold, cancel).ConfigureAwait(false);
+        var holder = session.Start("osascript", ["-l", "JavaScript", script, Invariant($"{code}"), Invariant($"{modifiers}")]);
+        var said = await holder.Error.FirstAsync(line => line == "held" || line.StartsWith("refused", StringComparison.Ordinal), cancel).ConfigureAwait(false);
+        if (said != "held")
+        {
+            throw new InvalidOperationException($"No program could hold the hot key: Carbon {said}.");
+        }
+    }
+
+    private static string Mouse(int kind, int x, int y, long flags = 0, int clicks = 1) => Invariant($"{kind} {x} {y} {clicks} {flags}");
 
     private static string Invariant(FormattableString text) => text.ToString(CultureInfo.InvariantCulture);
 
