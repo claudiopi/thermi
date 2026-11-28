@@ -16,13 +16,6 @@ internal static partial class XWindows
     /// <summary>The X11 window of a surface of thermi's.</summary>
     public static uint Id(Gdk.Surface surface) => (uint)Xid(surface.Handle);
 
-    /// <summary>The window the person works in, as the window manager says, or 0 for none.</summary>
-    public static uint Active(Gdk.Display display)
-    {
-        var x = DisplayPointer(display);
-        return Trapped(display, () => Longs(x, DefaultRootWindow(x), "_NET_ACTIVE_WINDOW") is [var active, ..] ? (uint)active : 0u);
-    }
-
     /// <summary>
     /// Where the window the person works in covers, in the stage's logical pixels, where it is full screen; null where it is
     /// not, or none is. None of <paramref name="ours"/> is that window, as Windows never lets an overlay take the foreground.
@@ -46,9 +39,16 @@ internal static partial class XWindows
         });
     }
 
-    // The active window, or the highest client that is no dock while one of ours is active: xfwm4 activates a dock as it
-    // maps, input hint or not, and a press gives one the keyboard. Were ours the window in front, an overlay shown only in
-    // full screen would hide as it showed, and show again as the full-screen window came back.
+    /// <summary>The window <see cref="FullScreen"/> judges, whose state tells as it goes full screen or comes back; 0 for none.</summary>
+    public static uint Front(Gdk.Display display, IReadOnlyCollection<uint> ours)
+    {
+        var x = DisplayPointer(display);
+        return Trapped(display, () => (uint)InFront(x, ours));
+    }
+
+    // The active window, or the highest client that is no dock, no desktop and not minimized while one of ours is active:
+    // xfwm4 activates a dock as it maps, input hint or not, and a press gives one the keyboard. Were ours the window in
+    // front, an overlay shown only in full screen would hide as it showed, and show again as the full-screen window came back.
     private static nuint InFront(nint x, IReadOnlyCollection<uint> ours)
     {
         var root = DefaultRootWindow(x);
@@ -58,9 +58,11 @@ internal static partial class XWindows
             return (nuint)active;
         }
 
-        var dock = (long)InternAtom(x, "_NET_WM_WINDOW_TYPE_DOCK", 0);
-        return (nuint)Longs(x, root, "_NET_CLIENT_LIST_STACKING")
-            .LastOrDefault(window => !ours.Contains((uint)window) && !Longs(x, (nuint)window, "_NET_WM_WINDOW_TYPE").Contains(dock));
+        long[] behind = [(long)InternAtom(x, "_NET_WM_WINDOW_TYPE_DOCK", 0), (long)InternAtom(x, "_NET_WM_WINDOW_TYPE_DESKTOP", 0)];
+        var minimized = (long)InternAtom(x, "_NET_WM_STATE_HIDDEN", 0);
+        return (nuint)Longs(x, root, "_NET_CLIENT_LIST_STACKING").LastOrDefault(window => !ours.Contains((uint)window)
+            && !Longs(x, (nuint)window, "_NET_WM_WINDOW_TYPE").Any(behind.Contains)
+            && !Longs(x, (nuint)window, "_NET_WM_STATE").Contains(minimized));
     }
 
     /// <summary>Whether a dock of another client's, as a panel, is stacked above any of <paramref name="ours"/>.</summary>

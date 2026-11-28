@@ -10,7 +10,7 @@ namespace Thermi.Linux.X11;
 /// of their own (<see cref="XcbConnection"/>): the X server refuses a combination another program grabbed first. Each is
 /// grabbed with Caps Lock and Num Lock on and off as well, as the person's locks should not matter, nor a mouse button held
 /// as the keys go down; a key the keyboard repeats while held counts once. A new keyboard layout moves the keys, so each
-/// combination is grabbed again where it went.
+/// combination is taken again where it went, as any take is.
 /// </summary>
 internal sealed partial class X11Hotkeys : IHotkeyGrab
 {
@@ -36,7 +36,6 @@ internal sealed partial class X11Hotkeys : IHotkeyGrab
     private static readonly ushort[] Locks = [0, Lock, Mod2, Lock | Mod2];
 
     private readonly XcbConnection _x;
-    private IReadOnlyList<Hotkey?> _hotkeys = [];
     private List<(byte Code, ushort Modifiers)?> _taken = [];
     private (byte Code, uint Time)? _released;
 
@@ -47,6 +46,8 @@ internal sealed partial class X11Hotkeys : IHotkeyGrab
 
     public Action<int> Pressed { get; set; } = _ => { };
 
+    public Action Moved { get; set; } = () => { };
+
     public Task<IReadOnlyList<bool>> Take(IReadOnlyList<Hotkey?> hotkeys)
     {
         foreach (var (code, modifiers) in _taken.OfType<(byte, ushort)>())
@@ -55,7 +56,6 @@ internal sealed partial class X11Hotkeys : IHotkeyGrab
         }
 
         var codes = Keycodes();
-        _hotkeys = hotkeys;
         _taken = [.. hotkeys.Select(hotkey => hotkey is { } wanted && codes.TryGetValue(KeyNames.Keysym(wanted.Key), out var code)
             ? Grab(code, ModifiersOf(wanted.Modifiers))
             : null)];
@@ -124,10 +124,11 @@ internal sealed partial class X11Hotkeys : IHotkeyGrab
         var kind = (byte)(Marshal.ReadByte(each) & 0x7F);
         if (kind == MappingNotify)
         {
-            // The request it tells, at its place in xcb_mapping_notify_event_t.
+            // The request it tells, at its place in xcb_mapping_notify_event_t. They are taken again as any take is, so
+            // what the window says of them follows.
             if (Marshal.ReadByte(each, 4) != MappingPointer)
             {
-                _ = Take(_hotkeys);
+                Moved();
             }
 
             return;

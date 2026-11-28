@@ -54,18 +54,11 @@ internal interface IOverlaySurfaces : IDisposable
     Task Fade(uint id, double opacity);
 
     /// <summary>
-    /// Shows a menu of <paramref name="rows"/> on picture <paramref name="id"/> at a point of the stage, as the desktop's own;
-    /// done once it was sent.
-    /// </summary>
-    Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows);
-
-    /// <summary>
     /// Shows a menu of <paramref name="rows"/> on picture <paramref name="id"/> against <paramref name="anchor"/>, a box of
-    /// the stage, on the side Core's <see cref="MenuSpots.Beside"/> chose, so it covers none of the overlay's pills; a
-    /// surface that opens menus at a point only opens it at the box's edge on that side.
+    /// the stage, on the side Core's <see cref="MenuSpots.Beside"/> chose, so it covers none of the overlay's pills, as the
+    /// desktop's own; done once it was sent.
     /// </summary>
-    Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side) =>
-        Menu(id, anchor.Left, side == MenuSide.Below ? anchor.Top + anchor.Height : anchor.Top, rows);
+    Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side);
 
     /// <summary>Shows the pointer as <paramref name="shape"/> over picture <paramref name="id"/>, as App's <see cref="OverlayPress.Shape"/> says.</summary>
     void Cursor(uint id, PointerShape shape)

@@ -52,7 +52,7 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
         if (Gdk.Display.GetDefault() is { } display)
         {
             display.GetMonitors().OnItemsChanged += (_, _) => Changed();
-            _root = new RootWatch(log, () => XWindows.Active(display))
+            _root = new RootWatch(log, () => XWindows.Front(display, Ours()))
             {
                 Panels = Changed,
                 Active = Changed,
@@ -126,8 +126,6 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
     }
 
     public Task Fade(uint id, double opacity) => _shown.TryGetValue(id, out var shown) ? shown.Window.Fade(opacity) : Task.CompletedTask;
-
-    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows) => Menu(id, rows, new PillBox(x, y, 1, 1), MenuSide.Below);
 
     // GTK grabs the keyboard for its menu itself, as the window takes none on a click.
     public Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side)

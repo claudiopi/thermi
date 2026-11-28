@@ -8,12 +8,18 @@ namespace Thermi.Linux.Desktop;
 /// copy of each signal's arguments, the object that sent it among them, that .NET's finalizer thread lets go of later: an
 /// object thermi let go of before that copy is freed there, with what GTK shares with the main loop's own objects, its
 /// styles among them, while the main loop uses them, and thermi crashes later on a double free. What is let go of here
-/// is held until a collection on the main loop had every such copy let go, and only then freed, here; an object watched
-/// that dies on another thread is logged.
+/// is held until a collection on the main loop had every such copy let go, and only then freed, here, or with the process
+/// once the main loop ended; an object watched that dies on another thread is logged.
 /// </summary>
 internal static partial class MainLoopRelease
 {
+    // The seconds what it holds waits, so a window whose page asks something every second pays one collection in ten.
+    private const uint Batch = 10;
+
     private static readonly List<nint> Held = [];
+
+    // The main loop's thread, GTK's one.
+    private static int _loop;
 
     // The watch of each object until it dies, which GLib calls with the object's pointer.
     private static readonly ConcurrentDictionary<nint, (ILogger Log, string Type, int Thread)> Watched = new();
@@ -42,6 +48,15 @@ internal static partial class MainLoopRelease
     /// </summary>
     public static void Hold(ILogger log, params IEnumerable<GObject.Object> objects)
     {
+        // What it holds is the main loop's thread's alone, the first to hold anything: one let go elsewhere is said, and dies
+        // where it does.
+        var thread = Environment.CurrentManagedThreadId;
+        if (Interlocked.CompareExchange(ref _loop, thread, 0) is var loop && loop != 0 && loop != thread)
+        {
+            HeldOffLoop(log, thread);
+            return;
+        }
+
         var waiting = Held.Count > 0;
         foreach (var each in objects)
         {
@@ -53,7 +68,7 @@ internal static partial class MainLoopRelease
 
         if (!waiting && Held.Count > 0)
         {
-            _ = GLib.Functions.IdleAdd(GLib.Constants.PRIORITY_LOW, Free);
+            _ = GLib.Functions.TimeoutAddSeconds(GLib.Constants.PRIORITY_LOW, Batch, Free);
         }
     }
 
@@ -84,4 +99,7 @@ internal static partial class MainLoopRelease
 
     [LoggerMessage(Level = LogLevel.Error, Message = "GTK freed a {Type} on thread {Thread}, off its main loop: thermi may crash")]
     private static partial void DiedOffLoop(ILogger logger, string type, int thread);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "thermi let go of GTK's objects on thread {Thread}, off its main loop: thermi may crash")]
+    private static partial void HeldOffLoop(ILogger logger, int thread);
 }

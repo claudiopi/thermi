@@ -90,8 +90,13 @@ internal sealed class StatusNotifierIcons : ITrayIcons
         // so. dbusmenu's ItemActivationRequested would open every icon's, as they share one path of one connection.
     }
 
-    // Milliseconds, as a click's time is told elsewhere.
-    private uint Now() => (uint)(_time.GetTimestamp() * 1000 / _time.TimestampFrequency);
+    // Milliseconds, as a click's time is told elsewhere, wrapping as X11's do: the whole seconds apart from the rest, which
+    // times a thousand would pass a long's end after some 106 days up.
+    private uint Now()
+    {
+        var (ticks, frequency) = (_time.GetTimestamp(), _time.TimestampFrequency);
+        return unchecked((uint)((ticks / frequency * 1000) + (ticks % frequency * 1000 / frequency)));
+    }
 
     public void Dispose()
     {

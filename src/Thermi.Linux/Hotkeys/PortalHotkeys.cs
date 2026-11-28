@@ -45,6 +45,8 @@ internal sealed class PortalHotkeys : IHotkeyGrab
 
     public Action<int> Pressed { get; set; } = _ => { };
 
+    public Action Moved { get; set; } = () => { };
+
     public bool AsksThePerson => true;
 
     public bool Refused { get; private set; }
@@ -98,7 +100,12 @@ internal sealed class PortalHotkeys : IHotkeyGrab
     // The portal ends the sessions of a connection that closes.
     public void Dispose()
     {
-        _shortcuts?.Dispose();
+        if (_shortcuts is not null)
+        {
+            MainLoopRelease.Hold(_log, _shortcuts);
+            _shortcuts.Dispose();
+        }
+
         try
         {
             _bus.CloseSync(null);
@@ -173,12 +180,10 @@ internal sealed class PortalHotkeys : IHotkeyGrab
             };
             await _bus.CallAsync(Portal, Desktop, Shortcuts, method, GLib.Variant.NewTuple(args(token)));
             var response = await answered.Task.WaitAsync(cancel);
-            await Callbacks.OnMainLoop();
             return response.GetTypeString() == "(ua{sv})" && response.GetChildValue(0).GetUint32() == 0 ? response.GetChildValue(1) : null;
         }
         catch (GLib.GException)
         {
-            await Callbacks.OnMainLoop();
             return null;
         }
         catch (OperationCanceledException)
@@ -189,6 +194,8 @@ internal sealed class PortalHotkeys : IHotkeyGrab
         }
         finally
         {
+            // Every way out, a fault no catch takes among them, comes back to the main loop, where the request is let go.
+            await Callbacks.OnMainLoop();
             if (request is not null)
             {
                 MainLoopRelease.Hold(_log, request);

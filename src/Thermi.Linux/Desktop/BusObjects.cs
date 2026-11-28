@@ -131,9 +131,12 @@ internal sealed class BusObjects : IDisposable
     private Gio.DBusMessage? Filter(Gio.DBusConnection connection, Gio.DBusMessage message, bool incoming)
     {
         var caller = (incoming ? message.GetSender() : message.GetDestination()) ?? "";
-        if (!incoming && message.GetMessageType() == Gio.DBusMessageType.MethodReturn && _above.TryRemove((caller, message.GetReplySerial()), out var nodes))
+        // An error answers the call as a return does, and takes what it waited for with it.
+        var kind = message.GetMessageType();
+        if (!incoming && kind is Gio.DBusMessageType.MethodReturn or Gio.DBusMessageType.Error
+            && _above.TryRemove((caller, message.GetReplySerial()), out var nodes))
         {
-            return WithNodes(message, nodes);
+            return kind == Gio.DBusMessageType.MethodReturn ? WithNodes(message, nodes) : message;
         }
 
         if (incoming && message.GetMember() == "Introspect" && message.GetDestination() is { } asked

@@ -37,6 +37,7 @@ internal sealed class LayerProbe : IDisposable
     private (int X, int Y)? _slid;
     private int _asking;
     private int _given = -1;
+    private bool _disposed;
 
     // Each measure counts, so what an earlier one still waits for, as a panel changes again, tells nothing.
     private int _round;
@@ -68,7 +69,7 @@ internal sealed class LayerProbe : IDisposable
     /// <summary>Measures the room again, as the monitor changed; told once measured, in place of a measure still under way.</summary>
     public void Measure()
     {
-        if (_inside is null || !_overShown)
+        if (_disposed || _inside is null || !_overShown)
         {
             return;
         }
@@ -100,8 +101,10 @@ internal sealed class LayerProbe : IDisposable
         return (new PanelRoom(across, down, 0, 0), across == 0 && down == 0);
     }
 
+    // What its signals left for later, a size or a restless count, is for a probe that went no more.
     public void Dispose()
     {
+        _disposed = true;
         _round++;
         Drop();
         _keptOff.Destroy();
@@ -157,11 +160,7 @@ internal sealed class LayerProbe : IDisposable
             if (size.Width > 0 && size.Height > 0 && at != last)
             {
                 last = at;
-                GLib.Functions.IdleAdd(AfterFrame, () =>
-                {
-                    sized(at);
-                    return false;
-                });
+                GLib.Functions.IdleAdd(AfterFrame, () => Alive(() => sized(at)));
             }
         };
         window.OnRealize += (_, _) =>
@@ -242,13 +241,20 @@ internal sealed class LayerProbe : IDisposable
     // Told out of GDK's own signal, which a probe disposed in it would leave holding a freed surface.
     private void Given()
     {
-        if (_given >= 0 && ++_given == Restless)
+        if (!_disposed && _given >= 0 && ++_given == Restless)
         {
-            GLib.Functions.IdleAdd(0, () =>
-            {
-                _restless(this);
-                return false;
-            });
+            GLib.Functions.IdleAdd(0, () => Alive(() => _restless(this)));
         }
+    }
+
+    // What a signal left for later, done once only while the probe is: false, as an idle callback done for good says.
+    private bool Alive(Action later)
+    {
+        if (!_disposed)
+        {
+            later();
+        }
+
+        return false;
     }
 }

@@ -72,8 +72,6 @@ internal sealed class ShellSurfaces(ShellLink link, ExtensionArrival arrival) : 
 
     public Task Fade(uint id, double opacity) => link.Fade(id, opacity);
 
-    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows) => link.Menu(id, new PillBox(x, y, 0, 0), MenuSide.Below, rows);
-
     public Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side) => link.Menu(id, anchor, side, rows);
 
     public void Cursor(uint id, PointerShape shape) => _ = link.Cursor(id, shape);

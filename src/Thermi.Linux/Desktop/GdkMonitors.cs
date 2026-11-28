@@ -10,8 +10,9 @@ namespace Thermi.Linux.Desktop;
 /// so a snap follows its monitor as the monitors move and as the desktop changes. GDK tells no serial, on Wayland or X11:
 /// X11's surfaces read the EDID RandR keeps of the output, and Wayland's the kernel's, of the one connected connector of the
 /// monitor's name, as two GPUs may each have a connector of that name. A monitor without one, as a compositor's virtual
-/// one, is named by GDK's maker and model and its connector, as GNOME names one without a serial. A monitor's name is read
-/// once, as GDK makes a monitor anew for one that comes again. The first is the primary one where the desktop says none.
+/// one, is named by GDK's maker and model and its connector, as GNOME names one without a serial. A name read from the EDID
+/// is kept, as GDK makes a monitor anew for one that comes again; one without is read again each time, as an EDID may not
+/// be readable yet as its monitor comes. The first is the primary one where the desktop says none.
 /// </summary>
 internal static class GdkMonitors
 {
@@ -38,7 +39,7 @@ internal static class GdkMonitors
         IReadOnlyList<Gdk.Monitor> monitors, Func<Gdk.Monitor, PanelRoom> room, Gdk.Monitor? primary,
         Func<Gdk.Monitor, bool>? fullScreen = null, Func<Gdk.Monitor, byte[]>? edid = null)
     {
-        var ids = MonitorIds.Unique([.. monitors.Select(monitor => (Names.GetValue(monitor, each => Name(each, edid ?? Edid)), monitor.GetConnector() ?? ""))]);
+        var ids = MonitorIds.Unique([.. monitors.Select(monitor => (Name(monitor, edid ?? Edid), monitor.GetConnector() ?? ""))]);
         var first = primary ?? (monitors.Count > 0 ? monitors[0] : null);
         return [.. monitors.Select((monitor, at) =>
         {
@@ -55,9 +56,15 @@ internal static class GdkMonitors
 
     private static string Name(Gdk.Monitor monitor, Func<Gdk.Monitor, byte[]> edid)
     {
+        if (Names.TryGetValue(monitor, out var known))
+        {
+            return known;
+        }
+
         var connector = monitor.GetConnector() ?? "monitor";
         if (MonitorIds.OfGnome(edid(monitor), connector) is { } named)
         {
+            Names.AddOrUpdate(monitor, named);
             return named;
         }
 

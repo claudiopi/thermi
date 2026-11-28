@@ -110,6 +110,7 @@ internal sealed class SettingsWindow : IDisposable
         _bridge.Changed -= OnChanged;
         _bridge.Readings -= OnReadings;
         _bridge.Picked -= OnPicked;
+        MainLoopRelease.Hold(_log, _view, _presses, _window);
         _view.Dispose();
         _presses.Dispose();
         _window.Dispose();

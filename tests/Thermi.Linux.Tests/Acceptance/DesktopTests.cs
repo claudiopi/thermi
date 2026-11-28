@@ -122,6 +122,8 @@ public sealed partial class DesktopTests
         Assert.Equal(item, onItem.About);
         Assert.Equal(1, window.Windows);
         Assert.InRange(took, 0, 0.3);
+        // The window writes on thermi's standard error: GTK warned of nothing its edits did, as of a theme set again each.
+        Assert.DoesNotContain(thermi.Error.Text.Split('\n'), line => line.Contains("Gtk-WARNING", StringComparison.Ordinal));
         Assert.Equal(0, await Pictures.ChangedAsync(session, shown, back, OnWindow, cancel));
         Assert.DoesNotContain(await Accessible.WindowsAsync(session, cancel), program => program.Process == window.Process);
     }

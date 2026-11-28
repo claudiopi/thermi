@@ -19,6 +19,8 @@ internal sealed class ShellHotkeys : IHotkeyGrab
 
     public Action<int> Pressed { get; set; } = _ => { };
 
+    public Action Moved { get; set; } = () => { };
+
     public Task<IReadOnlyList<bool>> Take(IReadOnlyList<Hotkey?> hotkeys) =>
         _desktop.Hotkeys([.. hotkeys.Select(hotkey => hotkey is { } taken ? KeyNames.Accelerator(taken) : "")]);
 

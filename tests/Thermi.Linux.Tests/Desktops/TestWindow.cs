@@ -11,7 +11,7 @@ internal sealed class TestWindow
     private const string Code = """
         import sys, gi
         gi.require_version('Gtk', '4.0')
-        from gi.repository import Gio, Gtk
+        from gi.repository import Gio, GLib, Gtk
 
         def activate(app):
             window = Gtk.ApplicationWindow(application=app, title=sys.argv[2])
@@ -41,6 +41,12 @@ internal sealed class TestWindow
             window.connect('map', again)
             window.connect('notify::maximized', ready)
             window.connect('map', ready)
+            # A line on its standard input leaves full screen, as F11 does in a person's program; its end reads no more.
+            def heard(*_):
+                if not sys.stdin.readline(): return False
+                window.unfullscreen()
+                return True
+            GLib.io_add_watch(sys.stdin.fileno(), GLib.PRIORITY_DEFAULT, GLib.IOCondition.IN | GLib.IOCondition.HUP, heard)
             window.fullscreen() if full else window.maximize()
             window.present()
 
@@ -68,6 +74,13 @@ internal sealed class TestWindow
         return await process.ReadyAsync(cancel).ConfigureAwait(false) == "ready"
             ? new TestWindow(process)
             : throw new InvalidOperationException($"The window never showed: {process.Error.Text}");
+    }
+
+    /// <summary>Leaves full screen, as the program asks the window manager itself; done once asked.</summary>
+    public async Task LeaveFullScreenAsync(CancellationToken cancel)
+    {
+        await _process.Input.WriteLineAsync("windowed".AsMemory(), cancel).ConfigureAwait(false);
+        await _process.Input.FlushAsync(cancel).ConfigureAwait(false);
     }
 
     /// <summary>The next thing the window says that the test has not read yet, as <c>click 1</c>, or null once it closed.</summary>

@@ -19,6 +19,12 @@ internal interface IHotkeyGrab : IDisposable
 {
     Action<int> Pressed { get; set; }
 
+    /// <summary>
+    /// The desktop moved the keys, as X11's new keyboard layout does: the hotkeys are to be taken again where they went. The
+    /// Shell and a portal move them themselves.
+    /// </summary>
+    Action Moved { get; set; }
+
     /// <summary>Whether taking them asks the person, as a portal's dialog does, so nothing on screen waits for it.</summary>
     bool AsksThePerson => false;
 
@@ -42,8 +48,8 @@ internal sealed record HotkeyHost(Settings Settings, OverlayVisibility Visibilit
 /// The four hotkeys of the settings, taken on the desktop each time they change, and what each does when pressed, as on
 /// Windows (<see cref="HotkeyPresses"/>). One that another program holds is refused: thermi logs it, and under
 /// <c>--trace</c> says <c>hotkey-refused</c> with its role as the settings name it; a desktop that refuses them all says
-/// so to the window too (<see cref="HotkeyFailures.DesktopRefused"/>). One take runs at a time, the next once it is done, and
-/// a portal's dialog is waited on for <see cref="Answer"/> at most.
+/// <c>hotkeys-refused</c>, and so to the window too (<see cref="HotkeyFailures.DesktopRefused"/>). One take runs at a time,
+/// the next once it is done, and a portal's dialog is waited on for <see cref="Answer"/> at most.
 /// </summary>
 internal sealed class DesktopHotkeys : IDisposable
 {
@@ -61,6 +67,11 @@ internal sealed class DesktopHotkeys : IDisposable
     {
         (_grab, _host) = (grab, host);
         grab.Pressed = Pressed;
+        grab.Moved = () =>
+        {
+            Forget();
+            host.RequestPaint();
+        };
     }
 
     /// <summary>The hotkeys last taken and which of them could not be, as the window asks them (<see cref="Core.Hotkeys.Status"/>).</summary>
@@ -139,12 +150,17 @@ internal sealed class DesktopHotkeys : IDisposable
             taken = [.. parsed.Select(_ => false)];
         }
 
-        if (hotkeys != _tried)
+        if (hotkeys == _tried)
         {
-            return;
+            Status = Core.Hotkeys.Status(hotkeys, Failures(hotkeys, parsed, taken));
         }
+    }
 
-        var failures = _grab.Refused ? HotkeyFailures.DesktopRefused : HotkeyFailures.None;
+    // A desktop that gave none says so once, as no program holds them.
+    private HotkeyFailures Failures(HotkeysConfig? hotkeys, List<Hotkey?> parsed, IReadOnlyList<bool> taken)
+    {
+        var refused = _grab.Refused;
+        var failures = refused ? HotkeyFailures.DesktopRefused : HotkeyFailures.None;
         for (var at = 0; at < Core.Hotkeys.Roles.Count; at++)
         {
             var role = Core.Hotkeys.Roles[at];
@@ -152,11 +168,19 @@ internal sealed class DesktopHotkeys : IDisposable
             {
                 failures |= (HotkeyFailures)(1 << at);
                 _host.Log.HotkeyRefused(role, written);
-                _host.Trace.Write(TraceEvents.HotkeyRefused, KeyNames.RoleOf(role));
+                if (!refused)
+                {
+                    _host.Trace.Write(TraceEvents.HotkeyRefused, KeyNames.RoleOf(role));
+                }
             }
         }
 
-        Status = Core.Hotkeys.Status(hotkeys, failures);
+        if (refused)
+        {
+            _host.Trace.Write(TraceEvents.HotkeysRefused);
+        }
+
+        return failures;
     }
 
     private void Pressed(int index)

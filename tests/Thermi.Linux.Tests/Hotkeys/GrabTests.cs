@@ -31,11 +31,13 @@ public sealed class GrabTests
         var thermi = await desktop.ShowThermiAsync([], cancel);
         if (row == Case.NoPortal)
         {
-            await Traced.FirstAsync(thermi.Error, Traced.HotkeyRefused, cancel);
+            // Said once for all of them, as no program holds one.
+            await Traced.FirstAsync(thermi.Error, Traced.HotkeysRefused, cancel);
             var asked = await desktop.Session.RunAsync(Built.Program("Thermi.Linux.Tests"), [DesktopTests.HotkeyStatus], cancel: cancel);
             var hotkeys = (await Settings.ReadAsync(desktop.Session, cancel)).Hotkeys;
             var failed = Core.Hotkeys.Trusted(long.Parse(asked.Out.Trim(), CultureInfo.InvariantCulture), hotkeys);
             Assert.Equal(HotkeyFailures.Toggle | HotkeyFailures.DesktopRefused, failed);
+            Assert.DoesNotContain(thermi.Error.Text.Split('\n'), line => Traced.Of(line)?.Event == Traced.HotkeyRefused);
             return;
         }
 

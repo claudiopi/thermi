@@ -109,9 +109,6 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
 
     public Task Fade(uint id, double opacity) => _shown.TryGetValue(id, out var shown) ? shown.Window.Fade(opacity) : Task.CompletedTask;
 
-    public Task Menu(uint id, double x, double y, IReadOnlyList<ShellRow> rows) =>
-        Menu(id, rows, new PillBox(x, y, 1, 1), MenuSide.Below);
-
     // The compositor gives a popup the keyboard only through a surface that takes it, which an overlay does only while its
     // menu is open.
     public Task Menu(uint id, IReadOnlyList<ShellRow> rows, PillBox anchor, MenuSide side)

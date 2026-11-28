@@ -21,6 +21,11 @@ namespace Thermi.Linux.Window;
 /// </summary>
 internal sealed partial class LinuxHost : IWindowHost, IDisposable
 {
+    // GTK's minor version from which it has GtkInterfaceColorScheme, and that enum's dark and light.
+    private const int InterfaceColorScheme = 20;
+    private const int SchemeDark = 2;
+    private const int SchemeLight = 3;
+
     private readonly ILogger _log;
     private readonly DesktopPortal _portal;
     private readonly UserUnit _signInUnit = new();
@@ -30,6 +35,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private readonly BusObjects? _objects;
     private WindowEnd? _windowEnd;
     private WindowTheme _theme;
+    private bool? _dark;
     private ExtensionState? _extension;
 
     // The Shell did not install the extension whose files are in place: only the next sign-in shows the overlay.
@@ -81,15 +87,33 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     /// <summary>
     /// The theme Settings chose, or the desktop's scheme while it chose none or the desktop asks for high contrast, which
-    /// WebKit's page follows; a desktop that prefers no scheme is light, as GNOME's default.
+    /// WebKit's page follows; a desktop that prefers no scheme is light, as GNOME's default. GTK is told only as the
+    /// answer changes, as each edit of the settings asks again.
     /// </summary>
     public void Theme(WindowTheme theme)
     {
         _theme = theme;
-        if (Gtk.Settings.GetDefault() is { } settings)
+        var dark = WindowThemes.Dark(theme, lightApps: _portal.Scheme != true, _portal.HighContrast);
+        if (dark != _dark && Gtk.Settings.GetDefault() is { } settings)
         {
-            settings.GtkApplicationPreferDarkTheme = WindowThemes.Dark(theme, lightApps: _portal.Scheme != true, _portal.HighContrast);
+            _dark = dark;
+            Scheme(settings, dark);
         }
+    }
+
+    // GTK 4.20 takes the scheme an app prefers as gtk-interface-color-scheme, and warns of each set of the older
+    // gtk-application-prefer-dark-theme, which an older GTK, as 4.14, takes alone.
+    private static void Scheme(Gtk.Settings settings, bool dark)
+    {
+        if (Gtk.Functions.GetMinorVersion() < InterfaceColorScheme)
+        {
+            settings.GtkApplicationPreferDarkTheme = dark;
+            return;
+        }
+
+        using var value = new GObject.Value(GObject.Functions.TypeFromName("GtkInterfaceColorScheme"));
+        value.SetEnum(dark ? SchemeDark : SchemeLight);
+        settings.SetProperty("gtk-interface-color-scheme", value);
     }
 
     public IReadOnlyList<Screen> Screens() => _screens.Screens;

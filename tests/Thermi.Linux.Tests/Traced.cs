@@ -44,6 +44,9 @@ internal sealed partial record Traced(double At, string Event, string About)
     /// <summary>A hotkey thermi could not take, as another program holds it, about its role as the settings name it.</summary>
     public const string HotkeyRefused = "hotkey-refused";
 
+    /// <summary>The desktop gave none of the hotkeys: it has no way to give them, or the person said no.</summary>
+    public const string HotkeysRefused = "hotkeys-refused";
+
     /// <summary>
     /// The <paramref name="count"/>th <paramref name="name"/> that <paramref name="stream"/> writes from this call on: armed
     /// at once, before the call returns.

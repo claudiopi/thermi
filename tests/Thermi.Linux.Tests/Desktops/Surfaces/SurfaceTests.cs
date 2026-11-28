@@ -5,7 +5,8 @@ namespace Thermi.Linux.Tests.Desktops.Surfaces;
 
 /// <summary>
 /// What a desktop off GNOME changes under a running overlay, which thermi must follow as GNOME's extension follows it: a
-/// panel that starts after thermi, a window that goes full screen, a panel raised above it, and the window manager's close;
+/// panel that starts after thermi, a window that goes full screen and comes back, a panel raised above it, and the window
+/// manager's close;
 /// and overlays hidden and shown again, often.
 /// </summary>
 public sealed partial class SurfaceTests
@@ -118,10 +119,13 @@ public sealed partial class SurfaceTests
             case X11Case.FullScreen:
                 // Shown only while a window covers its monitor full screen, which the window manager says of the active one.
                 Assert.Empty(await ThermisWindowsAsync(desktop, thermi, cancel));
-                await desktop.OpenWindowAsync(fullScreen: true, cancel);
+                var window = await desktop.OpenWindowAsync(fullScreen: true, cancel);
                 // The full-screen window covers it, as on every X11 desktop, so it draws no frame to wait on: xdotool waits
                 // for its window to map.
                 Assert.NotEmpty(await ThermisWindowsAsync(desktop, thermi, cancel, sync: true));
+                // And it goes as the window leaves full screen, though the window manager made thermi's own the active one.
+                await window.LeaveFullScreenAsync(cancel);
+                Assert.True(await WithinAsync(thermi, async () => (await ThermisWindowsAsync(desktop, thermi, cancel)).Length == 0, cancel));
                 break;
             case X11Case.PanelRaised:
                 var panels = await desktop.Session.RunAsync("xdotool", ["search", "--onlyvisible", "--class", "xfce4-panel"], cancel: cancel);

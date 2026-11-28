@@ -72,11 +72,15 @@ internal sealed class TrayMenu(Func<IReadOnlyList<ShellRow>> rowsNow, Action<int
         _entries = entries;
     }
 
+    /// <summary>
+    /// A row's label as a tray reads it, which takes an underscore as the next letter's access key and a tab as the start
+    /// of what shows at the row's end: the tray's rows mark no access key, so each underscore of the text is doubled.
+    /// </summary>
+    public static string LabelOf(ShellRow row) => row.Text.Replace("_", "__", StringComparison.Ordinal) + (row.Note is { } note ? $"\t{note}" : "");
+
     private static Dictionary<string, GLib.Variant> PropertiesOf(ShellRow row, bool opens)
     {
-        // A tray reads an underscore as the next letter's access key, and a tab as the start of what shows at the row's end.
-        var label = PictureMenu.Underlined(row.Text) + (row.Note is { } note ? $"\t{note}" : "");
-        var properties = new Dictionary<string, GLib.Variant> { ["label"] = GLib.Variant.NewString(label) };
+        var properties = new Dictionary<string, GLib.Variant> { ["label"] = GLib.Variant.NewString(LabelOf(row)) };
         if (row.Grayed)
         {
             properties["enabled"] = GLib.Variant.NewBoolean(false);

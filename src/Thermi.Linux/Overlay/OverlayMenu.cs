@@ -1,4 +1,3 @@
-using System.Text;
 using Thermi.App.Gestures;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Editing;
@@ -84,11 +83,20 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         };
         var texts = Texts.For(config.Language, System.Globalization.CultureInfo.CurrentUICulture);
         var place = new MenuPlace(config, texts, parts.Culture, shown) { UndoText = undo is { } offered ? texts.Of(offered) : null, Known = known };
-        var all = new List<MenuRow>();
-        var rows = new List<ShellRow>();
         var menu = shown is { } at ? Menus.OfOverlay(config, at, state, item, fromTray) : Menus.Thermis(config, state);
-        Flatten(menu, -1, place, (all, rows), keys: !fromTray && parts.MarksAccessKeys);
+        var (all, rows) = Flattened(menu, place, keys: !fromTray && parts.MarksAccessKeys);
         return new ShownMenu(all, rows, shown);
+    }
+
+    /// <summary>
+    /// Core's rows of a menu and the Shell's, flattened; with <paramref name="keys"/>, each text's access key marked as
+    /// Windows' menus mark it, with "&amp;", which <see cref="Desktop.PictureMenu"/> shows as GTK's.
+    /// </summary>
+    public static (List<MenuRow> All, List<ShellRow> Shown) Flattened(IReadOnlyList<MenuRow> menu, MenuPlace place, bool keys)
+    {
+        (List<MenuRow> All, List<ShellRow> Shown) to = ([], []);
+        Flatten(menu, -1, place, to, keys);
+        return to;
     }
 
     /// <summary>
@@ -166,11 +174,11 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
 
     public void RequestPaint() => parts.RequestPaint();
 
-    // The tray marks no access keys: its menu escapes every "_" of a text, as the protocol of the desktop's tray reads it.
+    // The Shell's menu and the tray's mark no access keys, and take each text as it reads.
     private static void Flatten(IReadOnlyList<MenuRow> rows, int parent, MenuPlace place, (List<MenuRow> All, List<ShellRow> Shown) to, bool keys)
     {
         var texts = rows.Select(row => MenuTexts.TextOf(row, place, parent >= 0)).ToList();
-        var marked = keys ? [.. AccessKeys.Mark(texts, [.. rows.Select(row => row.Heading)]).Select(Underlined)] : texts;
+        var marked = keys ? AccessKeys.Mark(texts, [.. rows.Select(row => row.Heading)]) : texts;
         for (var at = 0; at < rows.Count; at++)
         {
             var row = rows[at];
@@ -185,29 +193,6 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
                 Flatten(row.Entries, to.All.Count - 1, place with { Overlay = row.Overlay ?? place.Overlay }, to, keys);
             }
         }
-    }
-
-    // Windows' "&" before an access key as GTK's "_", whose own "_" is doubled, so it shows as one.
-    private static string Underlined(string marked)
-    {
-        var text = new StringBuilder(marked.Length + 2);
-        var at = 0;
-        while (at < marked.Length)
-        {
-            if (marked[at] == '&' && at + 1 < marked.Length)
-            {
-                var key = marked[at + 1];
-                text.Append(key == '&' ? "&" : $"_{key}");
-                at += 2;
-            }
-            else
-            {
-                text.Append(marked[at] == '_' ? "__" : marked[at].ToString());
-                at++;
-            }
-        }
-
-        return text.ToString();
     }
 
     private static bool Installed(string program) => GLib.Functions.FindProgramInPath(program) is not null;
