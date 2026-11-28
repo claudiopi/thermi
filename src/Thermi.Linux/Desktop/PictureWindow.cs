@@ -27,6 +27,7 @@ internal sealed class PictureWindow : IDisposable
     private Cairo.ImageSurface? _image;
     private (int X, int Y) _offset;
     private (double X, double Y)? _moved;
+    private bool _placed;
     private double _scale = 1;
     private IReadOnlyList<PillBox> _clicks = [];
     private Action _unmenu = () => { };
@@ -59,8 +60,14 @@ internal sealed class PictureWindow : IDisposable
     public (double X, double Y) Origin { get; set; }
 
     // As a layer surface's margins, the corner moves with the next frame: the pointer is told from there once the compositor
-    // took it, so a drag counts no move before it happened.
-    public void MoveTo((double X, double Y) origin) => (_moved, Origin) = _waiting.Count > 0 ? (origin, Origin) : (((double X, double Y)?)null, origin);
+    // took it, so a drag counts no move before it happened. A window's first corner is its own at once, as it had none
+    // before: a pointer that rests where the window comes, as where the menu that hid it was, enters it before its first
+    // frame shows, and its press, which Wayland tells no point, is where that entry was.
+    public void MoveTo((double X, double Y) origin)
+    {
+        (_moved, Origin) = _waiting.Count > 0 && _placed ? (origin, Origin) : (((double X, double Y)?)null, origin);
+        _placed = true;
+    }
 
     public Gtk.Window Window { get; } = Gtk.Window.New();
 
