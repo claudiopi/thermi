@@ -16,7 +16,7 @@ namespace Thermi.Linux;
 /// <summary>
 /// <c>thermi</c> on Linux: the overlay, <c>thermi settings</c>, <c>thermi preview</c>, <c>thermi cpu-load</c> and the agents' commands; and
 /// <c>thermi-cli</c>, the same program under another name, which runs the agents' commands alone. Arguments that make no
-/// sense say why on stderr and exit with 2, before anything else runs; a command it does not run yet says so and exits 1.
+/// sense say why on stderr and exit with 2, before anything else runs.
 /// </summary>
 internal static class Program
 {
@@ -49,7 +49,8 @@ internal static class Program
             PreviewRequest preview => await Preview.RunAsync(Painted(preview), time),
             OverlayRequest overlay => await OverlayStart.RunAsync(overlay, time),
             SettingsRequest settings => await Window.WindowProcess.RunAsync(Painted(settings), args, time),
-            _ => await NotHereAsync(),
+            // Linux adds no command of its own to the shared ones, each of which has its arm above.
+            _ => throw new InvalidOperationException($"No arm runs {request.GetType().Name}."),
         };
     }
 
@@ -84,11 +85,5 @@ internal static class Program
         }
 
         return 2;
-    }
-
-    private static async Task<int> NotHereAsync()
-    {
-        await Console.Error.WriteLineAsync("thermi: this build does not run that command on Linux yet.");
-        return 1;
     }
 }
