@@ -108,10 +108,16 @@ public sealed class OverlayLinkTests
             }
         }
 
-        var restarts = await units.SystemctlAsync(["show", "-p", "Restart", "--value", .. ran], cancel);
+        // Either starts again as thermi.service does: after a crash, a few times a minute at most, never after a desktop it
+        // cannot show on, and after a package's hand-over.
+        string[] restart = ["Restart", "RestartPreventExitStatus", "RestartForceExitStatus", "SuccessExitStatus", "StartLimitIntervalUSec", "StartLimitBurst"];
+        var shown = await units.SystemctlAsync(["show", .. restart.SelectMany(name => new[] { "-p", name }), .. ran], cancel);
+        var restarts = string.Join(' ', shown.Split('\n', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal));
         var ended = !await LinkAsync(session, "quit", cancel);
 
-        Assert.Equal((true, both[graphical ? 0 : 1], "on-failure", true), (started, string.Join(' ', ran), restarts, ended));
+        const string AsTheUserUnit =
+            "Restart=on-failure RestartForceExitStatus=75 RestartPreventExitStatus=6 StartLimitBurst=5 StartLimitIntervalUSec=1min SuccessExitStatus=75";
+        Assert.Equal((true, both[graphical ? 0 : 1], AsTheUserUnit, true), (started, string.Join(' ', ran), restarts, ended));
     }
 
     // What the window tells the overlay reaches it in the order told, as an item pointed and then none, which leave no mark.
