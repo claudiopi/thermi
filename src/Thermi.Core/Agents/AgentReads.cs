@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.Core.Editing;
+using Thermi.Core.Frames;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -120,7 +121,11 @@ public static class AgentReads
             Warning = judged?.Warning,
             Critical = judged?.Critical,
         };
-        return Valued(answer, readings, sensor);
+        var valued = Valued(answer, readings, sensor);
+        // A reader of no frames, as Linux's, sends neither the game's sensors nor the slots they are made of, so nothing of the
+        // item's says why it reads nothing.
+        var unread = GameSensors.Unread(last) && !last.Sensors.Any(FrameSlots.Is);
+        return valued.Value is null && OverlayLayout.ReadsFrames(item) && unread ? valued with { Why = NoValue.FramesUnread } : valued;
     }
 
     private static ValueAnswer Valued(ValueAnswer answer, List<Reading?> readings, RawSensor? sensor)

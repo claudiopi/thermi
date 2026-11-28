@@ -49,7 +49,7 @@ public sealed class AgentTests
     }
 
     [Theory(Timeout = Bound.Test)]
-    [InlineData(Cli.Shells, Skip = "Waiting for its code")]
+    [InlineData(Cli.Shells)]
     [InlineData(Cli.OverSsh)]
     [InlineData(Cli.FromTheOverlay)]
     [InlineData(Cli.CannotShow)]
@@ -95,7 +95,7 @@ public sealed class AgentTests
         await StartsAtSignInAsync(session, units, cancel);
     }
 
-    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
+    [Fact(Timeout = Bound.Test)]
     public async Task AWindowsFileLosesNothingOnLinux()
     {
         var cancel = TestContext.Current.CancellationToken;

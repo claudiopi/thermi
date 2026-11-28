@@ -93,7 +93,7 @@
       ],
       "description": "Given a recorded Linux feed served on the socket (a table of every shell with no overlay running, a session with no display and no overlay, as over SSH, and the overlay running on GNOME at 150 %), when every command of spec 003 runs from bash, zsh and fish, and the SDK reads, then each waits, answers JSON that validates against its schema and exits with its code; status says the service serves, whether an overlay runs, and in a session where the overlay cannot show that it cannot; monitors gives the monitors the running overlay places its overlays on, in thermi's pixels with the top bar on GNOME, and with none running none and why, with no display needed; and start-with-windows enables and disables the overlay's unit without starting it.",
       "check": "TheCliAnswersOnLinux",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A10",
@@ -102,7 +102,7 @@
       ],
       "description": "Given a settings file written on Windows with FPS items, hotkeys, tray icons and the window's place, when the overlay and the window on Linux read it and an agent edits it, then it loses nothing and Windows reads it back; the FPS items take no room in the overlay, show as missing with why in the window, and status says frames are not read on Linux.",
       "check": "AWindowsFileLosesNothingOnLinux",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A11",
