@@ -124,12 +124,12 @@ public sealed partial class GestureTests
         Assert.Equal(0, changed);
         Assert.Equal(ThermiConfigJson.Write(joined), ThermiConfigJson.Write(kept));
         Assert.Equal(first.Size + (2 * OverlaySizes.Step), grown.Overlays[0].Size, 6);
+        await FadesAsync(desktop, thermi, row, cancel);
         if (row is Desktop.KWin or Desktop.X11)
         {
             await InFrontAsync(desktop, thermi, (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8), cancel);
+            await StaysWholeAsync(desktop, thermi, row, cancel);
         }
-
-        await FadesAsync(desktop, thermi, row, cancel);
     }
 
     // On a floating overlay's corner the pointer shows the resize arrows, as on Windows, and keeps them while the press drags
@@ -223,15 +223,32 @@ public sealed partial class GestureTests
     private static async Task FadesAsync(TestDesktop desktop, SessionProcess thermi, Desktop row, CancellationToken cancel)
     {
         var shown = await desktop.ScreenshotAsync(cancel);
-        var near = row != Desktop.KWin ? (Fading.X - 40, Fading.Y - 40) : (Fading.X + 8, Fading.Y + 8);
+        var (x, y) = Near(row);
         var faded = Traced.NextAsync(thermi.Error, Traced.Faded, cancel);
-        await desktop.Input.MoveAsync(near.Item1, near.Item2, cancel);
+        await desktop.Input.MoveAsync(x, y, cancel);
         await faded;
         var screen = await desktop.ScreenshotAsync(cancel);
         var (width, _) = await Pictures.SizeAsync(desktop.Session, shown, cancel);
         Assert.NotEqual(0, await Pictures.ChangedAsync(desktop.Session, shown, screen, (Fading.X, Fading.Y, 200, 40), cancel));
         Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, shown, screen, (0, 0, width, Fading.Y - 50), cancel));
     }
+
+    // While the settings window is open no overlay fades, as on Windows, so what the person edits shows whole: with the
+    // overlay whole again, the pointer away, the pointer back near it fades none in thermi's next two seconds.
+    private static async Task StaysWholeAsync(TestDesktop desktop, SessionProcess thermi, Desktop row, CancellationToken cancel)
+    {
+        var (x, y) = Near(row);
+        await Traced.NextAsync(thermi.Error, Traced.Paint, cancel);
+        var before = Fadings(thermi);
+        await desktop.Input.MoveAsync(x, y, cancel);
+        await Traced.NextAsync(thermi.Error, Traced.Paint, cancel, count: 2);
+        Assert.Contains(await Accessible.WindowsAsync(desktop.Session, cancel), shown => shown.Program == "thermi");
+        Assert.Equal(before, Fadings(thermi));
+    }
+
+    private static (int X, int Y) Near(Desktop row) => row != Desktop.KWin ? (Fading.X - 40, Fading.Y - 40) : (Fading.X + 8, Fading.Y + 8);
+
+    private static int Fadings(SessionProcess thermi) => thermi.Error.Text.Split('\n').Count(line => Traced.Of(line)?.Event == Traced.Faded);
 
     private static DesktopKind KindOf(Desktop row) => row switch
     {
