@@ -10,8 +10,11 @@ using Thermi.Linux.X11;
 
 namespace Thermi.Linux.Overlay;
 
-/// <summary>How thermi started: the surfaces its desktop has, and whether it found no settings, which it then writes.</summary>
-internal sealed record ThermiStart(SurfaceKind Kind, bool FirstStart);
+/// <summary>
+/// How thermi started: the surfaces its desktop has, whether it found no settings, which it then writes, and what systemd
+/// handed its unit.
+/// </summary>
+internal sealed record ThermiStart(SurfaceKind Kind, bool FirstStart, Link.Watchdog.Handed Unit);
 
 /// <summary>
 /// What thermi shows beside its overlays, each the way its desktop offers: its icons in GNOME's top bar through the

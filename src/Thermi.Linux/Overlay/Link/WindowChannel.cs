@@ -24,9 +24,6 @@ internal sealed partial class WindowChannel : IWindowChannel, IDisposable
     private const int SaidLines = 40;
     private static readonly TimeSpan Drained = TimeSpan.FromSeconds(1);
 
-    // What systemd hands thermi's unit alone: it takes a notice from the unit's main process only, and logs any other's.
-    private static readonly string[] ServiceOnly = ["NOTIFY_SOCKET", "WATCHDOG_PID", "WATCHDOG_USEC"];
-
     private readonly Gio.DBusConnection _bus;
     private readonly ILogger _log;
     private readonly Gio.DBusProxy _owner;
@@ -163,17 +160,11 @@ internal sealed partial class WindowChannel : IWindowChannel, IDisposable
     }
 
     // The program comes in front with the desktop's token for the click, and never with the one thermi was started with,
-    // long spent, nor with what systemd hands thermi's own unit. The window's standard error comes to thermi, which
-    // passes it on as its own.
+    // long spent. The window's standard error comes to thermi, which passes it on as its own.
     private async Task<Process?> StartAsync(string program, IEnumerable<string> args, bool isWindow)
     {
         var start = new ProcessStartInfo(program, args) { UseShellExecute = false, RedirectStandardError = isWindow };
         LaunchTokens.Set(start.Environment, await TokenAsync().ConfigureAwait(false));
-        foreach (var name in ServiceOnly)
-        {
-            start.Environment.Remove(name);
-        }
-
         try
         {
             return Process.Start(start);
