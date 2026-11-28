@@ -116,10 +116,6 @@ public sealed class ThermiClient
     internal static string[] InstallsOn(bool windows, string programFiles, string localAppData) =>
         windows ? [Path.Combine(programFiles, "thermi"), Path.Combine(localAppData, "Programs", "thermi")] : [LinuxInstall];
 
-    /// <summary>thermi-cli on <paramref name="path"/>, else where Windows' installs put it (<see cref="InstallsOn"/>).</summary>
-    internal static string? Locate(string? path, string programFiles, string localAppData) =>
-        OnPathOr(path, InstallsOn(windows: true, programFiles, localAppData));
-
     /// <summary>thermi-cli on <paramref name="path"/>, else in the first of <paramref name="installs"/> that holds it.</summary>
     internal static string? OnPathOr(string? path, params string[] installs) =>
         (path ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
