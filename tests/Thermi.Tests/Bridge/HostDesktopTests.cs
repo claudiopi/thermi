@@ -32,14 +32,16 @@ public sealed class HostDesktopTests
 
     // The overlay made on the taskbar takes the name of the bar it sits on, as each Linux desktop calls its own, and a
     // vertical one snapped to it says where it sits by that bar; one with no bar sets it on the screen's bottom edge.
-    [Theory] // Rows: GNOME among other names, a desktop with panels, a barless one, and none named.
-    [InlineData("ubuntu:GNOME", NameText.TopBar, OverlayPageText.BelowTopBar)]
-    [InlineData("KDE", NameText.Panel, OverlayPageText.BesidePanel)]
-    [InlineData("Hyprland", NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
-    [InlineData("", NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
-    public void TheTaskbarsOverlayIsNamedForTheDesktopsBar(string desktops, NameText name, OverlayPageText vertical)
+    // A program started without the session's variables, as over ssh, names no desktop: GNOME's Shell on the bus says it.
+    [Theory] // Rows: GNOME among other names, a desktop with panels, a barless one, none named, and the Shell alone.
+    [InlineData("ubuntu:GNOME", false, NameText.TopBar, OverlayPageText.BelowTopBar)]
+    [InlineData("KDE", false, NameText.Panel, OverlayPageText.BesidePanel)]
+    [InlineData("Hyprland", false, NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
+    [InlineData("", false, NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
+    [InlineData("", true, NameText.TopBar, OverlayPageText.BelowTopBar)]
+    public void TheTaskbarsOverlayIsNamedForTheDesktopsBar(string desktops, bool shell, NameText name, OverlayPageText vertical)
     {
-        var words = new HostDesktop(HostOs.Linux, Bar: HostDesktop.BarOf(desktops)).Words(Texts.English);
+        var words = new HostDesktop(HostOs.Linux, Bar: HostDesktop.BarOf(desktops, shell)).Words(Texts.English);
 
         Assert.Equal(
             (Texts.English.Of(name), Texts.English.Of(vertical)),

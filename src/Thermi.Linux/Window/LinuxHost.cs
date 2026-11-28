@@ -33,6 +33,10 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private readonly WindowScreens _screens;
     private readonly OverlayLink _overlay;
     private readonly BusObjects? _objects;
+
+    // GNOME as the overlay tells it, by the session's names or its Shell on the bus, so a window started without the
+    // session's variables names the top bar as the overlay sits on it.
+    private readonly bool _gnome;
     private WindowEnd? _windowEnd;
     private WindowTheme _theme;
     private bool? _dark;
@@ -48,6 +52,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         var bus = Connect();
         _portal = new DesktopPortal(bus, Changed, log);
         _link = bus is null ? null : new Gnome.ShellLink(bus, log) { StateChanged = () => Turn.Post(Changed) };
+        _gnome = DesktopSession.IsGnome();
         _extension = ExtensionOf();
         _screens = new WindowScreens(bus, _link, Turn.Post, () => DesktopChanged?.Invoke(), log);
         _overlay = new OverlayLink(bus, () =>
@@ -70,7 +75,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     public Action? OverlayChanged { get; set; }
 
     public HostDesktop Desktop =>
-        new(HostOs.Linux, _portal.Accent, _extension, _portal.HighContrast, HostDesktop.BarOf(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")),
+        new(
+            HostOs.Linux, _portal.Accent, _extension, _portal.HighContrast, HostDesktop.BarOf(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"), _gnome),
             Window?.IsMaximized() ?? false);
 
     // Linux's packages install the sensors for everyone, and starting them asks through polkit's own prompt.
@@ -366,7 +372,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private static partial void OpenRefused(ILogger logger, string target, Exception error);
 
     private ExtensionState? ExtensionOf() =>
-        _link is null || !(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Contains("GNOME", StringComparison.OrdinalIgnoreCase) ? null
+        _link is null || !_gnome ? null
         : _link.State() switch
         {
             Gnome.ShellExtensionState.Missing => ExtensionState.Missing,

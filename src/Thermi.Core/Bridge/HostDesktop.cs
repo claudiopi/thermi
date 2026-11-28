@@ -149,11 +149,14 @@ public sealed record HostDesktop(
             Caption = Caption,
         };
 
-    /// <summary>Reads the bar from <c>XDG_CURRENT_DESKTOP</c>'s names; with none listed, it is no bar.</summary>
-    public static DesktopBar BarOf(string? desktops)
+    /// <summary>
+    /// Reads the bar from <c>XDG_CURRENT_DESKTOP</c>'s names, or GNOME's top bar where its Shell is on the session's bus,
+    /// as a program started without the session's variables names none; with none listed, it is no bar.
+    /// </summary>
+    public static DesktopBar BarOf(string? desktops, bool shell = false)
     {
         var names = (desktops ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return names.Any(name => name.Equals("GNOME", StringComparison.OrdinalIgnoreCase)) ? DesktopBar.TopBar
+        return shell || names.Any(name => name.Equals("GNOME", StringComparison.OrdinalIgnoreCase)) ? DesktopBar.TopBar
             : names.Length == 0 || names.Any(name => Barless.Contains(name, StringComparer.OrdinalIgnoreCase)) ? DesktopBar.None
             : DesktopBar.Panel;
     }
