@@ -196,6 +196,62 @@ jobs:
           path: TestResults/app/*.json
           if-no-files-found: ignore
 
+  # Thermi.Tests on macOS, on Apple silicon: Core, the CLI and the repo rules hold on the Mac too, whose .NET reads paths,
+  # cultures and files its own way, on a file system that ignores case.
+  macos-core:
+    name: 🍎 Thermi.Tests on macOS
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part MacCore
+      # What the job measured, for the 📊 Stats dashboard.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stats-macos-core
+          path: TestResults/stats
+          if-no-files-found: ignore
+
+  # The tests that need macOS, and the build of thermi.app with .NET for macOS, which needs Xcode. The runner is a session
+  # made for tests: a user of its own, whose screen and launchd no person uses, as THERMI_TEST_SESSION tells the tests.
+  macos:
+    name: 🍎 macOS tests
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      # .NET for macOS 26.5, the workload set 10.0.401 pins, binds the SDK of Xcode 26.5; the image's default Xcode is newer,
+      # and the workload's later sets need an Xcode it does not have yet.
+      - run: sudo xcode-select -s /Applications/Xcode_26.5.app
+      - run: dotnet workload install macos --version 10.0.401
+      - run: echo "THERMI_TEST_SESSION=$(id -un)" >> "$GITHUB_ENV"
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part MacOS
+      # What the job measured, for the 📊 Stats dashboard.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stats-macos
+          path: TestResults/stats
+          if-no-files-found: ignore
+      # The app's coverage of the macOS tests' process, which the dashboard shows apart from the other OSes'.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-macos
+          path: TestResults/app/*.json
+          if-no-files-found: ignore
+
   # The settings window's page: its build with its type check, the test count, lint, react-doctor, unit tests, dead code
   # and the page's tests with axe in the Edge that Windows ships, so no browser is downloaded.
   web:
@@ -314,7 +370,7 @@ jobs:
   stats:
     name: 📊 Stats dashboard
     if: ${{ !cancelled() }}
-    needs: [core, windows, windows-alone, linux-core, linux, web, web-linux, msi, pr-title, security]
+    needs: [core, windows, windows-alone, linux-core, linux, macos-core, macos, web, web-linux, msi, pr-title, security]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -360,14 +416,15 @@ jobs:
   ci-gate:
     name: CI gate
     if: always()
-    needs: [core, windows, windows-alone, linux-core, linux, web, web-linux, msi, pr-title, security, stats]
+    needs: [core, windows, windows-alone, linux-core, linux, macos-core, macos, web, web-linux, msi, pr-title, security, stats]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       # Only when it fails, its own table of each job's result, as the dashboard may be the job that failed.
       - if: >-
           needs.core.result != 'success' || needs.windows.result != 'success' || needs.windows-alone.result != 'success' ||
-          needs.linux-core.result != 'success' || needs.linux.result != 'success' || needs.web.result != 'success' ||
+          needs.linux-core.result != 'success' || needs.linux.result != 'success' || needs.macos-core.result != 'success' ||
+          needs.macos.result != 'success' || needs.web.result != 'success' ||
           needs.web-linux.result != 'success' ||
           needs.msi.result != 'success' || needs.security.result != 'success' || needs.stats.result != 'success' ||
           (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
