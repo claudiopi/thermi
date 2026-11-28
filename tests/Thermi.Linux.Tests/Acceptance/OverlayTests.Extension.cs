@@ -33,9 +33,10 @@ public sealed partial class OverlayTests
             Assert.Contains(Monitors, code, StringComparison.Ordinal);
             Assert.Contains(Signal, code, StringComparison.Ordinal);
             var sends = "['Ready', 'Pointer'].forEach(signal => this._emit(signal, '()', []));";
+            var counts = "    Monitors(own) { if (!own) global.thermiMonitorsAsked = (global.thermiMonitorsAsked ?? 0) + 1;";
             code = code.Replace(Appeared, $"{Appeared} {sends}", StringComparison.Ordinal)
                 .Replace(Signal, "[this.Monitors(true)]", StringComparison.Ordinal)
-                .Replace(Monitors, "    Monitors(own) { if (!own) global.thermiMonitorsAsked = (global.thermiMonitorsAsked ?? 0) + 1;", StringComparison.Ordinal);
+                .Replace(Monitors, counts, StringComparison.Ordinal);
             await File.WriteAllTextAsync(Path.Combine(other, "extension.js"), code, cancel);
 
             await AnotherVersionShowsNothingAsync(other, cancel);
