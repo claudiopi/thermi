@@ -4,7 +4,7 @@ Behavior tests for `src/Thermi.Core` and for `thermi-cli`'s commands and MCP ser
 
 | Folder | What lives there |
 | --- | --- |
-| `Recordings` | Snapshots from real PCs, made with `thermi-sensors --dump`, named by CPU and GPU. A `.jsonl` file is a series, one snapshot a second. A new recording is how a sensor bug is reproduced. |
+| `Recordings` | Snapshots from real PCs, made with `thermi-sensors --dump`, named by CPU and GPU; `Trees` holds Linux's recorded files and `Mac` what a Mac's IOKit answered, each beside its snapshots. A `.jsonl` file is a series, one snapshot a second. A new recording is how a sensor bug is reproduced. |
 | `Configs` | Settings files as each version wrote them, so every version keeps reading. |
 | `Golden` | The pipe's lines byte for byte, as the service writes them. |
 | `Acceptance` | The tests a spec's acceptance steps name. |
@@ -12,6 +12,7 @@ Behavior tests for `src/Thermi.Core` and for `thermi-cli`'s commands and MCP ser
 | `Bridge` | The page's bridge, through its real wire. |
 | `Logging` | What the overlay and the window write on the standard error with `--trace`, where a test reads it. |
 | `Contract` | The agents' contract: every answer against its schema, and schema 1 as it shipped. |
+| `Sensors` | What the sensors' names say on a Mac: each Apple chip family's SMC keys. |
 | `Rules` | The rules of `AGENTS.md` that no compiler checks: sizes, comments, paths, names in docs, specs, undo. |
 
 Entry points worth knowing:

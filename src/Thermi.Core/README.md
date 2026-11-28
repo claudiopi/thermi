@@ -2,11 +2,13 @@
 
 Everything thermi decides without an OS. Which sensor is the CPU temperature, how a value reads, what the overlay shows and where, whether an edit is allowed and how it is undone, what an agent gets back: all of it lives here, as plain data, so it is tested from recordings of real PCs without any hardware.
 
-It depends on nothing, Windows included: its target framework is `net10.0`, and `RepoRulesTests` keeps it that way. Code that needs a Windows API goes in `src/Thermi.Windows` or `src/Thermi.Sensors.Windows`, and code that needs Linux's in `src/Thermi.Linux` or `src/Thermi.Sensors.Linux`. It keeps 90 % line and branch coverage (`scripts/check.ps1`) and a mutation score of 78 % (`scripts/mutation.ps1`), and takes time only from an injected `TimeProvider`.
+It depends on nothing, Windows included: its target framework is `net10.0`, and `RepoRulesTests` keeps it that way. Code that needs a Windows API goes in `src/Thermi.Windows` or `src/Thermi.Sensors.Windows`, code that needs Linux's in `src/Thermi.Linux` or `src/Thermi.Sensors.Linux`, and the Mac's in the `MacOS` projects. It keeps 90 % line and branch coverage (`scripts/check.ps1`) and a mutation score of 78 % (`scripts/mutation.ps1`), and takes time only from an injected `TimeProvider`.
 
 | Folder | What lives there |
 | --- | --- |
 | `Sensors` | Snapshots, metrics, the sensor map with its "zero means not read" rule, the window's catalog and history, and the fan finder. |
+| `Sensors/Rates` | Rates from counters that only grow, as bytes moved or CPU ticks, from one reading to the next. |
+| `Sensors/Rules` | The rules that pick each metric's sensor by its names, and the names Apple gives on its chips, by chip family. |
 | `Settings` | The settings file: its records, JSON, migration from older versions, rules and thresholds. |
 | `Editing` | Every edit, the gate that refuses a bad one with a `Refusal`, and undo. |
 | `Look` | What the overlay draws: layout, look, formatting, saved styles, item history, charts. |
