@@ -4,6 +4,10 @@ using System.Runtime.Versioning;
 // What these tests start, thermi's programs, launchd's agents and the Mac's own tools, is macOS's alone.
 [assembly: SupportedOSPlatform("macos")]
 
+// The Mac's one screen, pointer, keyboard, Dock, preferences and launchd for its user, with the agents' fixed labels, are
+// every test's at once, which no session of a test's own holds apart: one test runs at a time.
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
+
 namespace Thermi.MacOS.Tests;
 
 /// <summary>
