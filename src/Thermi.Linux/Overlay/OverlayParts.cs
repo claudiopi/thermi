@@ -46,7 +46,7 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, IOverlayS
     public (Position At, uint Keys)? Cursor { get; set; }
 
     /// <summary>The desktop's look now, as its settings portal says it, which every paint reads.</summary>
-    public DesktopLook Look { get; set; } = new(null, DesktopLooks.Accent(null), Dark: true);
+    public DesktopLook Look { get; set; } = new(null, DesktopLooks.Accent(null), Dark: true, LightPanels: false);
 
     /// <summary>Whether the overlays' menus mark access keys, as GTK's do, and the Shell's, which has none, do not.</summary>
     public bool MarksAccessKeys { get; init; }
@@ -97,5 +97,8 @@ internal sealed record OverlayParts(Settings Settings, ShellLink Link, IOverlayS
         TaskScheduler.Default);
 }
 
-/// <summary>The desktop's look as the overlays draw it: high contrast's colors or none, the accent, and whether its apps are dark.</summary>
-internal sealed record DesktopLook(HighContrastColors? HighContrast, Rgb Accent, bool Dark);
+/// <summary>
+/// The desktop's look as the overlays draw it: high contrast's colors or none, the accent, whether its apps are dark, and
+/// whether its panels are light, which "Match taskbar" follows.
+/// </summary>
+internal sealed record DesktopLook(HighContrastColors? HighContrast, Rgb Accent, bool Dark, bool LightPanels);

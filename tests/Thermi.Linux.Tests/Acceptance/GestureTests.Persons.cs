@@ -71,10 +71,10 @@ public sealed partial class GestureTests
     {
         var config = ThermiConfig.New with { Overlays = [overlay] };
         var series = await SnapshotPreview.ReadAsync(snapshot, TextWriter.Null) ?? throw new InvalidOperationException($"{snapshot} is no snapshot.");
-        var shown = SnapshotPreview.Shown(config, series, DesktopLooks.BaseClock(), DesktopLooks.LightPanels);
+        var shown = SnapshotPreview.Shown(config, series, DesktopLooks.BaseClock(), DesktopLooks.LightPanels());
         PangoCairo.Module.Initialize();
         using var painter = new Painter();
-        using var picture = painter.Paint(shown.Items, OverlayLook.Of(overlay.Style, DesktopLooks.LightPanels, null), overlay.Size);
+        using var picture = painter.Paint(shown.Items, OverlayLook.Of(overlay.Style, DesktopLooks.LightPanels(), null), overlay.Size);
         return (picture.Width, picture.Height, [.. painter.Places]);
     }
 

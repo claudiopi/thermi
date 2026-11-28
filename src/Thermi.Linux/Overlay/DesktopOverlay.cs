@@ -89,8 +89,8 @@ internal sealed class DesktopOverlay : IDisposable
         var drawn = ThermiMark.Overlay(config, _index, scene.Input, _parts.Window.OpenedOnce);
         var texts = scene.Input.Texts;
         var items = drawn.WithProblem(scene.Problem, texts);
-        var marks = _parts.Window.Marks(_index, _parts.Window.Editing(config.Overlays.Count), overlay, Desktop.DesktopLooks.LightPanels);
-        var plain = OverlayLook.Of(overlay.Style, Desktop.DesktopLooks.LightPanels, scene.HighContrast);
+        var marks = _parts.Window.Marks(_index, _parts.Window.Editing(config.Overlays.Count), overlay, _parts.Look.LightPanels);
+        var plain = OverlayLook.Of(overlay.Style, _parts.Look.LightPanels, scene.HighContrast);
         var look = EditLooks.Applied(plain, marks.Fade, Pointer.HeldAt is not null);
         var scale = monitor * Snaps.SizeShown(overlay, screens);
         var glow = _clock.Glow(items, _parts.Pointer.Animations);
@@ -230,7 +230,7 @@ internal sealed class DesktopOverlay : IDisposable
         var screens = scene.Screens.Screens;
         var monitor = Snaps.ScreenOf(overlay, screens)?.Scale ?? scene.Screens.Scale;
         var drawn = ThermiMark.Overlay(scene.Config, _index, scene.Input, _parts.Window.OpenedOnce);
-        var look = OverlayLook.Of(overlay.Style, Desktop.DesktopLooks.LightPanels, scene.HighContrast);
+        var look = OverlayLook.Of(overlay.Style, _parts.Look.LightPanels, scene.HighContrast);
         var (width, height) = _painter.Measure(drawn.Items, look, monitor * Snaps.SizeShown(overlay, screens));
         var toThermi = scene.Screens.Scale / monitor;
         return ((int)Math.Round(width * toThermi), (int)Math.Round(height * toThermi));

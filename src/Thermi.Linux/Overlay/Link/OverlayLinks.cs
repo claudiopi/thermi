@@ -10,13 +10,15 @@ namespace Thermi.Linux.Overlay.Link;
 /// <summary>
 /// What links the running overlay to the rest of the session, past its surfaces: the settings window, whose messages it
 /// hears and answers; a second start of thermi, which hands it the request to open the window, as Windows' does; the
-/// desktop's look, which it follows as the settings portal says it changes; and systemd's watchdog, told each second.
+/// desktop's look, which it follows as the settings portal says it changes, and on KDE Plasma as its config files do; and
+/// systemd's watchdog, told each second.
 /// </summary>
 internal sealed partial class OverlayLinks : IDisposable
 {
     private readonly Gio.DBusConnection _bus;
     private readonly OverlayParts _parts;
     private readonly Watchdog _watchdog;
+    private readonly List<Gio.FileMonitor> _watches = [];
     private DesktopPortal? _portal;
 
     public OverlayLinks(Gio.DBusConnection bus, OverlayParts parts)
@@ -50,7 +52,28 @@ internal sealed partial class OverlayLinks : IDisposable
     {
         _parts.Window.Start(firstStart);
         _portal = new DesktopPortal(_bus, Looked, _parts.Log);
+        Watch();
         Looked();
+    }
+
+    // KDE Plasma's panels change colour with its Plasma theme or its colour scheme, which its config files say as it writes
+    // them, and the settings portal does not for the theme.
+    private void Watch()
+    {
+        if (!(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':').Contains("KDE", StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var config = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") is { Length: > 0 } set
+            ? set
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+        foreach (var file in new[] { "plasmarc", "kdeglobals" })
+        {
+            var monitor = Gio.FileHelper.NewForPath(Path.Combine(config, file)).MonitorFile(Gio.FileMonitorFlags.None, null);
+            monitor.OnChanged += (_, _) => Looked();
+            _watches.Add(monitor);
+        }
     }
 
     /// <summary>The overlay's second: the watchdog hears its loop runs.</summary>
@@ -90,6 +113,7 @@ internal sealed partial class OverlayLinks : IDisposable
     public void Dispose()
     {
         _portal?.Dispose();
+        _watches.ForEach(watch => watch.Dispose());
         _watchdog.Dispose();
     }
 
@@ -97,7 +121,8 @@ internal sealed partial class OverlayLinks : IDisposable
     {
         var portal = _portal;
         var contrast = portal?.HighContrast == true ? DesktopLooks.Contrasted : null;
-        _parts.Look = new DesktopLook(contrast, contrast?.Highlight ?? RgbOf(portal?.Accent) ?? DesktopLooks.Accent(null), portal?.Scheme == true);
+        var accent = contrast?.Highlight ?? RgbOf(portal?.Accent) ?? DesktopLooks.Accent(null);
+        _parts.Look = new DesktopLook(contrast, accent, portal?.Scheme == true, DesktopLooks.LightPanels());
         _parts.RequestPaint();
     }
 

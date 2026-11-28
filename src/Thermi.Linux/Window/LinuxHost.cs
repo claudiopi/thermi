@@ -118,7 +118,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public IReadOnlyList<Screen> Screens() => _screens.Screens;
 
-    public bool LightTaskbar() => DesktopLooks.LightPanels;
+    public bool LightTaskbar() => DesktopLooks.LightPanels();
 
     public HighContrastColors? HighContrast() => _portal.HighContrast ? DesktopLooks.Contrasted : null;
 

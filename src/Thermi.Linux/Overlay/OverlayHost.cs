@@ -342,7 +342,7 @@ internal sealed class OverlayHost : IDisposable
 
     private OverlayPaint SceneOf(ThermiConfig config)
     {
-        var input = new TrayInput(_feed.Latest, _feed.State, _parts.Culture, TextsOf(config), DesktopLooks.LightPanels, "")
+        var input = new TrayInput(_feed.Latest, _feed.State, _parts.Culture, TextsOf(config), _parts.Look.LightPanels, "")
         {
             History = _parts.History,
             HideOverlays = _parts.Visibility.HideOverlays,

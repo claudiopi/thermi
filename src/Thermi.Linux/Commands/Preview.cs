@@ -24,7 +24,7 @@ internal static class Preview
 
         if (request.Icon is { } id)
         {
-            if (SnapshotPreview.Icon(config, series, id, DesktopLooks.BaseClock(), DesktopLooks.LightPanels, Console.Error) is not { } icon)
+            if (SnapshotPreview.Icon(config, series, id, DesktopLooks.BaseClock(), DesktopLooks.LightPanels(), Console.Error) is not { } icon)
             {
                 return 2;
             }
@@ -37,8 +37,8 @@ internal static class Preview
 
         var overlay = config.Overlays[0];
         using var painter = new Painter();
-        var shown = SnapshotPreview.Shown(config, series, DesktopLooks.BaseClock(), DesktopLooks.LightPanels);
-        var look = OverlayLook.Of(overlay.Style, DesktopLooks.LightPanels, DesktopLooks.HighContrast());
+        var shown = SnapshotPreview.Shown(config, series, DesktopLooks.BaseClock(), DesktopLooks.LightPanels());
+        var look = OverlayLook.Of(overlay.Style, DesktopLooks.LightPanels(), DesktopLooks.HighContrast());
         var scale = request.Scale * overlay.Size;
         using var picture = shown.SensorsStopped
             ? painter.PaintStopped(Texts.For(config.Language, CultureInfo.CurrentUICulture).Of(OverlayText.SensorsStopped), look, scale, shown.Items)
