@@ -1,3 +1,4 @@
+using System.Text;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
 using Thermi.MacOS.Tests.Desktop;
@@ -133,7 +134,7 @@ public sealed partial class ServiceTests
         if (client == Client.Writer)
         {
             var lines = said.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            Assert.All(lines[..3], line => Assert.NotNull(SnapshotJson.Read(line)));
+            Assert.Equal(3, new SnapshotLines().Add(Encoding.UTF8.GetBytes(string.Join('\n', lines[..3]) + '\n')).Count);
             Assert.True(Unread(lines[3]) >= 7 * 1024, $"The service read what the client wrote: {lines[3]}");
         }
         else
