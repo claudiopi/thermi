@@ -25,7 +25,6 @@ internal static class LaunchAgents
     // Every 4 hours, in seconds.
     private const int UpdateCheck = 4 * 60 * 60;
 
-    /// <summary>Where an agent's plist is, by its label, in the person's home.</summary>
     public static string PlistOf(string label) =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "LaunchAgents", $"{label}.plist");
 
@@ -41,7 +40,6 @@ internal static class LaunchAgents
         SetOpenAtLogin(openAtLogin);
     }
 
-    /// <summary>Whether launchd starts the overlay's agent at login, as its plist says.</summary>
     public static bool OpensAtLogin()
     {
         try

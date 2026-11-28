@@ -6,16 +6,12 @@ namespace Thermi.Core.Sensors.Rules;
 /// <summary>What an SMC key of a Mac with Apple silicon measures, as the service names its sensor.</summary>
 public enum AppleRole
 {
-    /// <summary>A temperature of the CPU's performance cores.</summary>
     PerformanceCore,
 
-    /// <summary>A temperature of the CPU's efficiency cores.</summary>
     EfficiencyCore,
 
-    /// <summary>A temperature of the GPU's cores.</summary>
     GpuCore,
 
-    /// <summary>A temperature beside the memory.</summary>
     Memory,
 
     /// <summary>A temperature elsewhere in the Mac, as its SSD's or its Wi-Fi's.</summary>
