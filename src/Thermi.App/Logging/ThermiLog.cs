@@ -108,12 +108,22 @@ internal static class ThermiLog
         return string.Create(CultureInfo.InvariantCulture, $"{ticks / frequency}.{ticks % frequency * 1_000_000 / frequency:D6}");
     }
 
-    // A line a writer takes as the file does, among the trace's own lines where it is the standard error.
+    // A line a writer takes as the file does, among the trace's own lines where it is the standard error: formatted
+    // whole, then written at once under the trace's lock, as the formatter writes in pieces a trace line could split.
     private sealed class Echo(TextWriter writer) : ILogEventSink
     {
         private readonly MessageTemplateTextFormatter _format = new(Line, CultureInfo.InvariantCulture);
 
-        public void Emit(LogEvent logEvent) => _format.Format(logEvent, writer);
+        public void Emit(LogEvent logEvent)
+        {
+            using var line = new StringWriter(CultureInfo.InvariantCulture);
+            _format.Format(logEvent, line);
+            lock (TraceEvents.WholeLines)
+            {
+                writer.Write(line.ToString());
+                writer.Flush();
+            }
+        }
     }
 
     // Serilog stamps each event from the system clock; the line takes its time from the injected one instead.

@@ -42,7 +42,11 @@ internal sealed class TraceEvents(TimeProvider time, TextWriter? writer)
     /// <summary>The settings window showed or came to the front, about the item it shows, or about nothing.</summary>
     public const string WindowShown = "window-shown";
 
-    private readonly Lock _lock = new();
+    /// <summary>
+    /// Held while a whole line goes to the standard error, by the trace and by the log's echo alike, so neither lands
+    /// inside the other's.
+    /// </summary>
+    internal static readonly Lock WholeLines = new();
 
     public TimeProvider Time => time;
 
@@ -58,7 +62,7 @@ internal sealed class TraceEvents(TimeProvider time, TextWriter? writer)
 
         var seconds = (double)time.GetTimestamp() / time.TimestampFrequency;
         var line = string.Create(CultureInfo.InvariantCulture, $"{seconds:F3} {name}{(about is null ? "" : " " + about)}");
-        lock (_lock)
+        lock (WholeLines)
         {
             writer.WriteLine(line);
             writer.Flush();
