@@ -385,13 +385,13 @@ internal sealed class OverlayHost : IDisposable
     private EditResult Settle(ThermiConfig before, ThermiConfig after)
     {
         var scene = SceneOf(after);
-        return TaskbarRow.Settled(before, after, _screens.Screens, Boxes(), (at, _) => Placed(scene, at, after.Overlays[at]));
+        return TaskbarRow.Settled(before, after, _screens.Screens, Boxes(), (at, room) => Placed(scene, at, after.Overlays[at], room));
     }
 
-    // Where an overlay shows, measured as its painter fits it now.
-    private PixelRect Placed(OverlayPaint scene, int at, OverlayConfig overlay)
+    // Where an overlay shows, measured as its painter fits it now, within a room when given one.
+    private PixelRect Placed(OverlayPaint scene, int at, OverlayConfig overlay, Func<(int Width, int Height), int?>? room = null)
     {
-        var (width, height) = at < _overlays.Count ? _overlays[at].Measure(scene, overlay) : (0, 0);
+        var (width, height) = at < _overlays.Count ? _overlays[at].Measure(scene, overlay, room) : (0, 0);
         var place = Snaps.Locate(overlay, _screens.Screens, width, height) ?? new Position(0, 0);
         return new PixelRect(place.X, place.Y, place.X + width, place.Y + height);
     }

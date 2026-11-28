@@ -2,6 +2,7 @@ using Thermi.App.Gestures;
 using Thermi.App.Link;
 using Thermi.App.Logging;
 using Thermi.App.Overlay;
+using Thermi.App.Painting;
 using Thermi.Core.Look;
 using Thermi.Core.Painting;
 using Thermi.Core.Placement;
@@ -11,6 +12,7 @@ using Thermi.Core.Tray;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Overlay.Tips;
 using Thermi.Linux.Painting;
+using Thermi.Linux.Window;
 
 namespace Thermi.Linux.Overlay;
 
@@ -34,6 +36,10 @@ internal sealed class DesktopOverlay : IDisposable
     private readonly int _index;
     private readonly OverlayParts _parts;
     private readonly Painter _painter = new(reuse: true);
+
+    // What measures the room the items take and fits them to it, as Windows' painter does, keeping its fonts at the scale
+    // it measures at apart from those the paint draws with.
+    private readonly WindowPainter _measure = new();
     private readonly OverlayClock _clock;
     private ITimer? _frame;
 
@@ -92,14 +98,14 @@ internal sealed class DesktopOverlay : IDisposable
         var marks = _parts.Window.Marks(_index, _parts.Window.Editing(config.Overlays.Count), overlay, _parts.Look.LightPanels);
         var plain = OverlayLook.Of(overlay.Style, _parts.Look.LightPanels, scene.HighContrast);
         var look = EditLooks.Applied(plain, marks.Fade, Pointer.HeldAt is not null);
-        var scale = monitor * Snaps.SizeShown(overlay, screens);
+        var toThermi = scene.Screens.Scale / monitor;
+        var scale = Scale(scene, overlay, (items, look), (monitor * Snaps.SizeShown(overlay, screens), toThermi), shown);
         var glow = _clock.Glow(items, _parts.Pointer.Animations);
 #pragma warning disable CA2000 // The painter reuses the surface while its size holds, and disposes it itself.
         var picture = drawn.SensorsStopped
             ? _painter.PaintStopped(texts.Of(OverlayText.SensorsStopped), look, scale, items)
             : _painter.Paint(items, look, scale, glow);
 #pragma warning restore CA2000
-        var toThermi = scene.Screens.Scale / monitor;
         Painted = drawn.SensorsStopped ? null : new PaintedLook(items, look, scale, toThermi);
         Mark(picture, look, scale, (items, marks));
         Monitor = monitor;
@@ -117,6 +123,53 @@ internal sealed class DesktopOverlay : IDisposable
         Tips.After(_parts.Quiet);
         return sent;
     }
+
+    // The scale it paints at, as Windows' overlay fits itself: within the room the others beside it on its taskbar leave,
+    // and while the window is open within its own room between a bar's parts by its size with the window closed; off a
+    // taskbar, within its monitor's work area. A drag's carried picture follows the pointer at its own.
+    private double Scale(
+        OverlayPaint scene,
+        OverlayConfig overlay,
+        (IReadOnlyList<OverlayItem> Items, OverlayLook Look) drawn,
+        (double Scale, double ToThermi) at,
+        IReadOnlyList<PixelRect?> shown)
+    {
+        if (Pointer.HeldAt is not null)
+        {
+            return at.Scale;
+        }
+
+        var screens = scene.Screens.Screens;
+        var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
+        var closed = scene.Input.WindowOpen ? Closed(scene, drawn.Look, at) : ((int Width, int Height)?)null;
+        return Fit(drawn, at, TaskbarRow.RoomOf(overlays, _index, screens, shown, closed), Snaps.Most(overlay, screens));
+    }
+
+    // Its size as it shows with the window closed, without the items only the open window shows, in thermi's pixels.
+    private (int Width, int Height) Closed(OverlayPaint scene, OverlayLook look, (double Scale, double ToThermi) at)
+    {
+        var shut = ThermiMark.Overlay(scene.Config, _index, scene.Input with { WindowOpen = false }, _parts.Window.OpenedOnce);
+        var size = _measure.Measure(shut.WithProblem(scene.Problem, scene.Input.Texts), look, (float)at.Scale);
+        return Thermi((size.Width, size.Height), at.ToThermi);
+    }
+
+    // The room and the work area are in thermi's pixels, what the painter measures in the picture's own.
+    private float Fit(
+        (IReadOnlyList<OverlayItem> Items, OverlayLook Look) drawn,
+        (double Scale, double ToThermi) at,
+        Func<(int Width, int Height), int?>? room,
+        (int Width, int Height)? most)
+    {
+        Func<(int Width, int Height), int?>? within = room is null
+            ? null
+            : size => room(Thermi(size, at.ToThermi)) is { } width ? (int)Math.Floor(width / at.ToThermi) : null;
+        var scale = _measure.Within(drawn.Items, drawn.Look, (float)at.Scale, within);
+        var picture = most is { } box ? ((int)Math.Floor(box.Width / at.ToThermi), (int)Math.Floor(box.Height / at.ToThermi)) : ((int, int)?)null;
+        return _measure.Fitting(drawn.Items, drawn.Look, scale, picture);
+    }
+
+    private static (int Width, int Height) Thermi((int Width, int Height) size, double toThermi) =>
+        ((int)Math.Round(size.Width * toThermi), (int)Math.Round(size.Height * toThermi));
 
     // A click takes the overlay only on its pills, and passes through to what is under it where it draws nothing, but for
     // a floating overlay's resizing corner, which takes a press across its whole square, as Windows' does, where a round
@@ -224,16 +277,19 @@ internal sealed class DesktopOverlay : IDisposable
         return _parts.Call(_parts.Surfaces.Hide((uint)_index));
     }
 
-    /// <summary>The overlay's size in thermi's pixels at a size and look of its settings, as the taskbar row measures it.</summary>
-    public (int Width, int Height) Measure(OverlayPaint scene, OverlayConfig overlay)
+    /// <summary>
+    /// The overlay's size in thermi's pixels at a size and look of its settings, as the taskbar row measures it: within
+    /// <paramref name="room"/> when it gives one, and within its monitor's work area off a taskbar, as it paints.
+    /// </summary>
+    public (int Width, int Height) Measure(OverlayPaint scene, OverlayConfig overlay, Func<(int Width, int Height), int?>? room = null)
     {
         var screens = scene.Screens.Screens;
         var monitor = Snaps.ScreenOf(overlay, screens)?.Scale ?? scene.Screens.Scale;
         var drawn = ThermiMark.Overlay(scene.Config, _index, scene.Input, _parts.Window.OpenedOnce);
         var look = OverlayLook.Of(overlay.Style, _parts.Look.LightPanels, scene.HighContrast);
-        var (width, height) = _painter.Measure(drawn.Items, look, monitor * Snaps.SizeShown(overlay, screens));
-        var toThermi = scene.Screens.Scale / monitor;
-        return ((int)Math.Round(width * toThermi), (int)Math.Round(height * toThermi));
+        (double Scale, double ToThermi) at = (monitor * Snaps.SizeShown(overlay, screens), scene.Screens.Scale / monitor);
+        var size = _measure.Measure(drawn.Items, look, Fit((drawn.Items, look), at, room, Snaps.Most(overlay, screens)));
+        return Thermi((size.Width, size.Height), at.ToThermi);
     }
 
     /// <summary>Where a drop at a point of the screen joins this overlay, as <see cref="PaintedPlaces.JoinAt"/> says.</summary>
@@ -295,6 +351,7 @@ internal sealed class DesktopOverlay : IDisposable
         Tips.Dispose();
         _frame?.Dispose();
         _painter.Dispose();
+        _measure.Dispose();
     }
 
     // The open window's marks on the values it edits, the gap a lifted pill leaves, and where a drop onto this overlay joins it.
