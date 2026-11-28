@@ -144,13 +144,10 @@ internal sealed class SettingsWindow : IDisposable
 
     // The first monitor in GTK's own pixels, which a window's size is given in: Windows' window takes its first size from
     // it, and the desktop places it. A session that says none is taken as one full HD monitor.
-    private static Screen FirstScreen(IReadOnlyList<Screen> screens)
-    {
-        var first = screens.FirstOrDefault(screen => screen.Primary) ?? (screens.Count > 0 ? screens[0] : null);
-        return first is null
+    private static Screen FirstScreen(IReadOnlyList<Screen> screens) =>
+        (screens.FirstOrDefault(screen => screen.Primary) ?? (screens.Count > 0 ? screens[0] : null)) is not { } first
             ? new Screen("", Primary: true, new PixelRect(0, 0, 1920, 1080), new PixelRect(0, 0, 1920, 1080), 1)
             : first with { Bounds = Logical(first.Bounds, first.Scale), Work = Logical(first.Work, first.Scale), Scale = 1 };
-    }
 
     private static PixelRect Logical(PixelRect rect, double scale) =>
         new((int)(rect.Left / scale), (int)(rect.Top / scale), (int)(rect.Right / scale), (int)(rect.Bottom / scale));
@@ -169,15 +166,16 @@ internal sealed class SettingsWindow : IDisposable
         settings.SetEnableWebgl(false);
         using var clear = new Gdk.RGBA { Red = 0, Green = 0, Blue = 0, Alpha = 0 };
         view.SetBackgroundColor(clear);
-        view.OnDecidePolicy += (_, e) => Refused(e.Decision, e.DecisionType);
+        // WebKit lets go of what each of these signals brings once answered: what still holds it is freed on the main loop.
+        view.OnDecidePolicy += (_, e) => Refused(e.Decision, e.DecisionType, log);
         view.OnContextMenu += (_, e) =>
         {
-            // WebKit lets go of the menu once asked: what still holds it is freed on the main loop.
             MainLoopRelease.Hold(log, e.ContextMenu, e.HitTestResult);
             return !trace;
         };
         view.OnPermissionRequest += (_, e) =>
         {
+            MainLoopRelease.Hold(log, (GObject.Object)e.Request);
             e.Request.Deny();
             return true;
         };
@@ -202,8 +200,9 @@ internal sealed class SettingsWindow : IDisposable
         return file.StartsWith(files + Path.DirectorySeparatorChar, StringComparison.Ordinal) && File.Exists(file) ? file : null;
     }
 
-    private static bool Refused(WebKit.PolicyDecision decision, WebKit.PolicyDecisionType type)
+    private static bool Refused(WebKit.PolicyDecision decision, WebKit.PolicyDecisionType type, ILogger log)
     {
+        MainLoopRelease.Hold(log, decision);
         if (Allowed(type, (decision as WebKit.NavigationPolicyDecision)?.GetNavigationAction().GetRequest().GetUri()))
         {
             return false;
