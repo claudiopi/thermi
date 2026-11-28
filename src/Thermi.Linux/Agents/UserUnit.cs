@@ -11,13 +11,20 @@ namespace Thermi.Linux.Agents;
 /// unit, <c>thermi.service</c>, as the person's own <c>systemctl --user</c> enables, disables and reads it, so an enable of
 /// systemd's, theirs or an administrator's for everyone, reads the same in both. The package enables it for no one
 /// (docs/adr/0019-linux.md); thermi's first start in each person's session does, once (<see cref="EnableOnceAsync"/>). A switch
-/// systemctl refused is an error, never one that only looks set.
+/// systemctl refused is an error, never one that only looks set. Hyprland started without uwsm brings no graphical session
+/// for systemd and runs no autostart, so nothing starts the overlay at sign-in there: it reads off, and refuses on.
 /// </summary>
 /// <param name="time">The clock <see cref="Answers"/> runs on.</param>
 /// <param name="systemctl">The program asked, by its full path, never one found on the PATH.</param>
-internal sealed class UserUnit(TimeProvider time, string systemctl = UserUnit.Systemctl) : IStartAtSignIn
+/// <param name="desktops">The session's desktops, as <c>XDG_CURRENT_DESKTOP</c> names them; the process's own for null.</param>
+internal sealed class UserUnit(TimeProvider time, string systemctl = UserUnit.Systemctl, string? desktops = null) : IStartAtSignIn
 {
     public const string Name = "thermi.service";
+
+    private const string GraphicalSession = "graphical-session.target";
+
+    private readonly bool _hyprland = (desktops ?? Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "")
+        .Split(':').Contains("Hyprland", StringComparer.OrdinalIgnoreCase);
 
     public const string Systemctl = "/usr/bin/systemctl";
 
@@ -44,7 +51,7 @@ internal sealed class UserUnit(TimeProvider time, string systemctl = UserUnit.Sy
     /// </summary>
     public static readonly TimeSpan Answers = TimeSpan.FromSeconds(10);
 
-    public async Task<bool> OnAsync(CancellationToken cancel) => await RunAsync("is-enabled", cancel) == 0;
+    public async Task<bool> OnAsync(CancellationToken cancel) => !await NothingStartsAsync(cancel) && await RunAsync("is-enabled", cancel) == 0;
 
     /// <summary>
     /// Turns start at sign-in on at thermi's first start in a person's session, as Windows' installer does: once, so a
@@ -72,6 +79,11 @@ internal sealed class UserUnit(TimeProvider time, string systemctl = UserUnit.Sy
 
     public async Task SetAsync(bool on, CancellationToken cancel)
     {
+        if (on && await NothingStartsAsync(cancel))
+        {
+            throw new IOException("Hyprland started without uwsm starts no graphical session for systemd, so nothing starts thermi at sign-in.");
+        }
+
         var verb = on ? "enable" : "disable";
         if (await RunAsync(verb, cancel) is var exit and not 0)
         {
@@ -81,14 +93,38 @@ internal sealed class UserUnit(TimeProvider time, string systemctl = UserUnit.Sy
         }
     }
 
+    /// <summary>
+    /// Whether the person's graphical session is up for systemd, which the unit needs to start, within
+    /// <paramref name="bound"/>: GNOME and Plasma start graphical-session.target at sign-in, maybe a moment after their
+    /// autostart's programs; Xfce, MATE, Cinnamon and Sway never do, and are waited for that long, once.
+    /// </summary>
+    public async Task<bool> SessionUpAsync(TimeSpan bound, CancellationToken cancel)
+    {
+        var since = time.GetTimestamp();
+        while (await RunAsync("is-active", cancel, GraphicalSession) != 0)
+        {
+            if (time.GetElapsedTime(since) >= bound)
+            {
+                return false;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1), time, cancel);
+        }
+
+        return true;
+    }
+
+    // Hyprland's session, with uwsm, is systemd's, and brings the target; without, it brings none.
+    private async Task<bool> NothingStartsAsync(CancellationToken cancel) => _hyprland && await RunAsync("is-active", cancel, GraphicalSession) != 0;
+
     // Null when systemctl did not answer in time.
-    private async Task<int?> RunAsync(string verb, CancellationToken cancel)
+    private async Task<int?> RunAsync(string verb, CancellationToken cancel, string unit = Name)
     {
         using var bound = new CancellationTokenSource(Answers, time);
         using var either = CancellationTokenSource.CreateLinkedTokenSource(cancel, bound.Token);
         try
         {
-            return await SystemProgram.RunAsync(systemctl, ["--user", "--quiet", verb, Name], either.Token);
+            return await SystemProgram.RunAsync(systemctl, ["--user", "--quiet", verb, unit], either.Token);
         }
         catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
         {

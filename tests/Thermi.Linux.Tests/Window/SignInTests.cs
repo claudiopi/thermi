@@ -14,19 +14,20 @@ public sealed class SignInTests
 
     // What systemctl answers is the switch, and a switch it refused is an error the window and thermi-cli say, never one
     // that only looks set; one whose user manager never answers reads off and refuses once its time is up, and leaves
-    // neither waiting.
-    [Theory(Timeout = Bound.Test)] // Rows: systemctl agreeing, refusing, and never answering.
-    [InlineData("exit 0", true, false)]
-    [InlineData("exit 1", false, false)]
-    [InlineData("exec sleep 600", false, true)]
-    public async Task TheSwitchIsWhatSystemctlAnswers(string systemctl, bool agrees, bool hangs)
+    // neither waiting. Hyprland with no graphical session for systemd, as without uwsm, starts nothing at sign-in: off.
+    [Theory(Timeout = Bound.Test)] // Rows: systemctl agreeing, refusing, never answering, and Hyprland without its target.
+    [InlineData("exit 0", "GNOME", true, false)]
+    [InlineData("exit 1", "GNOME", false, false)]
+    [InlineData("exec sleep 600", "GNOME", false, true)]
+    [InlineData("""[ "$3" = is-active ] && exit 3; exit 0""", "Hyprland", false, false)]
+    public async Task TheSwitchIsWhatSystemctlAnswers(string systemctl, string desktop, bool agrees, bool hangs)
     {
         var cancel = TestContext.Current.CancellationToken;
         var folder = Directory.CreateTempSubdirectory("thermi-sign-in-");
         try
         {
             var time = new FakeTimeProvider();
-            var unit = new UserUnit(time, Stub(folder, systemctl));
+            var unit = new UserUnit(time, Stub(folder, systemctl), desktop);
 
             var set = Record.ExceptionAsync(() => unit.SetAsync(on: true, cancel));
             time.Advance(hangs ? UserUnit.Answers : TimeSpan.Zero);
@@ -51,7 +52,7 @@ public sealed class SignInTests
         var folder = Directory.CreateTempSubdirectory("thermi-sign-in-");
         try
         {
-            var unit = new UserUnit(TimeProvider.System, Stub(folder, Switch));
+            var unit = new UserUnit(TimeProvider.System, Stub(folder, Switch), "GNOME");
             var marker = Path.Combine(folder.FullName, "thermi", "start-at-sign-in");
 
             await unit.EnableOnceAsync(marker, NullLogger.Instance, cancel);

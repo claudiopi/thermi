@@ -28,6 +28,12 @@ contents:
     dst: /usr/lib/systemd/user/thermi.service
   - src: ${THERMI_FILES}/thermi/usr/share/applications/io.github.claudiopi.thermi.desktop
     dst: /usr/share/applications/io.github.claudiopi.thermi.desktop
+  # Where the desktop starts no graphical-session.target, these start the overlay at sign-in. Neither is a conffile, so a
+  # removal takes both away, as it takes the user unit.
+  - src: ${THERMI_FILES}/thermi/etc/xdg/autostart/io.github.claudiopi.thermi-sign-in.desktop
+    dst: /etc/xdg/autostart/io.github.claudiopi.thermi-sign-in.desktop
+  - src: ${THERMI_FILES}/thermi/etc/sway/config.d/60-thermi.conf
+    dst: /etc/sway/config.d/60-thermi.conf
   - src: ${THERMI_FILES}/thermi/usr/share/icons/
     dst: /usr/share/icons/
     type: tree

@@ -50,6 +50,7 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on Linux share on the host's GLib main loop, the desktop's surfaces among it",
         ["Thermi.Linux/Overlay/OverlayPointer.cs"] = "the pointer on an overlay as Linux's surfaces tell it, each event by the kind the extension names",
         ["Thermi.Linux/Window/LinuxFixes.cs"] = "the overlay and the sensor service started through systemd and polkit, which only Linux has",
+        ["Thermi.Linux/Window/SignIn.cs"] = "the overlay's start at sign-in where a Linux desktop brings no graphical session for systemd",
         ["Thermi.Linux/Window/WindowPainter.cs"] = "the window's previews painted by Linux's Cairo painter, as Windows' Painter paints them with GDI+",
         ["Thermi.Linux/X11/RootWatch.cs"] = "what an X11 window manager says on the root window, read on thermi's own XCB connection",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",
