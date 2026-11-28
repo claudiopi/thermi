@@ -43,14 +43,15 @@ internal sealed partial class UserUnits
         var ready = await Readiness.ListenAsync(session, notify, cancel).ConfigureAwait(false);
         var person = new Dictionary<string, string> { ["XDG_RUNTIME_DIR"] = await PersonsRuntimeFolderAsync(cancel).ConfigureAwait(false) };
         await StopLeftAsync(session, person, cancel).ConfigureAwait(false);
-        // Only the tests' own units, and no generator's, which would make units of the person's autostart; its log goes to
-        // the test's output, never the person's journal, and its units' output nowhere but where they say.
+        // Only the tests' own units, and no generator's, which would make units of the person's autostart. Its log goes
+        // nowhere, never the person's journal: a user manager logs to a console only through /dev/console, never its
+        // standard error, and no user may open that one. Its units' output goes only where they say.
         var none = Directory.CreateDirectory(Path.Combine(session.Home, "no-generators")).FullName;
         string[] manager =
         [
             $"XDG_RUNTIME_DIR={session.RuntimeFolder}", $"DBUS_SESSION_BUS_ADDRESS={session.BusAddress}", $"NOTIFY_SOCKET={notify}",
             $"SYSTEMD_UNIT_PATH={units}", $"SYSTEMD_GENERATOR_PATH={none}", $"SYSTEMD_ENVIRONMENT_GENERATOR_PATH={none}",
-            "/usr/lib/systemd/systemd", "--user", "--log-target=console", "--default-standard-output=null",
+            "/usr/lib/systemd/systemd", "--user", "--log-target=null","--default-standard-output=null",
         ];
         // A manager that loads no exit.target cannot end on SIGTERM: stopping its scope kills it, and its units with it.
         string[] scope =
