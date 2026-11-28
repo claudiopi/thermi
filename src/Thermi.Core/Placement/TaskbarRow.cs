@@ -13,7 +13,8 @@ public delegate PixelRect OverlayFit(int overlay, Func<(int Width, int Height), 
 /// Overlays that share a horizontal taskbar, laid out together so none covers another: one that overlaps the next pushes
 /// it along, toward the notification area, a margin away, and never back toward the taskbar's start, where the app
 /// buttons are. One that grows past the room the others leave toward the notification area's edge, or where the last was
-/// dropped past it, shows smaller. Overlays that do not overlap stay where their snaps put them. A gesture or an edit that
+/// dropped past it, shows smaller. On a taskbar with parts no overlay covers, as GNOME's top bar, each room between them
+/// is such a row of its own. Overlays that do not overlap stay where their snaps put them. A gesture or an edit that
 /// pushes one stores where it was pushed to as its own place (<see cref="Settle"/>), so it never moves back by itself.
 /// </summary>
 public static class TaskbarRow
@@ -58,9 +59,9 @@ public static class TaskbarRow
     public static Func<(int Width, int Height), int?>? RoomOf(
         IReadOnlyList<OverlayConfig> overlays, int index, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown) =>
         Shared(overlays, index, screens, shown)
-            ? size => Math.Max(
-                Room(overlays, index, screens, size, shown),
-                (int)Math.Ceiling(size.Width / Math.Max(1, Snaps.SizeShown(overlays[index], screens))))
+            ? size => Room(overlays, index, screens, size, shown) is { } room
+                ? Math.Max(room, (int)Math.Ceiling(size.Width / Math.Max(1, Snaps.SizeShown(overlays[index], screens))))
+                : null
             : null;
 
     /// <summary>
@@ -128,10 +129,11 @@ public static class TaskbarRow
     }
 
     /// <summary>
-    /// Whether an edit or a gesture moved an overlay onto or along a taskbar where the others leave it no room at its own
-    /// size, as <paramref name="natural"/> boxes each overlay of <paramref name="after"/>, the others counted at most as
-    /// <paramref name="shown"/> boxes them: such a move is refused, so no overlay ever shows smaller for it. One new, as a
-    /// pill dragged off, counts as moved; with fewer overlays than before, none does.
+    /// Whether an edit or a gesture moved an overlay onto or along a taskbar where the others, or the parts no overlay
+    /// covers, as GNOME's clock, leave it no room at its own size, as <paramref name="natural"/> boxes each overlay of
+    /// <paramref name="after"/>, the others counted at most as <paramref name="shown"/> boxes them: such a move is refused,
+    /// so no overlay ever shows smaller or beside the taskbar for it. One new, as a pill dragged off, counts as moved; with
+    /// fewer overlays than before, none does.
     /// </summary>
     public static bool Crowded(
         IReadOnlyList<OverlayConfig> before,
@@ -150,14 +152,20 @@ public static class TaskbarRow
         return Enumerable.Range(0, after.Count).Any(at =>
             natural.ElementAtOrDefault(at) is { } box
             && (at >= before.Count || before[at].Snap != after[at].Snap || before[at].Position != after[at].Position)
-            && Shared(after, at, screens, sizes)
-            && Room(after, at, screens, (box.Width, box.Height), sizes) < box.Width);
+            && Snaps.OnTaskbar(after[at], screens) is var (screen, bar)
+            && (!BarParts.Fits(screen, bar, box.Width)
+                || (Shared(after, at, screens, sizes) && Room(after, at, screens, (box.Width, box.Height), sizes) < box.Width)));
     }
 
-    private static int Room(
+    // None for one that shows beside the taskbar, where its parts leave it no room.
+    private static int? Room(
         IReadOnlyList<OverlayConfig> overlays, int index, IReadOnlyList<Screen> screens, (int Width, int Height) size, IReadOnlyList<PixelRect?> shown)
     {
-        var (screen, bar, row) = Row(overlays, index, screens, size, shown)!.Value;
+        if (Row(overlays, index, screens, size, shown) is not var (screen, bar, row))
+        {
+            return null;
+        }
+
         var gap = Snaps.Scaled(Snaps.Margin, screen);
         var place = row.FindIndex(each => each.At == index);
         var after = row.Skip(place + 1).Sum(each => each.Width + gap);
@@ -195,20 +203,33 @@ public static class TaskbarRow
         var sizes = Enumerable.Range(0, overlays.Count)
             .Select(at => at == index ? size : at < shown.Count && shown[at] is { } box ? (box.Width, box.Height) : ((int Width, int Height)?)null)
             .ToList();
-        // In the order they lie in, one beside the notification area by its edge there, so its growing never puts it before another.
-        var end = Snaps.RightEnd(screen, bar);
-        var row = Enumerable.Range(0, overlays.Count)
+        var placed = Enumerable.Range(0, overlays.Count)
             .Where(at => sizes[at] is not null && On(overlays[at], screens, screen))
-            .Select(at => (At: at, Left: Snaps.Locate(overlays[at], screens, sizes[at]!.Value.Width, sizes[at]!.Value.Height)!.X, sizes[at]!.Value.Width))
+            .Select(at => (At: at, Box: Box(Snaps.Locate(overlays[at], screens, sizes[at]!.Value.Width, sizes[at]!.Value.Height)!, sizes[at]!.Value)))
+            .Select(each => (each.At, each.Box, Lane: BarParts.Lane(screen, bar, each.Box)))
+            .ToList();
+        if (placed.Find(each => each.At == index).Lane is not var (left, right))
+        {
+            return null;
+        }
+
+        // Those in its room between the taskbar's parts, in the order they lie in, one beside the notification area by its
+        // edge there, so its growing never puts it before another.
+        var end = Snaps.RightEnd(screen, bar);
+        var row = placed
+            .Where(each => each.Lane == (left, right))
+            .Select(each => (each.At, each.Box.Left, each.Box.Width))
             .OrderBy(each => overlays[each.At].Snapped?.Offset is null ? end : each.Left)
             .ThenBy(each => each.At)
             .ToList();
-        return (screen, bar, row);
+        return (screen, bar with { Left = left, Right = right }, row);
     }
 
-    // The last keeps to the notification area's edge, or to where it was dropped past it, and never leaves the taskbar.
-    private static int End(List<(int At, int Left, int Width)> row, Screen screen, PixelRect bar) =>
-        Math.Min(bar.Right, Math.Max(row[^1].Left + row[^1].Width, Snaps.RightEnd(screen, bar)));
+    private static PixelRect Box(Position at, (int Width, int Height) size) => new(at.X, at.Y, at.X + size.Width, at.Y + size.Height);
+
+    // The last keeps to the notification area's edge, or to where it was dropped past it, and never leaves its room.
+    private static int End(List<(int At, int Left, int Width)> row, Screen screen, PixelRect room) =>
+        Math.Min(room.Right, Math.Max(row[^1].Left + row[^1].Width, Snaps.RightEnd(screen, Snaps.TaskbarOf(screen)!.Value)));
 
     // Each that the one before it overlaps pushed along, a margin away, toward the notification area only; touching is no overlap.
     private static int[] Along(List<(int At, int Left, int Width)> row, int gap)

@@ -82,9 +82,10 @@ public sealed class TaskbarDropTests
     [InlineData("3300,136", "Taskbar 3628,1")]
     [InlineData("2600,1", "Taskbar 2668,1")]
     [InlineData("vertical 1200,1397", "free 1200,1354")]
-    // On Plasma's panel, past its launcher, there is no room beside the task manager: it sits beside the tray, as by
-    // default, never over the task manager's buttons (block 4's final pass on Plasma 6.6, 2026-11-28).
-    [InlineData("4540,754", "Taskbar 5169,754")]
+    // On Plasma's panel, whose task manager fills what the others leave and tells no program where its buttons end, there
+    // is no room for it: it shows above the panel where it was let go, as a vertical one does, never over the task
+    // manager's buttons (block 4's final pass on Plasma 6.6, 2026-11-28; the owner's choice, the same day).
+    [InlineData("4540,754", "Taskbar 4540,700")]
     public void ADropLandsWhereItIsLetGoOrOnAMarkInReach(string drop, string lands)
     {
         var words = drop.Split(' ');

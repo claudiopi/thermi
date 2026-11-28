@@ -9,9 +9,9 @@ namespace Thermi.Linux.LayerShell;
 /// <summary>
 /// KDE Plasma's panels along the top or the bottom of a monitor, as GNOME's extension tells its top bar's boxes: the start,
 /// the launcher and what sits before the task manager; the centre, the task manager, whose buttons fill it from its start;
-/// and the end, the tray, the clock and what follows them. No overlay covers the start or the end, and one with no room
-/// beside the task manager, as on the default panel, where it fills what the others leave, sits beside the tray, as
-/// Windows' sits beside the notification area, so none covers the task manager's buttons. Plasma tells a program none of
+/// and the end, the tray, the clock and what follows them. No overlay covers any of them: the task manager tells no program
+/// where its buttons end, so on the default panel, where it fills what the others leave, there is no room for an overlay,
+/// which shows above the panel, as a vertical one does. Plasma tells a program none of
 /// it on Wayland or on its panel's surface; plasmashell's scripting does (<c>org.kde.PlasmaShell.evaluateScript</c>), each
 /// widget's place on its panel, which spans its monitor where it fills it, as by default. A panel that does not fill its
 /// monitor is left out, and one with no tray tells no end: an overlay there keeps Core's reserve. The tray grows as

@@ -162,7 +162,7 @@ public static class Snaps
 
     private static IEnumerable<(SnapConfig Snap, Position At)> TaskbarMarks(Screen screen, int width, int height)
     {
-        if (TaskbarOf(screen) is not { } bar)
+        if (TaskbarOf(screen) is not { } bar || !BarParts.Fits(screen, bar, width))
         {
             yield break;
         }
@@ -228,26 +228,9 @@ public static class Snaps
                 .Select(each => each.Snap)
                 .FirstOrDefault()
             : null;
-        var offset = Beside(screen, bar, bar.Left + Along(bar, at.X - bar.Left, width), width) - bar.Left;
+        var along = bar.Left + Along(bar, at.X - bar.Left, width);
+        var offset = (BarParts.Beside(screen, bar, along, width) ?? along) - bar.Left;
         return mark ?? new SnapConfig(SnapSpot.Taskbar, screen.Primary ? null : screen.Id) { Offset = offset };
-    }
-
-    // Over a part of the taskbar no overlay covers, it goes beside that part, on the side nearer its middle where it fits;
-    // where it fits on neither, as beside a task manager that fills what the others leave, beside the notification area.
-    private static int Beside(Screen screen, PixelRect bar, int left, int width)
-    {
-        foreach (var kept in new[] { screen.Start, screen.Centre, screen.End }.OfType<PixelRect>().ToList())
-        {
-            if (left < kept.Right && left + width > kept.Left)
-            {
-                var (before, after) = (kept.Left - Scaled(Margin, screen) - width, kept.Right + Scaled(Margin, screen));
-                left = before < bar.Left && after + width > bar.Right ? RightEnd(screen, bar) - width
-                    : ((left * 2) + width < kept.Left + kept.Right && before >= bar.Left) || after + width > bar.Right ? before
-                    : after;
-            }
-        }
-
-        return left;
     }
 
     private static int Along(PixelRect bar, int offset, int width) => Math.Clamp(offset, 0, Math.Max(0, bar.Width - width));
@@ -305,14 +288,16 @@ public static class Snaps
         };
     }
 
-    // Where it cannot sit on a taskbar (vertical overlay, side, hidden or no taskbar), the offset is from the monitor's left edge,
-    // and it sits beside the bar: below one at the top, as GNOME's top bar, else at the work area's bottom.
+    // Where it cannot sit on a taskbar (vertical overlay, side, hidden or no taskbar, or no room clear of its parts), the
+    // offset is from the monitor's left edge, and it sits beside the bar: below one at the top, as GNOME's top bar, else at
+    // the work area's bottom.
     private static Position OnTaskbar(Screen screen, int? offset, Orientation orientation, int width, int height)
     {
-        if (orientation == Orientation.Horizontal && TaskbarOf(screen) is { } bar)
+        if (orientation == Orientation.Horizontal
+            && TaskbarOf(screen) is { } bar
+            && BarParts.Beside(screen, bar, bar.Left + Along(bar, offset ?? (RightEnd(screen, bar) - width - bar.Left), width), width) is { } on)
         {
-            var along = Along(bar, offset ?? (RightEnd(screen, bar) - width - bar.Left), width);
-            return new Position(Beside(screen, bar, bar.Left + along, width), bar.Top + ((bar.Height - height) / 2));
+            return new Position(on, bar.Top + ((bar.Height - height) / 2));
         }
 
         var margin = Scaled(Margin, screen);

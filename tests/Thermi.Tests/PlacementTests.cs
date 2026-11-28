@@ -1,10 +1,66 @@
+using System.Globalization;
 using Thermi.Core.Placement;
+using Thermi.Core.Settings;
 
 namespace Thermi.Tests;
 
-/// <summary>How a snap names its monitor: by the ids of the monitors' EDIDs.</summary>
+/// <summary>How a snap names its monitor, by the ids of the monitors' EDIDs, and where on a bar with parts an overlay sits.</summary>
 public sealed class PlacementTests
 {
+    // GNOME's top bar on Debian 13 and Ubuntu 24.04 at 1280 × 800, as their VMs' Shells told it (2026-11-28): Activities
+    // with what sits beside it, the clock, and the system menu, which is the bar's notification area.
+    private static readonly Screen Debian = TopBar((1280, 800), 1, start: 72, clock: (553, 727), menu: 1130);
+    private static readonly Screen Ubuntu = TopBar((1280, 800), 1, start: 72, clock: (603, 744), menu: 1130);
+
+    // The landing page's case: GNOME at 150 % on 1920 × 1080, the clock to the system menu about 650 px apart.
+    private static readonly Screen Landing = TopBar((1920, 1080), 1.5, start: 108, clock: (829, 1091), menu: 1741);
+
+    // Overlays on a top bar, each `offset:width` along it or `tray:width` with none, 24 px high, `moved` when the first was
+    // just moved there from the desktop: where each shows, and whether the move is refused. Each sits in the room between
+    // the bar's parts that holds it, nearest where it would go, and never covers one, its row's pushes kept within that
+    // room; where none holds it, it shows below the top bar, as a vertical one does, and a move there is refused, as onto
+    // a full taskbar. The window's alert-only items widen it as any width does.
+    [Theory] // Rows: Debian's, Ubuntu's and the landing page's reproductions, each gap kept or changed, a row's push, the refusal
+    [InlineData("debian moved tray:545", "727,40 refused")]
+    [InlineData("ubuntu tray:558", "714,40")]
+    [InlineData("landing tray:813", "1095,60")]
+    [InlineData("debian tray:380", "742,4")]
+    [InlineData("debian 0:300", "80,4")]
+    [InlineData("debian 800:420", "125,4")]
+    [InlineData("debian 300:150 400:100", "287,4 445,4")]
+    public void AnOverlayOnABarNeverCoversItsParts(string overlays, string shown)
+    {
+        var words = overlays.Split(' ');
+        var screen = words[0] switch { "debian" => Debian, "ubuntu" => Ubuntu, _ => Landing };
+        var each = words.Skip(1).Where(word => word != "moved").Select(word => word.Split(':')).ToList();
+        List<OverlayConfig> configs = [.. each.Select(word => new OverlayConfig
+        {
+            Snap = new SnapConfig(SnapSpot.Taskbar) { Offset = word[0] == "tray" ? null : int.Parse(word[0], CultureInfo.InvariantCulture) },
+        })];
+        List<PixelRect?> boxes = [.. each.Select(word => (PixelRect?)new PixelRect(0, 0, int.Parse(word[1], CultureInfo.InvariantCulture), 24))];
+        List<OverlayConfig> before = words.Contains("moved") ? [new OverlayConfig { Position = new Position(100, 100) }, .. configs.Skip(1)] : configs;
+
+        var places = configs.Select((_, at) => TaskbarRow.Locate(configs, at, [screen], (boxes[at]!.Value.Width, 24), boxes)!)
+            .Select(at => string.Create(CultureInfo.InvariantCulture, $"{at.X},{at.Y}"));
+        var refused = TaskbarRow.Crowded(before, configs, [screen], boxes, boxes) ? " refused" : "";
+
+        Assert.Equal(shown, string.Join(' ', places) + refused);
+    }
+
+    private static Screen TopBar((int Width, int Height) size, double scale, int start, (int Left, int Right) clock, int menu)
+    {
+        var bar = new PixelRect(0, 0, size.Width, (int)(32 * scale));
+        var end = bar with { Left = menu };
+        return new Screen("main", true, new PixelRect(0, 0, size.Width, size.Height), new PixelRect(0, bar.Bottom, size.Width, size.Height), scale)
+        {
+            Taskbar = bar,
+            Tray = end,
+            Start = bar with { Right = start },
+            Centre = bar with { Left = clock.Left, Right = clock.Right },
+            End = end,
+        };
+    }
+
     // R35: the monitors, each as its EDID's serial number and the serial's own text, "blank" for a text of spaces, "none"
     // for no EDID and "zeros" for one of zeros, then @ and its connection; and their ids: maker, product and the serial's
     // own text, else the serial number, else the connection, two that report the same serial told apart by the connection.
