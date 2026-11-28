@@ -76,7 +76,11 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     public HostDesktop Desktop =>
         new(
-            HostOs.Linux, _portal.Accent, _extension, _portal.HighContrast, HostDesktop.BarOf(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"), _gnome),
+            HostOs.Linux,
+            _portal.Accent,
+            _extension,
+            _portal.HighContrast,
+            HostDesktop.BarOf(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP"), _gnome),
             Window?.IsMaximized() ?? false);
 
     // Linux's packages install the sensors for everyone, and starting them asks through polkit's own prompt.
