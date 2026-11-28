@@ -285,10 +285,13 @@ public sealed partial class OverlayTests
         await notices.ClickAsync(await told, "show-it", cancel);
         await showing;
         await Traced.NextAsync(units.Trace, Traced.Paint, cancel);
-        var shown = await desktop.ScreenshotAsync(cancel);
+        // Back under the pointer, which rests where the menu was opened and never moved: a right-click there is on the pill.
         await units.AddProgramAsync(monitorProgram, monitorName, cancel);
         await ChooseAsync(desktop, rows, MenuEntry.TaskManager, cancel);
         var monitor = await desktop.Session.RunAsync("gdbus", ["wait", "--session", "--timeout", Bound.LineSeconds, monitorName], cancel: cancel);
+        // With the pointer off it since the menu, it shows no value's tooltip, as when it was first drawn.
+        await Traced.NextAsync(units.Trace, Traced.Paint, cancel);
+        var shown = await desktop.ScreenshotAsync(cancel);
         await ChooseAsync(desktop, rows, MenuEntry.Exit, cancel);
         // systemctl --wait returns once the unit went inactive; not "auto-restart": a clean exit starts nothing again.
         await running.WaitForExitAsync(cancel);
@@ -361,7 +364,11 @@ public sealed partial class OverlayTests
 
     private static async Task ChooseAsync(TestDesktop desktop, IReadOnlyList<MenuRow> rows, MenuEntry entry, CancellationToken cancel)
     {
-        await OpenMenuAsync(desktop, cancel);
+        // The pill's menu, as counted first, or the entry's index is another's of the menu that opened.
+        Assert.Equal(rows.Count, (await OpenMenuAsync(desktop, cancel)).Entries);
+        // A person's pointer goes to the menu, off the pill, before a row is chosen. One that leaves only as the menu lets it
+        // go can leave the overlay on X11 with a value under it that it never hears the pointer leave, whose tooltip shows.
+        await desktop.Input.MoveAsync(Monitor.Width - 100, Monitor.Height - 100, cancel);
         await Accessible.ChooseAsync(desktop, IndexOf(rows, entry), cancel);
     }
 
