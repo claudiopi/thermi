@@ -10,10 +10,13 @@ internal static class SensorFeed
     /// <summary>A Mac mini M4 on macOS 26 at rest, read as a plain user over SSH.</summary>
     public const string MacMini = "mac-mini-m4";
 
-    /// <summary>The same Mac with every core loaded.</summary>
+    /// <summary>The same Mac with four of its ten cores loaded.</summary>
     public const string MacMiniLoaded = "mac-mini-m4-load";
 
-    /// <summary>A MacBook Air M1, another chip's family with other SMC keys, and a battery.</summary>
+    /// <summary>
+    /// A MacBook Air M1, made from the Mac mini's recording, as no M1 was at hand: another chip's family with its own SMC
+    /// keys, four cores of each kind, no fan, and a battery.
+    /// </summary>
     public const string MadeM1 = "macbook-air-m1";
 
     /// <summary>A virtual machine of the CI's, which has no SMC, no HID sensors and no energy counters.</summary>

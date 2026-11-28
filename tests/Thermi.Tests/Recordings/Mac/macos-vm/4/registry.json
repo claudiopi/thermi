@@ -1,0 +1,333 @@
+{
+  "AppleARMIODevice": [],
+  "IOAccelerator": [
+    {
+      "IOClass": "AppleParavirtGPU",
+      "PerformanceStatistics": {
+        "lastRecoveryTime": 0,
+        "Alloc system memory": 112082944,
+        "In use system memory": 38096640,
+        "In use system memory (driver)": 0,
+        "recoveryCount": 0
+      },
+      "IORegistryEntryName": "AppleParavirtGPU"
+    }
+  ],
+  "IOBlockStorageDriver": [
+    {
+      "Statistics": {
+        "Operations (Write)": 110923,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 8060749824,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 126396617277,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 50792043024,
+        "Bytes (Write)": 5906378752,
+        "Operations (Read)": 347421,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk0",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "Internal",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 153076224,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 863900908,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 1639,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk3",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 311808,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 16572225,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 82,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk5",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 9383936,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 121952969,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4154,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk7",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 8884224,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 100560823,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4062,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk9",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 9494528,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 97146903,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4181,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk11",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 9330688,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 93545379,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4156,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk13",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 8851456,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 106139234,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4069,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk15",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 8851456,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 110752557,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4069,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk17",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 9342976,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 132207179,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4159,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk19",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 9322496,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 110117098,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4154,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk21",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 8740864,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 107176580,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4042,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk23",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 9486336,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 158824455,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4179,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk25",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 8781824,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 93016964,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4067,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk27",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    },
+    {
+      "Statistics": {
+        "Operations (Write)": 0,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 8785920,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 68267831,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 0,
+        "Bytes (Write)": 0,
+        "Operations (Read)": 4053,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk29",
+      "parent:Device Characteristics/Product Name": "Disk Image",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "File",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    }
+  ],
+  "IONetworkInterface": [
+    {
+      "BSD Name": "en1",
+      "IOBuiltin": false,
+      "IORegistryEntryName": "en1"
+    },
+    {
+      "BSD Name": "en0",
+      "IOBuiltin": true,
+      "IORegistryEntryName": "en0"
+    },
+    {
+      "BSD Name": "anpi0",
+      "IOBuiltin": false,
+      "IORegistryEntryName": "anpi0"
+    }
+  ],
+  "AppleSmartBattery": []
+}
