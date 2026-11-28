@@ -79,6 +79,29 @@ public sealed partial class OverlayTests
         }
     }
 
+    // A package puts thermi's extension in place, which GNOME reads at the next sign-in and leaves off: thermi turns it on,
+    // and the overlays show at once. One the person turned off stays off, and its notice says how to turn it on, with no
+    // button.
+    [Theory(Timeout = Bound.Test)]
+    [InlineData(ExtensionStart.NeverOn, true)]
+    [InlineData(ExtensionStart.TurnedOff, false)]
+    public async Task ThePackagesExtensionShowsTheOverlaysUnlessTurnedOff(ExtensionStart start, bool shows)
+    {
+        var cancel = TestContext.Current.CancellationToken;
+        await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], TestShell.Thermi, cancel, start: start);
+        var notices = await NoticeWatch.StartAsync(desktop, cancel);
+        await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [Scene.Overlay with { Position = Scene.OnWindow }] }, cancel);
+        await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel);
+        Task off = notices.NextAsync(notice => notice.Actions.Count == 0, cancel);
+        var thermi = await desktop.StartThermiAsync(["--trace"], cancel);
+        Task shown = Traced.FirstAsync(thermi.Error, Traced.Shown, cancel);
+        var first = await Task.WhenAny(shown, off);
+        var enabled = await desktop.Session.RunAsync("gsettings", ["get", "org.gnome.shell", "enabled-extensions"], cancel: cancel);
+
+        Assert.Equal(shows, first == shown);
+        Assert.Equal(shows, enabled.Out.Contains(ShellLink.Uuid, StringComparison.Ordinal));
+    }
+
     // A copy of thermi's extension that says the protocol before its own, with its code changed as the test says.
     private static async Task<string> ExtensionBeforeAsync(Func<string, string> change, CancellationToken cancel)
     {
@@ -133,7 +156,7 @@ public sealed partial class OverlayTests
     // With no extension, thermi asks the Shell to install its own from extensions.gnome.org, which GNOME confirms itself,
     // and its notice offers to ask again. With its files in place that the running Shell has not read, as right after a
     // package put them there, it asks the same; the Shell, offline, installs nothing, so its notice says to sign in again,
-    // with no button.
+    // with no button, and the person's settings turn the copy on for that sign-in.
     private static async Task NoneIsInstalledFromTheStoreAsync(CancellationToken cancel)
     {
         await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], extension: null, cancel);
@@ -159,5 +182,7 @@ public sealed partial class OverlayTests
         await desktop.StartThermiAsync([], cancel);
         Assert.Equal(uuid, await again);
         await told;
+        var enabled = await desktop.Session.RunAsync("gsettings", ["get", "org.gnome.shell", "enabled-extensions"], cancel: cancel);
+        Assert.Contains($"'{uuid}'", enabled.Out, StringComparison.Ordinal);
     }
 }

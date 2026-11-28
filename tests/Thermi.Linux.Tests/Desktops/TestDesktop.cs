@@ -69,9 +69,13 @@ internal sealed class TestDesktop : IAsyncDisposable
         DesktopKind kind, IReadOnlyList<TestMonitor> monitors, CancellationToken cancel, PanelEdge? panel = PanelEdge.Top) =>
         StartAsync(kind, monitors, TestShell.Thermi, cancel, panel);
 
-    /// <summary>A desktop whose GNOME Shell loads <paramref name="extension"/> in place of thermi's, or none when null.</summary>
+    /// <summary>
+    /// A desktop whose GNOME Shell loads <paramref name="extension"/> in place of thermi's, or none when null, as the person's
+    /// settings <paramref name="start"/> it.
+    /// </summary>
     public static async Task<TestDesktop> StartAsync(
-        DesktopKind kind, IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel, PanelEdge? panel = PanelEdge.Top)
+        DesktopKind kind, IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel, PanelEdge? panel = PanelEdge.Top,
+        ExtensionStart start = ExtensionStart.On)
     {
 #pragma warning disable CA2000 // The desktop owns the session, and ends it with itself, as when its start fails below.
         var desktop = new TestDesktop(kind, new OwnSession(), monitors.Max(monitor => monitor.Scale));
@@ -80,7 +84,7 @@ internal sealed class TestDesktop : IAsyncDisposable
         {
             await (kind switch
             {
-                DesktopKind.Gnome or DesktopKind.GnomeX11 => desktop.StartGnomeAsync(monitors, extension, cancel),
+                DesktopKind.Gnome or DesktopKind.GnomeX11 => desktop.StartGnomeAsync(monitors, (extension, start), cancel),
                 DesktopKind.KWin => desktop.StartKWinAsync(monitors, panel, cancel),
                 DesktopKind.Sway => desktop.StartSwayAsync(monitors, panel, cancel),
                 DesktopKind.X11 => desktop.StartXfceAsync(monitors, panel ?? throw new ArgumentNullException(nameof(panel), "Xfce has its panel."), cancel),
@@ -236,11 +240,11 @@ internal sealed class TestDesktop : IAsyncDisposable
     }
 
     // On X11 the Shell takes Xvfb's screen, whose monitors are its own; on Wayland, its virtual monitors.
-    private async Task StartGnomeAsync(IReadOnlyList<TestMonitor> monitors, string? extension, CancellationToken cancel)
+    private async Task StartGnomeAsync(IReadOnlyList<TestMonitor> monitors, (string? Folder, ExtensionStart Start) extension, CancellationToken cancel)
     {
         // The Shell takes the desktop's notifications through a service of its own, which the session's bus starts for it.
         Session.Activates("org.gnome.Shell.Notifications");
-        await TestShell.InstallAsync(Session, extension, cancel).ConfigureAwait(false);
+        await TestShell.InstallAsync(Session, extension.Folder, extension.Start, cancel).ConfigureAwait(false);
         string[] shell = ["--headless", "--wayland", "--wayland-display", OwnSession.WaylandDisplay,
             .. monitors.SelectMany(monitor => new[] { "--virtual-monitor", $"{monitor.Width}x{monitor.Height}" })];
         if (Kind == DesktopKind.GnomeX11)

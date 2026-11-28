@@ -2,6 +2,19 @@ using System.Text.Json.Nodes;
 
 namespace Thermi.Linux.Tests.Desktops;
 
+/// <summary>How the person's settings find the extension in place of thermi's as the test's Shell starts.</summary>
+public enum ExtensionStart
+{
+    /// <summary>On, as GNOME's Extensions app or thermi turned it on.</summary>
+    On,
+
+    /// <summary>Off, as GNOME leaves a copy a package put in place, which no one turned on.</summary>
+    NeverOn,
+
+    /// <summary>Off, as the person turned it off in GNOME's Extensions app.</summary>
+    TurnedOff,
+}
+
 /// <summary>
 /// The GNOME Shell extensions a test's Shell loads at its start: the tests' own, and thermi's or another in its place.
 /// Extensions copied in a running Shell load only at the next sign-in, so they are in place before it starts.
@@ -68,10 +81,11 @@ internal static class TestShell
 
     /// <summary>
     /// Puts the tests' extension and <paramref name="extension"/>, a folder with its <c>metadata.json</c>, none when null, where
-    /// the session's Shell loads them, and enables both.
+    /// the session's Shell loads them, and enables the tests' and, as <paramref name="start"/> says, the other.
     /// </summary>
-    public static async Task InstallAsync(OwnSession session, string? extension, CancellationToken cancel)
+    public static async Task InstallAsync(OwnSession session, string? extension, ExtensionStart start, CancellationToken cancel)
     {
+        List<string> disabled = [];
         var extensions = Path.Combine(session.Variables["XDG_DATA_HOME"], "gnome-shell", "extensions");
         var tests = Directory.CreateDirectory(Path.Combine(extensions, Uuid)).FullName;
         await File.WriteAllTextAsync(Path.Combine(tests, "extension.js"), Code, cancel).ConfigureAwait(false);
@@ -96,15 +110,18 @@ internal static class TestShell
                 File.Copy(file, Path.Combine(target, Path.GetFileName(file)));
             }
 
-            enabled.Add(uuid);
+            if (start != ExtensionStart.NeverOn)
+            {
+                (start == ExtensionStart.On ? enabled : disabled).Add(uuid);
+            }
         }
 
-        var set = await session.RunAsync(
-            "gsettings", ["set", "org.gnome.shell", "enabled-extensions", $"[{string.Join(", ", enabled.Select(uuid => $"'{uuid}'"))}]"], cancel: cancel)
-            .ConfigureAwait(false);
-        if (set.Exit != 0)
+        foreach (var (key, uuids) in new[] { ("enabled-extensions", enabled), ("disabled-extensions", disabled) })
         {
-            throw new InvalidOperationException($"The Shell's extensions were not enabled: {set.Error}");
+            var set = await session.RunAsync(
+                "gsettings", ["set", "org.gnome.shell", key, $"[{string.Join(", ", uuids.Select(uuid => $"'{uuid}'"))}]"], cancel: cancel)
+                .ConfigureAwait(false);
+            _ = set.Exit == 0 ? 0 : throw new InvalidOperationException($"The Shell's {key} were not set: {set.Error}");
         }
 
         // Mutter takes a fractional scale, as 150 %, only with its framebuffers scaled, which GNOME's Settings turns on when a

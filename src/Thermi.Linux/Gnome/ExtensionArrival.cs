@@ -12,7 +12,8 @@ namespace Thermi.Linux.Gnome;
 /// desktop's says why, once a run, with a button that asks GNOME again; not read yet, only when GNOME did not install it
 /// does the notice say to sign in again, with no button. Once the extension runs, as its Ready says, the overlays show
 /// through it: through an earlier protocol's too, as runs from an update until the next sign-in, whose notice says to sign
-/// in again, so no update leaves the overlays blank.
+/// in again, so no update leaves the overlays blank. The package's copy, which GNOME leaves off, thermi turns on in the
+/// person's settings, unless they turned it off.
 /// </summary>
 internal sealed class ExtensionArrival
 {
@@ -43,6 +44,19 @@ internal sealed class ExtensionArrival
     {
         var state = _link.State();
         Ready = state is ShellExtensionState.Ours or ShellExtensionState.Earlier;
+        // The package's copy, which GNOME read at sign-in and left off, the Shell turns on at once as its settings say so; one
+        // the person turned off never comes, whatever state the Shell says it waits in.
+        if (state is ShellExtensionState.Off or ShellExtensionState.Starting)
+        {
+            state = ShellSettings.TurnOn() switch
+            {
+                ShellSwitch.TurnedOn => ShellExtensionState.Starting,
+                ShellSwitch.Off => ShellExtensionState.Off,
+                ShellSwitch.On => state,
+                _ => state,
+            };
+        }
+
         if (state == ShellExtensionState.Missing)
         {
             _link.Install();
@@ -89,9 +103,10 @@ internal sealed class ExtensionArrival
             // Declined, offline, or not on the site: what the Shell has now says which.
         }
 
+        // The package's copy then shows from the next sign-in, which loads what the settings turn on.
         if (_link.State() == ShellExtensionState.Unread)
         {
-            _post(() => Tell(ShellExtensionState.Unread));
+            _post(() => Tell(ShellSettings.TurnOn() == ShellSwitch.Off ? ShellExtensionState.Off : ShellExtensionState.Unread));
         }
     }
 
