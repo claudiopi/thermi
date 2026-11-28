@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="thermi" />
+    <InternalsVisibleTo Include="thermi-cli" />
     <InternalsVisibleTo Include="Thermi.Tests" />
     <InternalsVisibleTo Include="Thermi.Windows.Tests" />
   </ItemGroup>

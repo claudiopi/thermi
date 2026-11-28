@@ -9,6 +9,8 @@
     <RootNamespace>Thermi.MacOS.Cli</RootNamespace>
     <!-- Published self-contained for Apple silicon into the app; restored for it, so the lock file holds what that needs. -->
     <RuntimeIdentifiers>osx-arm64</RuntimeIdentifiers>
+    <!-- LibraryImport's generated marshalling of geteuid. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Thermi.App\Thermi.App.csproj" />
+    <ProjectReference Include="..\Thermi.Cli\Thermi.Cli.csproj" />
     <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
   </ItemGroup>
 

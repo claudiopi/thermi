@@ -15,7 +15,17 @@
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     <ApplicationId>io.github.claudiopi.thermi</ApplicationId>
     <ApplicationTitle>thermi</ApplicationTitle>
+    <!-- LibraryImport's generated marshalling of geteuid, in the file it shares with thermi-cli. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <!-- thermi register and unregister, which the app's first start and the cask run, write the agents as thermi-cli reads
+       them: the files are thermi-cli's, built into both, so neither program loads the other. -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <Compile Include="..\Thermi.MacOS.Cli\Agents\LaunchAgents.cs" Link="Agents\LaunchAgents.cs" />
+    <Compile Include="..\Thermi.MacOS.Cli\Native\User.cs" Link="Native\User.cs" />
+    <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+  </ItemGroup>
 
   <!-- .NET for macOS builds only on a Mac with Xcode, and Windows and Linux build the whole solution too: there this project
        is plain net10.0 with no code and no package, so it builds nothing of thermi's and has nothing to lock. The lock file
