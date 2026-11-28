@@ -10,7 +10,8 @@ namespace Thermi.Linux.Tests;
 /// The tests' program, xunit's own entry point but for a few more uses: started in a test's session, it is a program of the
 /// person's that reads thermi through the SDK (<see cref="OwnSession.SdkStatusAsync"/>), the settings window's watch on the
 /// desktop's look (<see cref="Window.PortalTests.WatchAsync"/>), its link to the overlay
-/// (<see cref="Window.OverlayLinkTests.AnswerAsTheWindowAsync"/>), thermi's notices with a choice that fails
+/// (<see cref="Window.OverlayLinkTests.AnswerAsTheWindowAsync"/>, <see cref="Window.OverlayLinkTests.SendAsTheWindow"/>), thermi's
+/// notices with a choice that fails
 /// (<see cref="Tray.NoticeClickTests.ClickTwice"/>), or the window asking the overlay for its hotkeys
 /// (<see cref="Acceptance.DesktopTests.AskHotkeyStatus"/>).
 /// </summary>
@@ -32,6 +33,11 @@ internal static class Program
         if (args is [Window.OverlayLinkTests.Linked, var what, .. var thermi] && thermi.Length < 2)
         {
             return await Window.OverlayLinkTests.AnswerAsTheWindowAsync(what, thermi.FirstOrDefault()).ConfigureAwait(false);
+        }
+
+        if (args is [Window.OverlayLinkTests.Sends, var count])
+        {
+            return Window.OverlayLinkTests.SendAsTheWindow(int.Parse(count, System.Globalization.CultureInfo.InvariantCulture));
         }
 
         if (args is [Tray.NoticeClickTests.Clicks])

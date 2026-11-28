@@ -1,3 +1,4 @@
+using Thermi.Core.Messages;
 using Thermi.Linux.Agents;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Tests.Desktops;
@@ -14,6 +15,9 @@ public sealed class OverlayLinkTests
     /// <summary>The tests' own program, started in a session with it, acts as the window's link (<see cref="AnswerAsTheWindowAsync"/>).</summary>
     public const string Linked = "--overlay-link";
 
+    /// <summary>The tests' own program, started in a session with it, tells the overlay messages as the window does (<see cref="SendAsTheWindow"/>).</summary>
+    public const string Sends = "--overlay-sends";
+
     // Owns the name it is given and exports the overlay's quit there, as GApplication does, which ends it; says when it holds it.
     private const string Overlay = """
         import sys, gi
@@ -25,6 +29,27 @@ public sealed class OverlayLinkTests
             quit.connect('activate', lambda *_: loop.quit())
             actions.add_action(quit)
             bus.export_action_group('/io/github/claudiopi/thermi', actions)
+        Gio.bus_own_name(Gio.BusType.SESSION, sys.argv[1], Gio.BusNameOwnerFlags.DO_NOT_QUEUE, bus_up,
+                         lambda *_: print('ready', flush=True), lambda *_: sys.exit('The name is taken.'))
+        loop.run()
+        """;
+
+    // Owns the overlay's name and hears the window's messages on its object, as the overlay does; once it heard as many as
+    // it is told, it says each, in the order heard, and ends.
+    private const string Hearer = """
+        import sys, gi
+        from gi.repository import Gio, GLib
+        XML = "<node><interface name='io.github.claudiopi.thermi.Overlay'><method name='Message'><arg type='s'/></method></interface></node>"
+        loop = GLib.MainLoop()
+        heard = []
+        def call(bus, sender, path, face, method, args, invocation):
+            heard.append(args.unpack()[0])
+            invocation.return_value(None)
+            if len(heard) == int(sys.argv[2]):
+                print('\n'.join(heard), flush=True)
+                loop.quit()
+        def bus_up(bus, name):
+            bus.register_object('/io/github/claudiopi/thermi/Overlay', Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0], call)
         Gio.bus_own_name(Gio.BusType.SESSION, sys.argv[1], Gio.BusNameOwnerFlags.DO_NOT_QUEUE, bus_up,
                          lambda *_: print('ready', flush=True), lambda *_: sys.exit('The name is taken.'))
         loop.run()
@@ -88,6 +113,53 @@ public sealed class OverlayLinkTests
 
         Assert.Equal((true, both[graphical ? 0 : 1], "on-failure", true), (started, string.Join(' ', ran), restarts, ended));
     }
+
+    // What the window tells the overlay reaches it in the order told, as an item pointed and then none, which leave no mark.
+    [Fact(Timeout = Bound.Test)]
+    public async Task TheOverlayHearsTheWindowInOrder()
+    {
+        const int Messages = 500;
+        var cancel = TestContext.Current.CancellationToken;
+        await using var session = new OwnSession();
+        var script = Path.Combine(session.Home, "hearer.py");
+        await File.WriteAllTextAsync(script, Hearer, cancel);
+        var hearer = await session.StartAsync("python3", [script, ShellLink.Name, $"{Messages}"], cancel: cancel);
+        await hearer.ReadyAsync(cancel);
+
+        var sent = await session.RunAsync(Built.Program("Thermi.Linux.Tests"), [Sends, $"{Messages}"], cancel: cancel);
+        var heard = await hearer.Out.ToEndAsync(cancel);
+
+        Assert.Equal(0, sent.Exit);
+        // As Core encodes each, which the overlay hears in base64.
+        Assert.Equal(Told(Messages).Select(message => Convert.ToBase64String(WindowMessages.Encode(message))), heard.Split('\n').Skip(1));
+    }
+
+    /// <summary>
+    /// The tests' own program as <see cref="TheOverlayHearsTheWindowInOrder"/> starts it: the window's link, telling the
+    /// overlay <paramref name="messages"/> messages at once, which ends once the overlay heard them.
+    /// </summary>
+    public static int SendAsTheWindow(int messages)
+    {
+        Gio.Module.Initialize();
+        using var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
+        var context = GLib.MainContext.Default();
+        using var link = new OverlayLink(bus, () => { });
+        foreach (var message in Told(messages))
+        {
+            link.Send(message);
+        }
+
+        // The overlay's stand-in gives its name up once it heard them all.
+        while (link.Running)
+        {
+            context.Iteration(true);
+        }
+
+        return 0;
+    }
+
+    // Each an item of its own pointed on an overlay.
+    private static IEnumerable<Edited> Told(int messages) => Enumerable.Range(0, messages).Select(at => new Edited(0, null, $"item-{at}"));
 
     /// <summary>
     /// The tests' own program as these tests start it: the window's link to the overlay, which says whether the overlay runs,

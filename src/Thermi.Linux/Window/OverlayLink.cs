@@ -64,29 +64,29 @@ internal sealed class OverlayLink : IDisposable
     }
 
     /// <summary>
-    /// Tells the running overlay <paramref name="message"/>, as Core encodes it, off the window's thread, so a busy overlay
-    /// never holds the page; none runs, none hears it.
+    /// Tells the running overlay <paramref name="message"/>, as Core encodes it, after what the window told it before, as
+    /// GDBus sends a connection's calls in the order made; the page waits on no answer, so a busy overlay never holds it.
+    /// None runs, none hears it.
     /// </summary>
     public void Send(WindowMessage message)
     {
-        if (_bus is not { } bus || !Running)
+        if (_bus is { } bus && Running)
         {
-            return;
+            _ = SendAsync(bus, Convert.ToBase64String(WindowMessages.Encode(message)));
         }
+    }
 
-        var payload = Convert.ToBase64String(WindowMessages.Encode(message));
-        _ = Task.Run(async () =>
+    private static async Task SendAsync(Gio.DBusConnection bus, string payload)
+    {
+        try
         {
-            try
-            {
-                using var args = GLib.Variant.NewTuple([GLib.Variant.NewString(payload)]);
-                using var _ = await bus.CallAsync(ShellLink.Name, OverlayObject.Path, OverlayObject.Name, OverlayObject.Message, args).ConfigureAwait(false);
-            }
-            catch (GLib.GException)
-            {
-                // An overlay that ends as the window tells it hears nothing more, and one that starts asks again.
-            }
-        });
+            using var args = GLib.Variant.NewTuple([GLib.Variant.NewString(payload)]);
+            using var _ = await bus.CallAsync(ShellLink.Name, OverlayObject.Path, OverlayObject.Name, OverlayObject.Message, args).ConfigureAwait(false);
+        }
+        catch (GLib.GException)
+        {
+            // An overlay that ends as the window tells it hears nothing more, and one that starts asks again.
+        }
     }
 
     public void Quit()
