@@ -151,13 +151,6 @@ internal static class Accessible
     /// <summary>Done once no menu is open on screen.</summary>
     public static Task ClosedAsync(OwnSession session, CancellationToken cancel) => RunAsync(session, ["closed"], cancel);
 
-    /// <summary>Chooses the entry at <paramref name="index"/> of the menu open on screen, as a person clicks it.</summary>
-    public static async Task ChooseAsync(OwnSession session, int index, CancellationToken cancel)
-    {
-        var said = await RunAsync(session, ["choose", index.ToString(CultureInfo.InvariantCulture)], cancel).ConfigureAwait(false);
-        _ = said.Length == 0 ? 0 : throw new InvalidOperationException($"The menu's entry {index} has no action: {said}");
-    }
-
     /// <summary>
     /// Chooses the entry at <paramref name="index"/> of the menu open on <paramref name="desktop"/>, by its action, or by a
     /// click where it shows, in the tree's logical pixels.

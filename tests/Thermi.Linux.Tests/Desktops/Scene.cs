@@ -89,13 +89,6 @@ internal sealed partial record Scene(TestDesktop Desktop, SessionProcess Thermi,
         return fewest;
     }
 
-    /// <summary>The pixels of the whole screen that thermi changed: 0 when it shows nothing.</summary>
-    public async Task<long> ChangedAsync(CancellationToken cancel)
-    {
-        var (width, height) = await Pictures.SizeAsync(Desktop.Session, Screen, cancel);
-        return await Pictures.ChangedAsync(Desktop.Session, Before, Screen, (0, 0, width, height), cancel);
-    }
-
     /// <summary>Clicks where the overlay on the window draws nothing, and returns what the window says it got first.</summary>
     public async Task<string?> ClickThroughAsync(CancellationToken cancel)
     {

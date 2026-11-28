@@ -51,9 +51,6 @@ internal sealed class TestDesktop : IAsyncDisposable
         Scale = scale;
     }
 
-    /// <summary>The name thermi's overlay takes on the session's bus, one per session.</summary>
-    public const string ThermiName = "io.github.claudiopi.thermi.Overlay";
-
     public DesktopKind Kind { get; }
 
     public OwnSession Session { get; }

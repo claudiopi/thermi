@@ -26,13 +26,6 @@ internal sealed class Container(OwnSession session, string id, IReadOnlyList<str
 
     private string Id { get; } = id;
 
-    /// <summary>A container of <paramref name="image"/> as it comes, idle until the test runs something in it.</summary>
-    public static async Task<Container> StartAsync(OwnSession session, string image, string work, CancellationToken cancel)
-    {
-        var pulled = await PulledAsync(session, image, cancel).ConfigureAwait(false);
-        return await RunAsync(session, image, work, [], Idle, pulled, cancel).ConfigureAwait(false);
-    }
-
     /// <summary>
     /// A container of <paramref name="image"/> with systemd as its first process, as a PC boots, once systemd says the boot
     /// is done. The distribution's images ship no systemd, so it is installed first, from the distribution's own packages.
