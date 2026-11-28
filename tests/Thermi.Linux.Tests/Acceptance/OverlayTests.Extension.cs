@@ -191,8 +191,7 @@ public sealed partial class OverlayTests
 
     // Weston offers neither the extension nor layer surfaces: thermi shows nothing, says why in one notice, and not again
     // the next time it starts. A start with no notices to say it on says nothing, so the next says it; one whose GTK cannot
-    // start, with no display, is no desktop without surfaces, and says nothing of them. Started by its unit, as at
-    // sign-in, it is not started again, as each start would find the same.
+    // start, with no display, is no desktop without surfaces, and says nothing of them. Its unit does not start it again.
     private static async Task NeitherSurfaceShowsAsync(TestDesktop desktop, CancellationToken cancel)
     {
         await desktop.WriteSettingsAsync(ThermiConfig.New, cancel);

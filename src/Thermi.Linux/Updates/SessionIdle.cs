@@ -26,7 +26,6 @@ internal sealed partial class SessionIdle(Gio.DBusConnection bus, ILogger log)
         "GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod:",
     ];
 
-    // Each call by its interface and method, once logged as not served.
     private readonly HashSet<string> _told = [];
 
     // The freedesktop spec says seconds, where Plasma on X11, which serves it, answers in milliseconds: read as those, a
