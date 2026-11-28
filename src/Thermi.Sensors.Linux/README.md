@@ -8,7 +8,7 @@ It needs no driver: it reads the kernel's `hwmon`, NVIDIA's NVML when present, a
 | --- | --- |
 | `Kernel` | The kernel's files, live, recorded into a tree of one folder a second, or replayed from one, which scrubs what names the PC; and NVML. |
 | `Reading` | Each device's readings from the kernel: the CPU, memory, drives, network, battery, GPUs and the board's chips, named as LibreHardwareMonitor names them. |
-| `Serving` | The command line, and the socket: the one systemd hands it, or one of the user's own with `--console`, served by Core's `SnapshotBroadcast`. |
+| `Serving` | The command line, and the socket: the one systemd hands it, or one of the user's own with `--console`, served by Core's `SocketServer`. |
 
 `Packaging` holds no code: it is what the `thermi-sensors` package installs beside the service, its systemd units, its user and the udev rule that lets it read the CPU's energy, and the scripts each package format runs, which add thermi's repository. `scripts/linux-packages.ps1` packs them with the service and `thermi-cli`.
 

@@ -50,6 +50,18 @@ public static class SnapshotJson
     /// </summary>
     public const string RuntimeSocket = "thermi/sensors.sock";
 
+    /// <summary>The variable that names the one socket to read and serve, in place of the service's, as a test's session sets it.</summary>
+    public const string SocketVariable = "THERMI_SENSORS_SOCKET";
+
+    /// <summary>
+    /// The macOS service's socket, under the person's home, which launchd listens on and hands their agent
+    /// (docs/adr/0021-macos.md), or the one <see cref="SocketVariable"/> names in its place.
+    /// </summary>
+    public static string MacSocketPath() =>
+        Environment.GetEnvironmentVariable(SocketVariable) is { Length: > 0 } named
+            ? named
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", "thermi", "sensors.sock");
+
     /// <summary>Far above a real snapshot (about 40 KB with network and disks); a longer line is rejected unread.</summary>
     public const int MaxLineLength = 1_000_000;
 

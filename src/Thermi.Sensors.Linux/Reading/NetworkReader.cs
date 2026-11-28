@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.Core.Sensors;
+using Thermi.Core.Sensors.Rates;
 using Thermi.Sensors.Linux.Kernel;
 
 namespace Thermi.Sensors.Linux.Reading;

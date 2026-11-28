@@ -1,36 +1,24 @@
-using System.Globalization;
 using System.Net.Sockets;
-using Thermi.Core.Pipe;
+using System.Runtime.Versioning;
 
-namespace Thermi.Sensors.Linux.Serving;
+namespace Thermi.Core.Pipe;
 
 /// <summary>
-/// The <c>thermi-sensors</c> socket: takes in each client, at most <see cref="SnapshotBroadcast.PerOwner"/> of one user by
-/// its <c>SO_PEERCRED</c>, and hands it to <see cref="SnapshotBroadcast"/>, which writes it a snapshot per second and never
-/// reads from it. As systemd's service, it ends <see cref="Idle"/> after its last client left, and systemd starts it again
-/// on the next connection; in a terminal, it serves until stopped. If either loop fails, the whole server fails, so
-/// systemd restarts it.
+/// The <c>thermi-sensors</c> socket of Linux and macOS: takes in each client, at most <see cref="SnapshotBroadcast.PerOwner"/>
+/// of one user by its peer's credentials (<see cref="PeerCredentials"/>), and hands it to <see cref="SnapshotBroadcast"/>,
+/// which writes it a snapshot per second and never reads from it. As systemd's service or launchd's agent, it ends
+/// <see cref="Idle"/> after its last client left, and the one that holds its socket starts it again on the next
+/// connection; in a terminal, it serves until stopped. If either loop fails, the whole server fails, so it is restarted.
 /// </summary>
-internal sealed class SocketServer(Socket listener, SnapshotBroadcast broadcast, TimeProvider time)
+public sealed class SocketServer(Socket listener, SnapshotBroadcast broadcast, TimeProvider time)
 {
     public static readonly TimeSpan Idle = SnapshotBroadcast.Linger;
-
-    // The first socket systemd hands a service, after standard input, output and error.
-    private const int FirstHanded = 3;
-
-    /// <summary>The socket systemd listens on and handed this process, as its socket unit says, or null when it handed none.</summary>
-    public static Socket? FromSystemd() =>
-        Environment.GetEnvironmentVariable("LISTEN_PID") == Environment.ProcessId.ToString(CultureInfo.InvariantCulture)
-            && Environment.GetEnvironmentVariable("LISTEN_FDS") == "1"
-#pragma warning disable CA2000 // The socket owns the handle, and disposes it with itself.
-            ? new Socket(new SafeSocketHandle(FirstHanded, ownsHandle: true))
-#pragma warning restore CA2000
-            : null;
 
     /// <summary>
     /// A socket of its own at <paramref name="path"/>, in a folder its user alone may open, for a run in a terminal; one an
     /// earlier run left there is taken over.
     /// </summary>
+    [UnsupportedOSPlatform("windows")]
     public static Socket Listen(string path)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);

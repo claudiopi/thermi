@@ -1,17 +1,18 @@
 using System.Globalization;
 
-namespace Thermi.Sensors.Linux.Reading;
+namespace Thermi.Core.Sensors.Rates;
 
 /// <summary>
-/// The kernel's counters, as bytes moved, energy used or time busy, turned into what changed since the second before.
+/// An OS's counters, as bytes moved, energy used or time busy, turned into what changed since the second before, as
+/// Linux's and macOS's services read them.
 /// A counter's first reading, a missing one, one with no clock, or one that went back, as after a reset, gives no change:
 /// a missing value, never a zero. A counter that wraps, as RAPL's energy does, gives the change across its wrap.
 /// </summary>
-internal sealed class Counters
+public sealed class Counters
 {
     private readonly Dictionary<string, (double Value, double? At)> _last = new(StringComparer.Ordinal);
 
-    /// <summary>A whole number of a file of the kernel's, or null for one that is missing or does not read as one.</summary>
+    /// <summary>A whole number of a text, as a file of Linux's kernel holds one, or null for one that is missing or does not read as one.</summary>
     public static double? Number(string? text) =>
         long.TryParse(text.AsSpan().Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number) ? number : null;
 
