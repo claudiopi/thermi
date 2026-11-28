@@ -72,6 +72,9 @@
   <data name="HostText.WindowFailed" xml:space="preserve">
     <value>Su registro, {0}, dice por qué.</value>
   </data>
+  <data name="HostText.NoOverlayLayerShell" xml:space="preserve">
+    <value>thermi muestra sus superposiciones en este escritorio con gtk4-layer-shell, que no está instalado: instalalo y volvé a iniciar thermi. thermi-cli sigue leyendo los sensores.</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Bloquear la posición</value>
   </data>
@@ -2529,6 +2532,12 @@
   </data>
   <data name="AgentText.OverlayNotRunningFix" xml:space="preserve">
     <value>Pedile a la persona que inicie thermi en su escritorio, o que instale el paquete de thermi donde solo están sus sensores. No lo inicies vos. Los sensores se siguen leyendo.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowCauseLayerShell" xml:space="preserve">
+    <value>El overlay no puede mostrarse en este escritorio: thermi lo muestra con gtk4-layer-shell, que no está instalado.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowFixLayerShell" xml:space="preserve">
+    <value>Pedile a la persona que instale gtk4-layer-shell con su gestor de paquetes y que vuelva a iniciar thermi. No lo instales vos. Los sensores se siguen leyendo.</value>
   </data>
   <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
     <value>Esta compilación no se actualiza sola</value>

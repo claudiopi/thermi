@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Thermi.Core;
+using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
 
 namespace Thermi.Linux.Logging;
@@ -25,8 +26,10 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Information, Message = "Another overlay runs in this session: this one ends")]
     public static partial void AlreadyRunning(this ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "This Wayland desktop offers neither GNOME Shell nor layer surfaces: no overlay shows")]
-    public static partial void NoSurfaces(this ILogger logger);
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "This Wayland desktop has nowhere to show the overlays ({Kind}): no overlay shows, and thermi is not started again")]
+    public static partial void NoSurfaces(this ILogger logger, SurfaceKind kind);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "GTK could not start, with no display or a broken one: no overlay shows")]
     public static partial void NoDisplay(this ILogger logger);

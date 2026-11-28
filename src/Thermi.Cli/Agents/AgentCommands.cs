@@ -184,7 +184,7 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
             SensorsOnly = environment.SensorsOnly(),
             PerUser = environment.PerUser(),
             Os = environment.Os,
-            OverlayCanShow = environment.OverlayCanShow(),
+            OverlayCannotShow = environment.OverlayCannotShow(),
             About = environment.About(),
         };
 

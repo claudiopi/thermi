@@ -26,7 +26,7 @@ internal static class ContractAnswers
             var running = new AgentFacts(ServiceState.Running, Installed: true, Taken: false, snapshot, ConfigProblem.Missing);
             yield return ("status", AgentJson.Write(AgentStatus.Of(running)));
             yield return ("status", AgentJson.Write(AgentStatus.Of(running with { Settings = ConfigProblem.Locked("locked"), SensorsOnly = true })));
-            yield return ("status", AgentJson.Write(AgentStatus.Of(running with { Os = HostOs.Linux, OverlayCanShow = false })));
+            yield return ("status", AgentJson.Write(AgentStatus.Of(running with { Os = HostOs.Linux, OverlayCannotShow = NoOverlayCause.Desktop })));
         }
 
         foreach (var series in new[] { TestRecordings.CpuLoad, TestRecordings.IntelCpuLoad }.Select(TestFiles.Series))

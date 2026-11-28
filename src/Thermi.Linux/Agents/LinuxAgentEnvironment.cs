@@ -83,19 +83,25 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
 
     public Core.Bridge.HostOs Os => Core.Bridge.HostOs.Linux;
 
-    // The running overlay says whether its surfaces show. With none, one that ran here and found none, as on Weston, says
-    // no; GNOME shows it only through thermi's extension, on; whether another desktop can, through layer-shell or X11, only
-    // the overlay's own surfaces find, so it says yes.
-    public bool OverlayCanShow() => State() is { } state
-        ? state.CanShow
-        : FoundSurfaces.Read() is not (SurfaceKind.None or SurfaceKind.NoDisplay)
-            && (!DesktopSession.IsGnome()
-                || (SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension)
-                    is { } info
-                    && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } shown
-                    && (int)shown == Active));
+    // The running overlay says whether its surfaces show. With none, one that ran here and found none, as on Weston, or
+    // found no gtk4-layer-shell to show them through, says why; GNOME shows it only through thermi's extension, on; whether
+    // another desktop can, through layer-shell or X11, only the overlay's own surfaces find, so it says it can.
+    public NoOverlayCause? OverlayCannotShow() => State() is { } state
+        ? state.CanShow ? null : NoOverlayCause.Desktop
+        : FoundSurfaces.Read() switch
+        {
+            SurfaceKind.NoLayerShell => NoOverlayCause.LayerShellMissing,
+            SurfaceKind.None or SurfaceKind.NoDisplay => NoOverlayCause.Desktop,
+            SurfaceKind.Shell or SurfaceKind.Layer or SurfaceKind.X11 or null => DesktopSession.IsGnome() && !ExtensionOn() ? NoOverlayCause.Desktop : null,
+            _ => null,
+        };
 
     public AboutFacts About() => LinuxAbout.Read();
+
+    private static bool ExtensionOn() =>
+        SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension) is { } info
+        && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } shown
+        && (int)shown == Active;
 
     private OverlayState? State()
     {

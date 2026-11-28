@@ -328,33 +328,6 @@ public sealed partial class OverlayTests
         Assert.Equal("dead", await units.SystemctlAsync(["show", "-p", "SubState", "--value", "thermi.service"], cancel));
     }
 
-    // Weston offers neither the extension nor layer surfaces: thermi shows nothing, says why in one notice, and not again
-    // the next time it starts. A start with no notices to say it on says nothing, so the next says it; one whose GTK cannot
-    // start, with no display, is no desktop without surfaces, and says nothing of them.
-    private static async Task NeitherSurfaceShowsAsync(TestDesktop desktop, CancellationToken cancel)
-    {
-        await desktop.WriteSettingsAsync(ThermiConfig.New, cancel);
-        async Task EndsAsync(Dictionary<string, string>? variables)
-        {
-            var thermi = await desktop.Session.StartAsync(Built.Program("thermi"), [], variables, cancel);
-            await thermi.WaitForExitAsync(cancel);
-            Assert.NotEqual(0, thermi.ExitCode);
-        }
-
-        await EndsAsync(null);
-        var notices = await NoticeWatch.StartAsync(desktop, cancel);
-        await EndsAsync(new Dictionary<string, string> { ["WAYLAND_DISPLAY"] = "", ["DISPLAY"] = "" });
-        await notices.SyncAsync(cancel);
-        var noDisplay = notices.Count("no-overlay");
-        for (var start = 0; start < 2; start++)
-        {
-            await EndsAsync(null);
-        }
-
-        await notices.SyncAsync(cancel);
-        Assert.Equal((0, 1), (noDisplay, notices.Count("no-overlay")));
-    }
-
     // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts; the tree is read once a menu shows.
     internal static async Task<(string Program, int Entries)> OpenMenuAsync(TestDesktop desktop, CancellationToken cancel)
     {

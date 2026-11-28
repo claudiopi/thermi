@@ -56,8 +56,8 @@ internal interface IAgentEnvironment
     /// <summary>The OS this runs on, which says whether the frames of the game in front are read and which fixes a person reads.</summary>
     HostOs Os => HostOs.Windows;
 
-    /// <summary>Whether this desktop can show an overlay at all, which every Windows desktop can.</summary>
-    bool OverlayCanShow() => true;
+    /// <summary>Why this desktop can show no overlay at all, or null where it can, as every Windows desktop.</summary>
+    NoOverlayCause? OverlayCannotShow() => null;
 
     /// <summary>What About says of the version, the channel and the updates, which status says too where the host gives it.</summary>
     AboutFacts About() => AboutFacts.None;

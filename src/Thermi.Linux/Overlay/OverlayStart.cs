@@ -14,14 +14,20 @@ namespace Thermi.Linux.Overlay;
 /// <summary>
 /// <c>thermi</c> with no command, as its user unit starts it in the person's session: the overlay, until "Exit thermi".
 /// Under <c>--trace</c> its events go to the standard error, a line each, so a test waits for what thermi did, and what
-/// goes wrong there too. A desktop
-/// with nowhere to show the overlays ends it at once, with 1, and says why in one notice, only the first time; with no
-/// display for GTK, it ends so too, and only logs it, as no desktop is there to tell.
+/// goes wrong there too. A desktop with nowhere to show the overlays ends it at once, with <see cref="CannotShowCode"/>,
+/// and says why in one notice, only the first time; with no display for GTK, it ends with 1, and only logs it, as no
+/// desktop is there to tell.
 /// </summary>
 internal static class OverlayStart
 {
     /// <summary>The button of the notice that this desktop shows no overlay, which only closes it.</summary>
     public const string NoOverlayAction = "no-overlay";
+
+    /// <summary>
+    /// The exit code of a desktop that cannot show the overlays, which the overlay's unit does not start it again on, as
+    /// each start would find the same; systemd names it NOTCONFIGURED. One with no display yet may find one at the next.
+    /// </summary>
+    public const int CannotShowCode = 6;
 
     // How long the notice's server has to take it, past which thermi ends without it, as every server answers in far less.
     private static readonly TimeSpan NoticeBound = TimeSpan.FromSeconds(5);
@@ -43,11 +49,11 @@ internal static class OverlayStart
                 return 1;
             }
 
-            if (kind == SurfaceKind.None)
+            if (kind is SurfaceKind.None or SurfaceKind.NoLayerShell)
             {
-                log.NoSurfaces();
-                await TellNoOverlayAsync(bus, time, log);
-                return 1;
+                log.NoSurfaces(kind);
+                await TellNoOverlayAsync(bus, time, log, kind == SurfaceKind.NoLayerShell ? HostText.NoOverlayLayerShell : HostText.NoOverlaySurfaces);
+                return CannotShowCode;
             }
 
             var sensors = new SocketFeed(time, logs.CreateLogger<SocketFeed>());
@@ -72,7 +78,7 @@ internal static class OverlayStart
 
     // Once ever: each start after would tell it again at every sign-in, where nothing changed. A notice left unanswered, or
     // with no notices to show it, is told again at the next start.
-    private static async Task TellNoOverlayAsync(Gio.DBusConnection bus, TimeProvider time, ILogger log)
+    private static async Task TellNoOverlayAsync(Gio.DBusConnection bus, TimeProvider time, ILogger log, HostText why)
     {
         var told = Path.Combine(UserFolders.State, "thermi", "no-overlay-told");
         if (File.Exists(told))
@@ -82,7 +88,7 @@ internal static class OverlayStart
 
         var texts = Texts.For(null, CultureInfo.CurrentUICulture);
         using var notices = new DesktopNotices(bus, log);
-        var said = notices.Say(texts.Of(HostText.GnomeExtensionTitle), texts.Of(HostText.NoOverlaySurfaces), (NoOverlayAction, texts.Of(HostText.NoticeGotIt)));
+        var said = notices.Say(texts.Of(HostText.GnomeExtensionTitle), texts.Of(why), (NoOverlayAction, texts.Of(HostText.NoticeGotIt)));
         // The bus answers on GLib's main loop, which no host runs yet: it runs until the answer, or the bound, wakes it.
         var context = GLib.MainContext.Default();
         var ended = Task.WhenAny(said, Task.Delay(NoticeBound, time));

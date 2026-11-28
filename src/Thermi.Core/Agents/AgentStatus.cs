@@ -36,6 +36,16 @@ public enum AgentProblem
     OverlayNotRunning,
 }
 
+/// <summary>Why no overlay can show on a desktop, which the person fixes in different ways.</summary>
+public enum NoOverlayCause
+{
+    /// <summary>The desktop offers nothing thermi shows an overlay on, as GNOME without thermi's extension.</summary>
+    Desktop,
+
+    /// <summary>On Linux, gtk4-layer-shell is not installed, which thermi shows its overlays through off GNOME on Wayland.</summary>
+    LayerShellMissing,
+}
+
 /// <summary>Each problem's cause and fix, as an agent reads them; the contract answers them in English.</summary>
 [Translated]
 public enum AgentText
@@ -70,6 +80,8 @@ public enum AgentText
     DriverMissingCauseLinux,
     OverlayNotRunningCause,
     OverlayNotRunningFix,
+    OverlayCannotShowCauseLayerShell,
+    OverlayCannotShowFixLayerShell,
 }
 
 /// <summary>A problem, with why it happens and what a person does about it; nothing an agent may do itself.</summary>
@@ -108,7 +120,8 @@ public sealed record AgentFacts(ServiceState Service, bool Installed, bool Taken
 
     public HostOs Os { get; init; }
 
-    public bool OverlayCanShow { get; init; } = true;
+    /// <summary>Why no overlay can show on this desktop; null where one can, as on every Windows desktop.</summary>
+    public NoOverlayCause? OverlayCannotShow { get; init; }
 
     /// <summary>What About says of the version, the channel and where updates come from, which status says too.</summary>
     public AboutFacts About { get; init; } = AboutFacts.None;
@@ -153,12 +166,13 @@ public static class AgentStatus
             problems.Add(AgentProblem.FramesNotRead);
         }
 
-        if (!facts.OverlayCanShow)
+        if (facts.OverlayCannotShow is not null)
         {
             problems.Add(AgentProblem.OverlayCannotShow);
         }
 
-        return new StatusAnswer(facts.Service, facts.Overlay, facts.SensorsOnly, [.. problems.Select(problem => Said(problem, facts.SensorsOnly, facts.Os))])
+        var said = problems.Select(problem => Said(problem, facts.SensorsOnly, facts.Os, facts.OverlayCannotShow));
+        return new StatusAnswer(facts.Service, facts.Overlay, facts.SensorsOnly, [.. said])
         {
             Settings = facts.Settings is { Kind: not ConfigProblemKind.Missing } problem ? problem.Kind : null,
             Version = facts.About.Version,
@@ -174,11 +188,11 @@ public static class AgentStatus
 
     /// <summary>
     /// A problem's cause and fix; with the sensors alone installed, a fix sends the person to no menu or window, and on
-    /// Linux to systemd and the package rather than to Windows.
+    /// Linux to systemd and the package rather than to Windows; an overlay that cannot show, to what <paramref name="noOverlay"/> lacks.
     /// </summary>
-    public static ProblemAnswer Said(AgentProblem problem, bool sensorsOnly = false, HostOs os = HostOs.Windows)
+    public static ProblemAnswer Said(AgentProblem problem, bool sensorsOnly = false, HostOs os = HostOs.Windows, NoOverlayCause? noOverlay = null)
     {
-        var (cause, fix) = (os == HostOs.Linux ? OnLinux(problem, sensorsOnly) : null) ?? problem switch
+        var (cause, fix) = (os == HostOs.Linux ? OnLinux(problem, sensorsOnly, noOverlay) : null) ?? problem switch
         {
             AgentProblem.ServiceMissing => (AgentText.ServiceMissingCause, AgentText.ServiceMissingFix),
             AgentProblem.ServiceStopped when sensorsOnly => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFixSensorsOnly),
@@ -198,8 +212,10 @@ public static class AgentStatus
         return new ProblemAnswer(problem, Texts.English.Of(cause), Texts.English.Of(fix));
     }
 
-    private static (AgentText Cause, AgentText Fix)? OnLinux(AgentProblem problem, bool sensorsOnly) => problem switch
+    private static (AgentText Cause, AgentText Fix)? OnLinux(AgentProblem problem, bool sensorsOnly, NoOverlayCause? noOverlay) => problem switch
     {
+        AgentProblem.OverlayCannotShow when noOverlay == NoOverlayCause.LayerShellMissing =>
+            (AgentText.OverlayCannotShowCauseLayerShell, AgentText.OverlayCannotShowFixLayerShell),
         AgentProblem.ServiceStopped => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFixLinux),
         AgentProblem.ServiceStale => (AgentText.ServiceStaleCause, AgentText.ServiceStaleFixLinux),
         AgentProblem.PipeTaken => (AgentText.PipeTakenCauseLinux, AgentText.PipeTakenFixLinux),

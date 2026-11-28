@@ -17,6 +17,9 @@ internal enum SurfaceKind
     /// <summary>A Wayland compositor with neither: nothing shows, and thermi says why.</summary>
     None,
 
+    /// <summary>A Wayland compositor other than GNOME's where gtk4-layer-shell is not installed: nothing shows, and thermi says why.</summary>
+    NoLayerShell,
+
     /// <summary>GTK would not start, with no display or a broken one: no desktop is there to show anything on.</summary>
     NoDisplay,
 }
@@ -72,7 +75,7 @@ internal static class DesktopSession
             return SurfaceKind.X11;
         }
 
-        return layer && LayerShellLibrary.Supported() ? SurfaceKind.Layer : SurfaceKind.None;
+        return !layer ? SurfaceKind.NoLayerShell : LayerShellLibrary.Supported() ? SurfaceKind.Layer : SurfaceKind.None;
     }
 
     /// <summary>

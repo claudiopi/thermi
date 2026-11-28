@@ -122,7 +122,8 @@ internal sealed class AgentRig : IDisposable
 
     public HostOs Os { get; set; }
 
-    public bool OverlayCanShow { get; set; } = true;
+    /// <summary>Why no overlay can show on the desktop, as the host says; null where one can.</summary>
+    public NoOverlayCause? OverlayCannotShow { get; set; }
 
     /// <summary>Why the monitors read none, as the host says.</summary>
     public AgentProblem? WhyNoScreens { get; set; }
@@ -210,7 +211,7 @@ internal sealed class AgentRig : IDisposable
 
         public HostOs Os => rig.Os;
 
-        public bool OverlayCanShow() => rig.OverlayCanShow;
+        public NoOverlayCause? OverlayCannotShow() => rig.OverlayCannotShow;
 
         public bool RunsInstalled() => true;
 

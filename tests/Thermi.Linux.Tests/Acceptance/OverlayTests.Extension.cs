@@ -6,7 +6,10 @@ using Thermi.Linux.Tests.Desktops;
 
 namespace Thermi.Linux.Tests.Acceptance;
 
-/// <summary>The overlay on GNOME while thermi's Shell extension is of another version or missing.</summary>
+/// <summary>
+/// The overlay where it cannot show: on GNOME while thermi's Shell extension is of another version or missing, and on a
+/// Wayland desktop with no surface for it.
+/// </summary>
 public sealed partial class OverlayTests
 {
     [Fact(Timeout = Bound.Test)]
@@ -184,5 +187,36 @@ public sealed partial class OverlayTests
         await told;
         var enabled = await desktop.Session.RunAsync("gsettings", ["get", "org.gnome.shell", "enabled-extensions"], cancel: cancel);
         Assert.Contains($"'{uuid}'", enabled.Out, StringComparison.Ordinal);
+    }
+
+    // Weston offers neither the extension nor layer surfaces: thermi shows nothing, says why in one notice, and not again
+    // the next time it starts. A start with no notices to say it on says nothing, so the next says it; one whose GTK cannot
+    // start, with no display, is no desktop without surfaces, and says nothing of them. Started by its unit, as at
+    // sign-in, it is not started again, as each start would find the same.
+    private static async Task NeitherSurfaceShowsAsync(TestDesktop desktop, CancellationToken cancel)
+    {
+        await desktop.WriteSettingsAsync(ThermiConfig.New, cancel);
+        async Task EndsAsync(Dictionary<string, string>? variables)
+        {
+            var thermi = await desktop.Session.StartAsync(Built.Program("thermi"), [], variables, cancel);
+            await thermi.WaitForExitAsync(cancel);
+            Assert.NotEqual(0, thermi.ExitCode);
+        }
+
+        // Failed, with no start pending, where a restart would wait in auto-restart.
+        var units = await UserUnits.StartAsync(desktop.Session, cancel);
+        await (await units.StartWaitingAsync(cancel)).WaitForExitAsync(cancel);
+        Assert.Equal("failed", await units.SystemctlAsync(["show", "-p", "SubState", "--value", "thermi.service"], cancel));
+        var notices = await NoticeWatch.StartAsync(desktop, cancel);
+        await EndsAsync(new Dictionary<string, string> { ["WAYLAND_DISPLAY"] = "", ["DISPLAY"] = "" });
+        await notices.SyncAsync(cancel);
+        var noDisplay = notices.Count("no-overlay");
+        for (var start = 0; start < 2; start++)
+        {
+            await EndsAsync(null);
+        }
+
+        await notices.SyncAsync(cancel);
+        Assert.Equal((0, 1), (noDisplay, notices.Count("no-overlay")));
     }
 }

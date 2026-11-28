@@ -131,4 +131,7 @@ public enum HostText
 
     /// <summary>That notice's text: {0} is the window's log, which says why; its button opens the window again.</summary>
     WindowFailed,
+
+    /// <summary>The text of the notice that no overlay can show, where gtk4-layer-shell, which shows them off GNOME, is not installed.</summary>
+    NoOverlayLayerShell,
 }
