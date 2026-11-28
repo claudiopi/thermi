@@ -67,6 +67,7 @@ internal sealed class SettingsWindow : IDisposable
         _window.SetSizeRequest(least, lowest);
         _view = WebKit.WebView.New();
         Lock(_view, trace is not null, log);
+        WindowRenderer.Choose(_view.GetSettings(), _window);
         var content = _view.GetUserContentManager();
         content.AddScript(
             WebKit.UserScript.New(BridgeCalls.Client, WebKit.UserContentInjectedFrames.TopFrame, WebKit.UserScriptInjectionTime.Start, null, null));
