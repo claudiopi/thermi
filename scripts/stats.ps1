@@ -129,19 +129,12 @@ function Write-Coverage {
     ''
     '| Project | Lines | Branches | | Measured by |'
     '| --- | --: | --: | --- | --- |'
-    foreach ($name in 'Thermi.Core', 'Thermi.Cli') {
-        $rates = $run.Coverage.$name
-        $floor = if ($rates) { " · floor $($rates.floor) %" }
-        Format-CoverageRow $name $rates.lines $rates.branches "Thermi.Tests$floor"
+    $rows = @(Get-CoverageRows) + [pscustomobject]@{
+        Project = 'Thermi.Settings.Web'; Lines = $run.Web.lines; Branches = $run.Web.branches
+        By = 'Vitest unit tests, not the Playwright tests · shown, not gated'
     }
-    foreach ($tests in 'Thermi.Windows.Tests', 'Thermi.Linux.Tests') {
-        foreach ($name in 'thermi', 'thermi-sensors', 'Thermi.App') {
-            $module = $run.App[$tests][$name]
-            $lines = if ($module) { Get-Rate $module.Lines }
-            $branches = if ($module) { Get-Rate $module.Branches }
-            Format-CoverageRow $name $lines $branches "$tests · shown, not gated"
-        }
-    }
+    $rows += foreach ($each in $coverageUnmeasured.GetEnumerator()) { [pscustomobject]@{ Project = $each.Key; By = $each.Value } }
+    foreach ($row in $rows | Sort-Object Project -Stable) { Format-CoverageRow $row.Project $row.Lines $row.Branches $row.By }
     ''
     '| Tests | Cases |'
     '| --- | --: |'
@@ -154,6 +147,27 @@ function Write-Coverage {
     $baseline = Get-Sum $run.Tests baseline
     "| **Total** | **$(Format-Count $now.tests)** of the ratchet's $(Format-Count $baseline) |"
     ''
+}
+
+# Each project a test project measures, by the project's name: Thermi.Tests' against its floor, the app's as each OS's
+# tests ran it, shown, not gated.
+function Get-CoverageRows {
+    foreach ($tests in $coverageMeasured.Keys) {
+        foreach ($assembly in $coverageMeasured[$tests].GetEnumerator()) {
+            $row = [pscustomobject]@{ Project = $assembly.Value; Lines = $null; Branches = $null; By = "$tests · shown, not gated" }
+            if ($tests -eq 'Thermi.Tests') {
+                $rates = $run.Coverage.($assembly.Value)
+                $row.Lines = $rates.lines
+                $row.Branches = $rates.branches
+                $row.By = if ($rates.floor) { "$tests · floor $($rates.floor) %" } elseif (-not $rates) { $tests } else { $row.By }
+            }
+            elseif ($run.App[$tests][$assembly.Key]) {
+                $row.Lines = Get-Rate $run.App[$tests][$assembly.Key].Lines
+                $row.Branches = Get-Rate $run.App[$tests][$assembly.Key].Branches
+            }
+            $row
+        }
+    }
 }
 
 # Non-blank lines by project and language, the product's and the tests' apart.

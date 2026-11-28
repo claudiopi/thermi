@@ -40,8 +40,6 @@ $web = Join-Path $root 'src' 'Thermi.Settings.Web'
 # Core, so its own branches are what it adds: the console, the MCP session and the environment's answers.
 $coverageFloors = [ordered]@{ 'Thermi.Core' = 90; 'Thermi.Cli' = 85 }
 $appResults = Join-Path $results 'app'
-# Each test project's reports, named for it, and what they must have measured.
-$appReports = [ordered]@{ 'Thermi.Windows.Tests' = 'thermi', 'thermi-sensors', 'Thermi.App' }
 $everything = $Ci -or $Full
 $half = if ($Part -eq 'Web') { 'web' } else { 'dotnet' }
 # Each OS builds its own projects: the Windows ones target Windows, and the Linux tests start what only Linux has.
@@ -118,7 +116,7 @@ function Invoke-DotNet($Scope) {
         }
         # Coverage counts only Thermi.Tests: the Windows tests would inflate Core's and the CLI's numbers by counting code
         # they run only in passing. Each project's floor is gated once the tests passed.
-        $measured = @($coverageFloors.Keys | ForEach-Object { '--coverlet-include', "[$_]*" })
+        $measured = @($coverageMeasured['Thermi.Tests'].Keys | ForEach-Object { '--coverlet-include', "[$_]*" })
         $together += New-Step 'tests and coverage' (@('dotnet', 'test', '--project', 'tests/Thermi.Tests', '-c', 'Release', '--no-build',
                 '--results-directory', $results, '--', '--coverlet') + $measured + @('--coverlet-output-format', 'cobertura') + $share)
     }
@@ -166,8 +164,8 @@ function Invoke-Linux($Scope) {
     # The Linux tests measure what they run of thermi, thermi-sensors and Thermi.App in their own process, as the Windows
     # tests do on Windows: shown, not gated. Each filter is one argument with its option: PowerShell on Linux expands a
     # program's argument that matches files, as [thermi]* matches tests and thermi.slnx.
-    $linuxCoverage = '--coverlet', '--coverlet-include=[thermi]*', '--coverlet-include=[thermi-sensors]*', '--coverlet-include=[Thermi.App]*',
-        '--coverlet-single-hit', '--coverlet-output-format', 'json', '--coverlet-file-prefix', 'Thermi.Linux.Tests'
+    $linuxCoverage = @('--coverlet') + @($coverageMeasured['Thermi.Linux.Tests'].Keys | ForEach-Object { "--coverlet-include=[$_]*" }) +
+        @('--coverlet-single-hit', '--coverlet-output-format', 'json', '--coverlet-file-prefix', 'Thermi.Linux.Tests')
     Invoke-Together @(foreach ($project in $projects) {
             if ($project -eq 'tests/Thermi.Tests') {
                 New-Step 'tests on Linux' 'dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $results
@@ -209,10 +207,11 @@ function Invoke-Web {
         # The GNOME Shell extension, by its own config, which needs no packages of its own.
         New-Step 'gnome extension lint' 'node', (Join-Path $web 'node_modules' 'eslint' 'bin' 'eslint.js'), '--max-warnings', '0', 'src/Thermi.Gnome'
         New-Step 'web doctor' ($npm + 'doctor')
-        New-Step 'web unit tests' ($npm + 'test:unit')
+        New-Step 'web unit tests' ($npm + 'test:unit', '--', '--coverage')
         New-Step 'web dead code' ($npm + 'deadcode') -Explain { Write-Host '  Delete what nothing uses, or say in knip.jsonc why it stays.' }
     )
     Invoke-Together $steps
+    Show-WebCoverage
     # Playwright with axe, against the built page in the Edge that Windows ships.
     Invoke-Step 'web page tests' { npm run test:e2e --prefix $web }
     if ($Mutation) {
