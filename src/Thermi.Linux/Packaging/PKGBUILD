@@ -30,8 +30,9 @@ package_thermi-sensors-bin() {
 }
 
 package_thermi-bin() {
-    depends=("thermi-sensors-bin=${pkgver}" gtk4 webkitgtk-6.0 pango cairo glib2)
-    optdepends=('gtk4-layer-shell: the overlay on KDE Plasma, Hyprland and Sway')
+    # gtk4-layer-shell is the overlay's surface on KDE Plasma, Hyprland and Sway. pacman installs no optdepends, as apt and
+    # dnf install what a package recommends, so without it the overlay would not show there.
+    depends=("thermi-sensors-bin=${pkgver}" gtk4 webkitgtk-6.0 pango cairo glib2 gtk4-layer-shell)
     provides=(thermi)
     conflicts=(thermi)
     install=thermi-bin.install

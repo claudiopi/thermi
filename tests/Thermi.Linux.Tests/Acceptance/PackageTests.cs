@@ -77,6 +77,9 @@ public sealed partial class PackageTests
         await pc.MustAsync(tool.Install("thermi"), cancel);
         // The overlay starts in a person's graphical session alone: a system user's never ran it.
         var greeter = await pc.RunAsync("systemctl --user --machine=greeter@ show -p ExecMainStartTimestampMonotonic --value thermi.service", cancel);
+        // The overlay's surface on KDE Plasma, Hyprland and Sway, which thermi loads by name: what the package manager
+        // installs by default with thermi, as the loader finds it, where the distribution has it. Ubuntu 24.04 has none.
+        var surface = await pc.RunAsync(row == Distribution.Ubuntu2404 ? "true" : "ldconfig -p | grep -q 'libgtk4-layer-shell\\.so\\.0 '", cancel);
         // What the runtime loads by name, which no file of the packages names, the packages declare all the same.
         await File.WriteAllTextAsync(Path.Combine(session.Home, "asked.awk"), Tool.Asked, cancel);
         var loaded = await pc.RunAsync(Tool.Load(), cancel);
@@ -102,6 +105,7 @@ public sealed partial class PackageTests
         var about = JsonNode.Parse(cli.Out)!;
         Assert.Equal(("stable", "system"), ((string?)about["channel"], (string?)about["updates"]));
         Assert.Equal("0", greeter.Out.Trim());
+        Assert.True(surface.Exit == 0, "gtk4-layer-shell did not install with thermi");
         Assert.True(loaded.Exit == 0, $"thermi-cli, over a settings file: {loaded.Out}{loaded.Error}");
         Assert.Empty(unclaimed.Split('\n', StringSplitOptions.RemoveEmptyEntries));
         // Each file spec.md lists is among the package's; the rest, the libraries it holds and the docs a distribution
