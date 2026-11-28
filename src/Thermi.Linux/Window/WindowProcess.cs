@@ -13,6 +13,8 @@ using Thermi.Core.Look;
 using Thermi.Core.Messages;
 using Thermi.Core.Translations;
 using Thermi.Linux.Desktop;
+using Thermi.Linux.Gnome;
+using Thermi.Linux.Overlay.Link;
 using Thermi.Linux.Sensors;
 using Thermi.Linux.Updates;
 
@@ -37,6 +39,11 @@ internal static class WindowProcess
     {
         using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace, request.Trace ? Console.Error : null);
         var log = logs.CreateLogger("Thermi.Ui");
+        if (HandedToOverlay(request, log))
+        {
+            return 0;
+        }
+
         var sensors = new SocketFeed(time, logs.CreateLogger<SocketFeed>());
         var program = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "thermi");
         await WindowUpdates.WaitForPredecessorAsync(time);
@@ -49,6 +56,13 @@ internal static class WindowProcess
 
         return code;
     }
+
+    // The overlay opens the window as a process of its own unit, which a package's removal stops; one the launcher ran would
+    // outlive it. The overlay's own start always names an overlay; --trace and --pseudo keep the window here, for their output.
+    private static bool HandedToOverlay(SettingsRequest request, ILogger log) =>
+        request is { Overlay: 0, Item: null, SizeRow: false, Trace: false, Pseudo: false }
+        && SessionBus.HasOwner(ShellLink.Name)
+        && OverlayLinks.HandOver(Gio.Functions.BusGetSync(Gio.BusType.Session, null), log);
 
     // The settings are read before the window opens, for its language and its overlays, and every write that waits goes
     // out once it has closed. The sensors are read only while it is open. GTK registers, runs and ends on one thread.

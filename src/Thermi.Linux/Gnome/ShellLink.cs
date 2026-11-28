@@ -155,8 +155,11 @@ internal sealed class ShellLink : IDisposable
         return info.LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is 1 or 6 or 8 ? ShellExtensionState.Starting : ShellExtensionState.Off;
     }
 
-    // Where the Shell looks for extensions as it starts, as it asks GLib: the person's data folder, then the system's.
-    private static bool OnDisk() =>
+    /// <summary>
+    /// Whether the extension's files are where the Shell looks for extensions as it starts, as it asks GLib: the person's
+    /// data folder, then the system's.
+    /// </summary>
+    public static bool OnDisk() =>
         new[] { GLib.Functions.GetUserDataDir() }.Concat(GLib.Functions.GetSystemDataDirs())
             .Any(folder => File.Exists(Path.Combine(folder, "gnome-shell", "extensions", Uuid, "metadata.json")));
 

@@ -85,7 +85,7 @@ internal sealed class OverlayHost : IDisposable
             JoinAt = (onto, cursor, alone) => onto < _overlays.Count ? _overlays[onto].JoinAt(cursor, alone) : default,
             Trace = Traced,
         };
-        _links = new OverlayLinks(bus, _parts, _loop.Quit, () => _overlays.Exists(overlay => overlay.Pointer.Holds));
+        _links = new OverlayLinks(bus, _parts, _loop.Quit, () => _overlays.Exists(overlay => overlay.Pointer.Holds), start.Unit);
         _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
         _desk = new ThermiDesk(bus, _parts, _menu, _notices, trace, feed, start)
         {

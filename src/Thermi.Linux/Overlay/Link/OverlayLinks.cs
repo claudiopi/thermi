@@ -33,11 +33,14 @@ internal sealed partial class OverlayLinks : IDisposable
     private OverlayHandOver? _handOver;
     private PosixSignalRegistration? _terminated;
 
-    /// <summary>The links of the overlay that <paramref name="quit"/> ends, whose pointers say whether a drag is under way.</summary>
-    public OverlayLinks(Gio.DBusConnection bus, OverlayParts parts, Action quit, Func<bool> dragging)
+    /// <summary>
+    /// The links of the overlay that <paramref name="quit"/> ends, whose pointers say whether a drag is under way, with what
+    /// systemd handed its <paramref name="unit"/>.
+    /// </summary>
+    public OverlayLinks(Gio.DBusConnection bus, OverlayParts parts, Action quit, Func<bool> dragging, Watchdog.Handed unit)
     {
         (_bus, _parts, _quit, _dragging) = (bus, parts, quit, dragging);
-        _watchdog = new Watchdog(parts.Log);
+        _watchdog = new Watchdog(parts.Log, unit);
     }
 
     /// <summary>The overlay's exit code: 0, or <see cref="HandOverCode"/> once it ended to hand over to an update.</summary>

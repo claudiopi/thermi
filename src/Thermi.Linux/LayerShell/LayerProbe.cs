@@ -81,14 +81,19 @@ internal sealed class LayerProbe : IDisposable
         Pop(_over, Gdk.Gravity.NorthWest, Gdk.AnchorHints.Resize, round, told => _shrunk = told);
     }
 
-    // The room on each edge of a monitor, from the size a surface kept off the panels is given, the popup on the whole
-    // monitor as the compositor shrunk it, and the place the popup ending at the corner of the surface kept off the panels
-    // slid to: either is null where the compositor told nothing.
-    private static (PanelRoom Room, bool Told) RoomOf(
+    /// <summary>
+    /// The room on each edge of a monitor, from the size a surface kept off the panels is given, the popup on the whole
+    /// monitor as the compositor shrunk it, and the place the popup ending at the corner of the surface kept off the panels
+    /// slid to: either is null where the compositor told nothing. How much room there is only the panels' zones say: the
+    /// popup shrunk tells its edges only where it keeps that room, as KWin's does, and not where the compositor keeps every
+    /// popup some pixels inside its monitor, whatever the panels keep, as Hyprland does.
+    /// </summary>
+    public static (PanelRoom Room, bool Told) RoomOf(
         (int Width, int Height) monitor, (int Width, int Height) inside, (int X, int Y, int Width, int Height)? shrunk, (int X, int Y)? slid)
     {
         var (across, down) = (Math.Max(0, monitor.Width - inside.Width), Math.Max(0, monitor.Height - inside.Height));
-        if (shrunk is var (x, y, width, height) && (width < monitor.Width || height < monitor.Height) && x >= 0 && y >= 0)
+        if (shrunk is var (x, y, width, height) && (across > 0 || down > 0) && (monitor.Width - width, monitor.Height - height) == (across, down)
+            && x >= 0 && y >= 0)
         {
             return (new PanelRoom(x, y, Math.Max(0, monitor.Width - x - width), Math.Max(0, monitor.Height - y - height)), true);
         }

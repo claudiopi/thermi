@@ -87,21 +87,27 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     // found no gtk4-layer-shell to show them through, says why; GNOME shows it only through thermi's extension, on; whether
     // another desktop can, through layer-shell or X11, only the overlay's own surfaces find, so it says it can.
     public NoOverlayCause? OverlayCannotShow() => State() is { } state
-        ? state.CanShow ? null : NoOverlayCause.Desktop
+        ? state.CanShow ? null : NotShown()
         : FoundSurfaces.Read() switch
         {
             SurfaceKind.NoLayerShell => NoOverlayCause.LayerShellMissing,
             SurfaceKind.None or SurfaceKind.NoDisplay => NoOverlayCause.Desktop,
-            SurfaceKind.Shell or SurfaceKind.Layer or SurfaceKind.X11 or null => DesktopSession.IsGnome() && !ExtensionOn() ? NoOverlayCause.Desktop : null,
+            SurfaceKind.Shell or SurfaceKind.Layer or SurfaceKind.X11 or null => DesktopSession.IsGnome() && !ExtensionOn() ? NotShown() : null,
             _ => null,
         };
 
     public AboutFacts About() => LinuxAbout.Read();
 
-    private static bool ExtensionOn() =>
-        SessionBus.Call("org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension) is { } info
-        && SessionBus.Lookup(info.GetChildValue(0), "state")?.GetDouble() is { } shown
-        && (int)shown == Active;
+    // An extension a package put in place after the person signed in is one the running Shell knows nothing of: it reads
+    // it at the next sign-in, which alone shows the overlays.
+    private static NoOverlayCause NotShown() =>
+        ExtensionInfo() is { } info && info.NChildren() == 0 && ShellLink.OnDisk() ? NoOverlayCause.SignInAgain : NoOverlayCause.Desktop;
+
+    private static bool ExtensionOn() => ExtensionInfo() is { } info && SessionBus.Lookup(info, "state")?.GetDouble() is { } shown && (int)shown == Active;
+
+    // What the Shell knows of thermi's extension, empty for one it never read; null where no Shell answers.
+    private static GLib.Variant? ExtensionInfo() =>
+        SessionBus.Call("org.gnome.Shell", "/org/gnome/Shell", "org.gnome.Shell.Extensions", "GetExtensionInfo", Extension)?.GetChildValue(0);
 
     private OverlayState? State()
     {

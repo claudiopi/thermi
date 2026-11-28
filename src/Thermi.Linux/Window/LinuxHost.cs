@@ -57,6 +57,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _screens = new WindowScreens(bus, _link, Turn.Post, () => DesktopChanged?.Invoke(), log);
         _overlay = new OverlayLink(bus, () =>
         {
+            _screens.AskOverlay();
             DesktopChanged?.Invoke();
             OverlayChanged?.Invoke();
         });

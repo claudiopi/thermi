@@ -16,7 +16,7 @@ The running overlay holds the bus name `io.github.claudiopi.thermi.Overlay`, and
 | `HotkeyStatus` | The settings window, for the hotkeys the desktop refused. |
 | `Message` | The settings window, for each message of their link. |
 | `Open` | A second start of thermi, to open the settings window. |
-| `State` | `thermi-cli`, as `OverlayState`: whether the overlays can show, and the monitors as the overlay places them, which only a running overlay measures. |
+| `State` | `thermi-cli`, and the settings window for its map and where each overlay shows, as `OverlayState`: whether the overlays can show, and the monitors as the overlay places them, which only a running overlay measures. |
 
 | Folder | What lives there |
 | --- | --- |
@@ -28,7 +28,7 @@ The running overlay holds the bus name `io.github.claudiopi.thermi.Overlay`, and
 | `LayerShell` | The overlay's surfaces on a Wayland compositor with layer surfaces, through `gtk4-layer-shell`, each faded by the opacity of its window's drawing area and its menu GTK's own popover, and the surfaces and popups that measure each monitor's work area on every edge, and on KDE Plasma where its panel's launcher, task manager and tray are. |
 | `Logging` | The overlay's log events. |
 | `Overlay` | The overlay's host on one GLib main loop: each overlay painted and placed, the pointer on it handed to `Thermi.App`'s press, the ghost and snap marks a drag shows, its menu, the `quit` it exports, and what it answers its own programs on the session's bus, as the hotkeys the desktop refused. |
-| `Overlay/Link` | The running overlay's links past its surfaces: its end of the settings window's messages over the session's bus, a second start's request to open the window, the desktop's look it follows, systemd's watchdog, and the update it hands over to. |
+| `Overlay/Link` | The running overlay's links past its surfaces: its end of the settings window's messages over the session's bus, a second start's or the app launcher's request to open the window, the desktop's look it follows, systemd's watchdog, and the update it hands over to. |
 | `Overlay/Tips` | Each value's tooltip as a picture of its own on the desktop's surfaces, where App's tooltips place it. |
 | `Packaging` | What the `thermi` package installs beside the program, and how: the systemd user unit that runs the overlay in the person's graphical session, the app launcher's entry, the .deb's AppArmor profile, which gives WebKit's sandbox its user namespace on Ubuntu, the package's nfpm config and scripts, and the AUR's `PKGBUILD` for both packages, which `scripts/linux-packages.ps1` packs with the overlay, its icons and the GNOME Shell extension. |
 | `Painting` | The overlay and the tray's icons painted with Cairo and Pango, from Core's look, layout and shapes, as Windows' GDI+ painter does. |

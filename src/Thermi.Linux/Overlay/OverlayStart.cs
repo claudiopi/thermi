@@ -7,6 +7,7 @@ using Thermi.Core.Translations;
 using Thermi.Linux.Agents;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Logging;
+using Thermi.Linux.Overlay.Link;
 using Thermi.Linux.Sensors;
 
 namespace Thermi.Linux.Overlay;
@@ -34,6 +35,7 @@ internal static class OverlayStart
 
     public static async Task<int> RunAsync(OverlayRequest request, TimeProvider time)
     {
+        var unit = Watchdog.Take();
         using var logs = ThermiLog.Create(ThermiLog.OverlayPath, time, request.Trace, request.Trace ? Console.Error : null);
         var log = logs.CreateLogger("thermi");
         return await ThermiLog.RunLoggedAsync(log, async () =>
@@ -66,7 +68,7 @@ internal static class OverlayStart
             await using (var settings = new Settings(store, time, logs.CreateLogger<Settings>()))
             {
                 var trace = new TraceEvents(time, request.Trace ? Console.Error : null);
-                using var host = new OverlayHost(bus, settings, sensors, trace, logs.CreateLogger<OverlayHost>(), new ThermiStart(kind, firstStart));
+                using var host = new OverlayHost(bus, settings, sensors, trace, logs.CreateLogger<OverlayHost>(), new ThermiStart(kind, firstStart, unit));
                 code = host.Run();
             }
 

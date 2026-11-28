@@ -2502,6 +2502,12 @@
   <data name="AgentText.OverlayCannotShowFixLayerShell" xml:space="preserve">
     <value>Ask the person to install gtk4-layer-shell with their package manager, then to start thermi again. Do not install it yourself. The sensors still read.</value>
   </data>
+  <data name="AgentText.OverlayCannotShowCauseSignIn" xml:space="preserve">
+    <value>The overlay cannot show yet: thermi's GNOME extension was installed after the person signed in, and GNOME Shell reads it only at the next sign-in.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowFixSignIn" xml:space="preserve">
+    <value>Ask the person to sign out and in again. Do not restart GNOME Shell yourself. The sensors still read.</value>
+  </data>
   <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
     <value>This build does not update itself</value>
   </data>
