@@ -12,8 +12,9 @@ namespace Thermi.Linux.Tests.Desktops.Surfaces;
 public sealed class LayerProbeTests
 {
     // Hyprland 0.57.2 on Arch, two 1280 by 800 monitors, as a copy of the probe printed it there (2026-11-28): it keeps 61 px
-    // along the first's top, and nothing on the second; on both, the popup over the whole monitor shrinks 4 px in from each
-    // edge, and the one ending at the kept-off surface's corner slides 4 px in from the left.
+    // along the first's top, for its banner warning that its config is the one it generated, which windows stay off as off
+    // a bar, and the overlay sits on as on one; nothing on the second. On both, the popup over the whole monitor shrinks 4 px in
+    // from each edge, and the one ending at the kept-off surface's corner slides 4 px in from the left.
     [Theory] // Rows: a monitor Hyprland keeps room on, and one it keeps none on.
     [InlineData(739, -57, 61)]
     [InlineData(800, 4, 0)]
