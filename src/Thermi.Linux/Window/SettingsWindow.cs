@@ -25,6 +25,8 @@ internal sealed class SettingsWindow : IDisposable
     // monitor, 75 % leaves room for a top bar.
     private const double MostOfTheScreen = 0.75;
 
+    private const string Active = "is-active";
+
     // Beside thermi in the install's folder, as the build copies it.
     private static readonly string Files = Path.Combine(AppContext.BaseDirectory, "web");
 
@@ -37,6 +39,9 @@ internal sealed class SettingsWindow : IDisposable
     private readonly string? _item;
     private readonly Gtk.EventControllerLegacy _presses;
     private bool _shown;
+
+    // A coming in front the trace has not said yet, and the item it shows.
+    private (bool Waiting, string? Item) _fronted;
 
     // The last press in the window, which a move from the page's title row starts from, as one from a title bar would. GTK
     // frees the event once dispatched, before the page asks, so only what the move needs of it is kept.
@@ -52,6 +57,7 @@ internal sealed class SettingsWindow : IDisposable
         _item = item;
         _window = Gtk.ApplicationWindow.New(app);
         _window.SetTitle("thermi");
+        _window.OnNotify += (_, e) => Changed(e.Pspec.GetName());
         _presses = Gtk.EventControllerLegacy.New();
         Captioned(bridge);
         var first = FirstScreen(host.Screens());
@@ -88,12 +94,24 @@ internal sealed class SettingsWindow : IDisposable
 
     /// <summary>
     /// Comes in front with <paramref name="token"/>, the desktop's for the click on the overlay that asked for it, as a
-    /// window its own launcher started does.
+    /// window its own launcher started does, on <paramref name="item"/>, as a second start's window shows on its own.
     /// </summary>
-    public void Front(string token)
+    public void Front(string token, string? item)
     {
         _window.SetStartupId(token);
         _window.Present();
+        _fronted = (true, item);
+        Changed(Active);
+    }
+
+    // The trace says the window came in front once GTK says it is the active one, at once where it already was.
+    private void Changed(string property)
+    {
+        if (property == Active && _fronted is (true, var item) && _window.IsActive)
+        {
+            _fronted = (false, null);
+            _trace?.Write(TraceEvents.WindowShown, item);
+        }
     }
 
     /// <summary>Tells <paramref name="shown"/> whether the window shows each time it is minimized or shown again.</summary>

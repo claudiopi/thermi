@@ -145,9 +145,9 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     /// <summary>
     /// The window's end of its link with the overlay hears it on the bus from now on, and asks it for its ten minutes; a
-    /// message the overlay lets the window come in front for brings it there with the desktop's token.
+    /// message the overlay lets the window come in front for brings it there with the desktop's token, on the item it picks.
     /// </summary>
-    public void Listen(WindowEnd link, Action<string> front)
+    public void Listen(WindowEnd link, Action<string, string?> front)
     {
         _windowEnd = link;
         _objects?.Serve(WindowProcess.Id, WindowObject.Path, new WindowObject(
@@ -156,7 +156,12 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
                 link.Received(message);
                 if (token.Length > 0)
                 {
-                    front(token);
+                    front(token, message switch
+                    {
+                        Select select => select.ItemId,
+                        Raise raise => raise.ItemId,
+                        _ => null,
+                    });
                 }
             },
             () => MessageDropped(_log)));
