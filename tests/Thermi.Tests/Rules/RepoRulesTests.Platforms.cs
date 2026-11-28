@@ -72,21 +72,32 @@ public sealed partial class RepoRulesTests
         ["libXrandr.so.2"] = "RandR's EDID of a monitor's output on X11, which GDK does not tell, for its id",
     };
 
-    // CsWin32 generates every Win32 declaration from a NativeMethods.txt, and GirCore every GObject library's; one written by
-    // hand is a layout nobody checks. A Linux project's may call by hand only the libraries listed, by name or by a constant
-    // of its file.
+    // The files of the macOS projects that call no macOS-only API, and why each stays there all the same.
+    private static readonly Dictionary<string, string> NeedNoMacOSApi = new(StringComparer.Ordinal);
+
+    // The libraries a macOS project calls by hand, and why: .NET's macOS bindings call the frameworks (docs/adr/0021-macos.md),
+    // and what they leave out, IOKit's SMC and IOReport among it, is listed here as its code comes.
+    private static readonly Dictionary<string, string> MacDeclaredByHand = new(StringComparer.Ordinal);
+
+    // CsWin32 generates every Win32 declaration from a NativeMethods.txt, GirCore every GObject library's, and .NET's macOS
+    // bindings every framework's; one written by hand is a layout nobody checks. A Linux or macOS project's may call by hand
+    // only its OS's libraries listed, by name or by a constant of its file.
     [Fact]
     public void NoWin32CallIsDeclaredByHand()
     {
         var declared = RepoFiles([".cs"]).SelectMany(path =>
         {
             var text = File.ReadAllText(path);
-            var linux = LinuxProject().IsMatch(Relative(path).Replace('\\', '/'));
+            var file = Relative(path).Replace('\\', '/');
+            (Dictionary<string, string>? Listed, string How) rule = LinuxProject().IsMatch(file) ? (DeclaredByHand, "generate it with GirCore")
+                : MacOSProject().IsMatch(file) ? (MacDeclaredByHand, "call it through .NET's macOS bindings")
+                : (null, "");
+            var (listed, how) = rule;
             return File.ReadLines(path)
                 .Select((line, index) => (Import: HandImport().Match(line), Number: index + 1))
-                .Where(entry => entry.Import.Success && !(linux && DeclaredByHand.ContainsKey(Library(entry.Import.Groups["library"].Value, text))))
-                .Select(entry => linux
-                    ? $"{Relative(path)}:{entry.Number} declares a call by hand: generate it with GirCore, or list its library here with why"
+                .Where(entry => entry.Import.Success && listed?.ContainsKey(Library(entry.Import.Groups["library"].Value, text)) != true)
+                .Select(entry => listed is not null
+                    ? $"{Relative(path)}:{entry.Number} declares a call by hand: {how}, or list its library here with why"
                     : $"{Relative(path)}:{entry.Number} declares a Win32 call by hand: list it in NativeMethods.txt");
         });
 
@@ -109,9 +120,17 @@ public sealed partial class RepoRulesTests
     [GeneratedRegex(@"^(src|tests)/Thermi(\.\w+)*\.Linux(\.Tests)?/", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
     private static partial Regex LinuxProject();
 
+    // A file of a macOS project, one of its parts, as Thermi.MacOS.Cli, or of the macOS tests.
+    [GeneratedRegex(@"^(src|tests)/Thermi(\.\w+)*\.MacOS(\.\w+)?/", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex MacOSProject();
+
+    // A project that runs on one OS alone, though it targets plain .NET: Linux's, and macOS's and their parts.
+    [GeneratedRegex(@"\.(?<os>Linux|MacOS)(\.\w+)?$", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex OsProjectName();
+
     // What every OS's host shares runs on any OS (docs/adr/0018-shared-and-windows-projects.md): it targets plain net10.0,
-    // and no project it builds on, however far down, targets Windows alone or is one of Linux's, which target plain net10.0
-    // too but run on Linux alone.
+    // and no project it builds on, however far down, targets Windows or macOS alone or is one of Linux's or macOS's, which
+    // target plain net10.0 too but run on their OS alone.
     [Fact]
     public void SharedProjectsNeedNoWindows()
     {
@@ -120,7 +139,8 @@ public sealed partial class RepoRulesTests
         AssertNone(shared.SelectMany(name => OsOnly(name, Path.Combine(Root, "src", name, $"{name}.csproj"))));
     }
 
-    // The project and every project it references, each whose target framework is not plain .NET, or that is Linux's.
+    // The project and every project it references, each whose target framework is not plain .NET, or that is Linux's or
+    // macOS's.
     private static IEnumerable<string> OsOnly(string shared, string project)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -135,14 +155,15 @@ public sealed partial class RepoRulesTests
             var xml = XDocument.Load(next);
             var target = string.Concat(xml.Descendants()
                 .Where(node => node.Name.LocalName is "TargetFramework" or "TargetFrameworks").Select(node => node.Value));
-            if (target.Length == 0 || target.Contains("-windows", StringComparison.OrdinalIgnoreCase))
+            if (target.Length == 0 || target.Contains("-windows", StringComparison.OrdinalIgnoreCase)
+                || target.Contains("-macos", StringComparison.OrdinalIgnoreCase))
             {
                 yield return $"{shared} builds on {Relative(next)}, which targets {(target.Length == 0 ? "no framework of its own" : target)}";
             }
 
-            if (Path.GetFileNameWithoutExtension(next).EndsWith(".Linux", StringComparison.Ordinal))
+            if (OsProjectName().Match(Path.GetFileNameWithoutExtension(next)) is { Success: true } os)
             {
-                yield return $"{shared} builds on {Relative(next)}, which runs on Linux alone";
+                yield return $"{shared} builds on {Relative(next)}, which runs on {os.Groups["os"].Value} alone";
             }
 
             foreach (var reference in xml.Descendants().Where(node => node.Name.LocalName == "ProjectReference"))
@@ -168,11 +189,22 @@ public sealed partial class RepoRulesTests
         AssertNone(OsProjectFindings("Linux", LinuxApi(), NeedNoLinuxApi));
     }
 
+    // The macOS projects, likewise, hold what only macOS runs (docs/adr/0021-macos.md): .NET's bindings of AppKit, WebKit and
+    // the other frameworks, IOKit's SMC, HID sensors and IOReport, launchd's socket and command, and the socket's peer.
+    [Fact]
+    public void MacOSProjectsHoldOnlyWhatNeedsMacOS()
+    {
+        Assert.NotEmpty(Directory.EnumerateDirectories(Path.Combine(Root, "src"), "*.MacOS"));
+        AssertNone(OsProjectFindings("MacOS", MacOSApi(), NeedNoMacOSApi));
+    }
+
     // Each file of the projects named for the OS that uses no API of its own, nor declares a type that derives from or
     // implements a type of its project that does, and is not listed with why; and each listed one that is gone or uses one.
     private static IEnumerable<string> OsProjectFindings(string os, Regex api, Dictionary<string, string> listed)
     {
+        // A project of the OS's own, or one of its parts, as Thermi.MacOS.Cli.
         var files = Directory.EnumerateDirectories(Path.Combine(Root, "src"), $"*.{os}")
+            .Concat(Directory.EnumerateDirectories(Path.Combine(Root, "src"), $"*.{os}.*"))
             .SelectMany(project => FilesUnder(project).Where(path => path.EndsWith(".cs", StringComparison.Ordinal))
                 .Select(path => (Name: Path.GetRelativePath(Path.Combine(Root, "src"), path).Replace('\\', '/'),
                     Project: Path.GetFileName(project), Code: CodeComment().Replace(File.ReadAllText(path), ""))))
@@ -268,6 +300,15 @@ public sealed partial class RepoRulesTests
         RegexOptions.ExplicitCapture,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex LinuxApi();
+
+    // .NET's bindings of the Mac's frameworks, IOKit's sensors and energy counters, launchd's socket and command, a socket's
+    // peer, and the platform's attribute. A word in a plain string is no API.
+    [GeneratedRegex(
+        @"\b(AppKit|Foundation|WebKit|CoreGraphics|CoreText|UserNotifications|ObjCRuntime)(\.|\s*;)|\bIOKit\b|\bIOReport\w*|\bIOHID\w*"
+            + @"|\bSMC\w*|\blaunch_activate_socket\b|\bgetpeereid\b|\bSupportedOSPlatform\(""macos""|""launchctl""",
+        RegexOptions.ExplicitCapture,
+        matchTimeoutMilliseconds: 1000)]
+    private static partial Regex MacOSApi();
 
     [GeneratedRegex(@"\b(class|record|struct|interface|enum)\s+(?<type>\w+)", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)]
     private static partial Regex DeclaredType();
