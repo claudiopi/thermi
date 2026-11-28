@@ -152,11 +152,15 @@ sequenceDiagram
 | `src/Thermi.Trust` | a library | Windows' own trust checks: admin-only folders, Authenticode, signed catalogs. |
 | `src/Thermi.Releases` | `thermi-releases.exe`, the owner | Signs the update channels' manifests. |
 | `src/Thermi.Installer` | the MSIs | The machine's and the per-user installer, built with WiX. |
+| `src/Thermi.Sensors.MacOS` | `thermi-sensors`, a LaunchAgent of the person's, started by its socket | Reads the SMC, the HID sensors, IOReport and the Mach counters as the person, with no driver and no root, and serves snapshots on the socket launchd holds for it (spec 008). |
+| `src/Thermi.MacOS` | `thermi`, as you, the overlay in the graphical session's LaunchAgent | The overlay's AppKit panels, the menu bar's items and the settings window in WebKit, on .NET for macOS, which builds only on a Mac (spec 008). |
+| `src/Thermi.MacOS.Cli` | `thermi-cli`, as you, on macOS | `thermi-cli` on the Mac, a project apart from `thermi` so it never loads AppKit and answers over SSH (spec 008). |
 | `tests/Thermi.Tests` | the test runner | Behavior from recordings, file formats, the agents' commands and MCP server, and the repo rules. |
 | `tests/Thermi.Windows.Tests` | the test runner | Real pipes, the service, the painter, the settings file and the window. |
+| `tests/Thermi.MacOS.Tests` | the test runner, on macOS | The service on recordings of a Mac and its socket, launchd's agents, `thermi-cli` from zsh, bash and SSH, and thermi on the screen of a session made for tests. |
 | `tests/Thermi.Linux.Tests` | the test runner, on Linux | The service on recorded trees and its socket, `thermi-cli` from each shell, the overlay and the window against headless GNOME Shell, KWin, Sway and X11 desktops of the tests' own, and the packages installed in containers. |
 
-Which projects are shared and which are each OS's: `docs/adr/0018-shared-and-windows-projects.md`; how Linux plugs in: `docs/adr/0019-linux.md`. Why these packages and no others: `docs/adr/0006-proven-libraries-for-logging-and-win32.md`.
+Which projects are shared and which are each OS's: `docs/adr/0018-shared-and-windows-projects.md`; how Linux plugs in: `docs/adr/0019-linux.md`, and macOS: `docs/adr/0021-macos.md`. Why these packages and no others: `docs/adr/0006-proven-libraries-for-logging-and-win32.md`.
 
 ## Names
 

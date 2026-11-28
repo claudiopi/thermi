@@ -32,7 +32,7 @@
 
 ## B5. The settings window
 
-- [ ] T17. The window's process with WKWebView, opened every way, with its previews painted by CoreGraphics. (R17)
+- [ ] T17. The window's process with WKWebView, opened every way, with its previews painted by CoreGraphics, and the page's Playwright tests on WebKit in the macOS job. (R17)
 - [ ] T18. The Mac's appearance, accent and contrast, Open at login, and macOS's fixes, in every translation. (R18)
 
 ## B6. Menu bar, hotkeys and notices
@@ -48,4 +48,4 @@
 - [ ] T24. The service's updater: the manifest's Mac app, the code signature's team ID and notarization, the swap and going back. (R3)
 - [ ] T25. The hand-over to a new version and About on macOS. (R3)
 - [ ] T26. The levers on the Mac's app. (R4)
-- [ ] T27. The macOS release checks run on the test Mac, with real captures of the overlay. (R1, R3, R11, R14, R15, R17, R18)
+- [ ] T27. The macOS release checks run on the test Mac, with real captures of the overlay, the macOS tests among them, whose Retina and two-monitor rows pass there alone. (R1, R3, R10, R11, R14, R15, R17, R18, R22)

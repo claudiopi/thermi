@@ -22,7 +22,7 @@ A new feature, as opposed to a fix, starts with a spec that a person approves: [
 
 ## What the CI runs for you
 
-Every PR runs all of `scripts/check.ps1` on Windows and on Linux, whatever you ran yourself, and the page's tests on Linux beside it. A PR merges only when its one required check, `CI gate`, passes ([docs/RELEASES.md](docs/RELEASES.md)).
+Every PR runs all of `scripts/check.ps1` on Windows, on Linux and on macOS, whatever you ran yourself, and the page's tests on Linux beside it. A PR merges only when its one required check, `CI gate`, passes ([docs/RELEASES.md](docs/RELEASES.md)).
 
 | Job | What it checks | Runs on |
 | --- | --- | --- |
@@ -30,12 +30,14 @@ Every PR runs all of `scripts/check.ps1` on Windows and on Linux, whatever you r
 | Windows tests | `tests/Thermi.Windows.Tests`: the overlay, the sensor pipe, the settings window | Windows |
 | Thermi.Tests on Linux | `tests/Thermi.Tests` again, as Linux's .NET reads paths, cultures and files its own way | Linux |
 | Linux tests | `tests/Thermi.Linux.Tests`: the sensor service, its socket, the overlay against headless desktops, and the packages installed in containers | Linux |
+| Thermi.Tests on macOS | `tests/Thermi.Tests` again, on Apple silicon, as the Mac's .NET reads paths, cultures and files its own way | macOS |
+| macOS tests | `tests/Thermi.MacOS.Tests` and the build of `thermi.app`: the sensor service, its socket and launchd's agents, `thermi-cli`, and thermi on the runner's screen | macOS |
 | Settings page | The page's build, lint, react-doctor, unit tests, dead code, the GNOME extension's lint, and Playwright with axe in Edge | Windows |
 | Settings page on Linux | The page's Playwright tests in WebKit and Chromium | Linux |
 | Installers | The MSIs for x64 and Arm64 | Windows |
 | PR title, Security | The title's format, secrets and vulnerable packages | Either: none of it runs thermi |
 
-Without Windows or Linux you can still open the PR: the CI runs what needs each, and its failures show in the run's summary.
+Without Windows, Linux or a Mac you can still open the PR: the CI runs what needs each, and its failures show in the run's summary.
 
 ## The rules that trip people
 
