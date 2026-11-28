@@ -8,15 +8,16 @@ using Thermi.Linux.Agents;
 using Thermi.Linux.Commands;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Overlay;
+using Thermi.Linux.Window;
 
 [assembly: SupportedOSPlatform("linux")]
 
 namespace Thermi.Linux;
 
 /// <summary>
-/// <c>thermi</c> on Linux: the overlay, <c>thermi settings</c>, <c>thermi preview</c>, <c>thermi cpu-load</c> and the agents' commands; and
-/// <c>thermi-cli</c>, the same program under another name, which runs the agents' commands alone. Arguments that make no
-/// sense say why on stderr and exit with 2, before anything else runs; a command it does not run yet says so and exits 1.
+/// <c>thermi</c> on Linux: the overlay, <c>thermi settings</c>, <c>thermi preview</c>, <c>thermi cpu-load</c>, the agents'
+/// commands and <c>thermi sign-in</c>; and <c>thermi-cli</c>, the same program under another name, which runs the agents'
+/// commands alone. Arguments that make no sense say why on stderr and exit with 2, before anything else runs.
 /// </summary>
 internal static class Program
 {
@@ -49,12 +50,21 @@ internal static class Program
             PreviewRequest preview => await Preview.RunAsync(Painted(preview), time),
             OverlayRequest overlay => await OverlayStart.RunAsync(overlay, time),
             SettingsRequest settings => await Window.WindowProcess.RunAsync(Painted(settings), args, time),
-            _ => await NotHereAsync(),
+            SignInRequest => await SignIn.RunAsync(time),
+            _ => throw new InvalidOperationException($"No arm runs {request.GetType().Name}."),
         };
     }
 
-    private static IThermiRequest? Parse(IReadOnlyList<string> args, out IReadOnlyList<string> errors) =>
-        ThermiCommandLine.Parse(args, new Dictionary<Command, Func<ParseResult, IThermiRequest>>(), _ => [], out errors);
+    // Linux's own command, which the sign-in alone runs, beside every OS's.
+    private static IThermiRequest? Parse(IReadOnlyList<string> args, out IReadOnlyList<string> errors)
+    {
+        var signIn = new Command(SignIn.Command, "Starts the overlay at sign-in where the desktop starts no graphical session for systemd.")
+        {
+            Hidden = true,
+        };
+        var own = new Dictionary<Command, Func<ParseResult, IThermiRequest>> { [signIn] = _ => new SignInRequest() };
+        return ThermiCommandLine.Parse(args, own, _ => [], out errors);
+    }
 
     // GirCore binds each library when its module starts, and nothing of theirs runs before; only what paints loads them,
     // so the agents' commands run on a server with none.
@@ -84,11 +94,5 @@ internal static class Program
         }
 
         return 2;
-    }
-
-    private static async Task<int> NotHereAsync()
-    {
-        await Console.Error.WriteLineAsync("thermi: this build does not run that command on Linux yet.");
-        return 1;
     }
 }

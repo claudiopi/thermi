@@ -212,6 +212,15 @@
       "description": "Given the headless Shell running thermi's extension as the protocol before thermi's, with no more than the overlay's own calls and monitors of the parts every protocol had, as GNOME runs it from a package's update until the next sign-in, when thermi starts, then both overlays show as painted, on the top bar and on a window, and a notice says to sign in again, with no button.",
       "check": "AnEarlierExtensionStillShowsTheOverlays",
       "passes": true
+    },
+    {
+      "id": "A24",
+      "covers": [
+        "R13"
+      ],
+      "description": "Given an X11 desktop and Sway of the test's own, which bring no graphical-session.target for systemd, with start at sign-in on, when the session starts and runs the package's autostart entry or its file of Sway's config.d, then the overlay comes up as a unit of its own, and a second start finds it running and starts none.",
+      "check": "TheSessionsStartBringsTheOverlayUp",
+      "passes": false
     }
   ]
 }

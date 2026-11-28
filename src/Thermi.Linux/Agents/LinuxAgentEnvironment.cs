@@ -35,7 +35,7 @@ internal sealed class LinuxAgentEnvironment(ILogger log, TimeProvider time) : IA
     // One answer serves a command's screens, why there are none and whether the overlay can show, and the MCP server's next.
     private static readonly TimeSpan Asked = TimeSpan.FromSeconds(1);
 
-    private readonly UserUnit _unit = new();
+    private readonly UserUnit _unit = new(time);
     private (long At, OverlayState? State)? _asked;
 
     public string SettingsPath => ConfigStore.DefaultPath;

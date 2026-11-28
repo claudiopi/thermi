@@ -124,6 +124,9 @@ function New-Trees([string]$Rid, [string]$Files) {
     $packaging = Join-Path $root 'src' 'Thermi.Linux' 'Packaging'
     Copy-Text (Join-Path $packaging 'thermi.service') (Join-Path $thermi 'usr/lib/systemd/user/thermi.service')
     Copy-Text (Join-Path $packaging 'io.github.claudiopi.thermi.desktop') (Join-Path $thermi 'usr/share/applications/io.github.claudiopi.thermi.desktop')
+    $signIn = 'io.github.claudiopi.thermi-sign-in.desktop'
+    Copy-Text (Join-Path $packaging $signIn) (Join-Path $thermi "etc/xdg/autostart/$signIn")
+    Copy-Text (Join-Path $packaging '60-thermi.conf') (Join-Path $thermi 'etc/sway/config.d/60-thermi.conf')
     Write-Icons (Join-Path $thermi 'usr' 'share')
     # The extension's own files, not its README or its lint's settings.
     $extension = Join-Path $thermi 'usr/share/gnome-shell/extensions/thermi@claudiopi.github.io'

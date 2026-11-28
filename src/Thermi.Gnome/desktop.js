@@ -7,7 +7,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import {PATH, Refused, answer, fillMenu, refusePicture, refuseRows, refuseUnless, setPicture, under} from './protocol.js';
+import {PATH, Refused, answer, fillMenu, refusePicture, refuseRows, refuseUnless, setPicture, tell, under} from './protocol.js';
 
 // thermi's icons in the top bar and its hotkeys: each icon shows the picture thermi paints for it and passes its presses
 // back, its menu is the rows thermi sends, and each hotkey is grabbed through the Shell as its own are, a press of one
@@ -50,6 +50,11 @@ export class ThermiDesktop {
         global.display.disconnectObject(this);
         this._service.unexport();
         this._service = null;
+    }
+
+    _tell(name, type, values) {
+        if (this._service)
+            tell(this._owner(), DESKTOP, name, type, values);
     }
 
     // thermi went: none of its icons or hotkeys stays.
@@ -133,7 +138,7 @@ export class ThermiDesktop {
         const press = event => {
             if (button.menu?.isOpen)
                 return Clutter.EVENT_PROPAGATE;
-            this._service?.emit_signal('IconPressed', new GLib.Variant('(suu)', [id, event.get_button(), event.get_time()]));
+            this._tell('IconPressed', '(suu)', [id, event.get_button(), event.get_time()]);
             return Clutter.EVENT_STOP;
         };
         // A key of thermi's goes to it by its name; any other moves the top bar's focus, as on the Shell's own.
@@ -141,7 +146,7 @@ export class ThermiDesktop {
             const name = Clutter.keyval_name(event.get_key_symbol());
             if (!ICON_KEYS.has(name))
                 return Clutter.EVENT_PROPAGATE;
-            this._service?.emit_signal('IconKey', new GLib.Variant('(ss)', [id, name]));
+            this._tell('IconKey', '(ss)', [id, name]);
             return Clutter.EVENT_STOP;
         };
         button.thermiTake = event => event.type() === Clutter.EventType.BUTTON_PRESS ? press(event) : Clutter.EVENT_PROPAGATE;
@@ -163,7 +168,7 @@ export class ThermiDesktop {
         if (!icon)
             return;
         const menu = new PopupMenu.PopupMenu(icon.button, 0.5, St.Side.TOP);
-        fillMenu(menu, rows, index => this._service?.emit_signal('IconChosen', new GLib.Variant('(si)', [id, index])));
+        fillMenu(menu, rows, index => this._tell('IconChosen', '(si)', [id, index]));
         // The menu goes once it closed, after its choice was sent. None takes its place: the Shell's stand-in menu is the
         // button itself, which the button hides as it hides any menu it is given.
         menu.connect('open-state-changed', (_, open) => {
@@ -207,6 +212,6 @@ export class ThermiDesktop {
 
     _pressed(action) {
         if (this._grabs.has(action))
-            this._service?.emit_signal('Hotkey', new GLib.Variant('(u)', [this._grabs.get(action)]));
+            this._tell('Hotkey', '(u)', [this._grabs.get(action)]);
     }
 }

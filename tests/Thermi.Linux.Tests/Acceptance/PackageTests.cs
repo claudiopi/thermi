@@ -9,7 +9,8 @@ namespace Thermi.Linux.Tests.Acceptance;
 public sealed partial class PackageTests
 {
     // What each package puts on the PC, as spec.md lists it: the sensors' service, its units and rule, and thermi-cli on
-    // every PATH; then the overlay, its window, its user unit, its launcher's entry and the GNOME extension.
+    // every PATH; then the overlay, its window, its user unit, its launcher's entry, the GNOME extension, and what starts it
+    // at sign-in where the desktop brings no graphical session for systemd.
     private static readonly string[] SensorsFiles =
     [
         "/usr/bin/thermi-cli", "/usr/lib/thermi/thermi-sensors", "/usr/lib/systemd/system/thermi-sensors.service",
@@ -24,7 +25,11 @@ public sealed partial class PackageTests
         "/usr/share/gnome-shell/extensions/thermi@claudiopi.github.io/metadata.json",
         "/usr/share/gnome-shell/extensions/thermi@claudiopi.github.io/pointerWatch.js",
         "/usr/share/gnome-shell/extensions/thermi@claudiopi.github.io/protocol.js",
+        SignInEntry, SwaySignIn,
     ];
+
+    private const string SignInEntry = "/etc/xdg/autostart/io.github.claudiopi.thermi-sign-in.desktop";
+    private const string SwaySignIn = "/etc/sway/config.d/60-thermi.conf";
 
     // Holds a connection to the service, so it serves until the package restarts it; it says so once served a line.
     private const string Holder = """
@@ -91,6 +96,7 @@ public sealed partial class PackageTests
         // Installed again with the network cut, once its libraries are on the PC, it downloads nothing.
         await pc.MustAsync(tool.Remove(), cancel);
         var left = await pc.RunAsync("systemctl is-active thermi-sensors.socket thermi-sensors.service || true; pgrep -x thermi-sensors || true", cancel);
+        var signIn = await pc.RunAsync($"ls {SignInEntry} {SwaySignIn}", cancel);
         await pc.OfflineAsync(cancel);
         await pc.MustAsync($"{tool.Install("thermi-sensors", offline: true)} && {tool.Install("thermi", offline: true)}", cancel);
         // Installed again after a removal, which left apt its files' record, the socket listens as on a first install.
@@ -113,6 +119,8 @@ public sealed partial class PackageTests
         Assert.Empty(SensorsFiles.Concat(ThermiFiles).Except(files, StringComparer.Ordinal));
         // Nothing the packages started runs after their removal: neither unit, nor any process of the service's.
         Assert.Equal(["inactive", "inactive"], left.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        // Nor does anything start it at the next sign-in: what would, in /etc, is no conffile, which a removal would keep.
+        Assert.Equal("", signIn.Out.Trim());
         Assert.Equal("active", listens.Out.Trim());
         Assert.True(signed.Exit == 0, $"No signed repository of thermi's: {signed.Error}");
         Assert.True(arm64.Exit == 0, $"No arm64 package of the same version: {arm64.Error}");

@@ -32,10 +32,10 @@ public sealed class HostDesktopTests
 
     // The overlay made on the taskbar takes the name of the bar it sits on, as each Linux desktop calls its own, and a
     // vertical one snapped to it says where it sits by that bar; one with no bar sets it on the screen's bottom edge.
-    // A program started without the session's variables, as over ssh, names no desktop: GNOME's Shell on the bus says it.
-    [Theory] // Rows: GNOME among other names, a desktop with panels, a barless one, none named, and the Shell alone.
-    [InlineData("ubuntu:GNOME", false, NameText.TopBar, OverlayPageText.BelowTopBar)]
-    [InlineData("KDE", false, NameText.Panel, OverlayPageText.BesidePanel)]
+    // GNOME's Shell on the bus says it is GNOME, as a program started without the session's variables, as over ssh, names
+    // no desktop, and Budgie, which names GNOME too, shows panels.
+    [Theory] // Rows: a desktop with panels that names GNOME, a barless one, none named, and the Shell.
+    [InlineData("Budgie:GNOME", false, NameText.Panel, OverlayPageText.BesidePanel)]
     [InlineData("Hyprland", false, NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
     [InlineData("", false, NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
     [InlineData("", true, NameText.TopBar, OverlayPageText.BelowTopBar)]

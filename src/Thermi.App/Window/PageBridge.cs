@@ -277,13 +277,13 @@ internal class PageBridge : IWindowBridge, IDisposable
         return Task.CompletedTask;
     }
 
-    public Task<bool> StartWithWindows() => Task.FromResult(_host.StartsAtSignIn);
+    public Task<bool> StartWithWindows() => _host.StartsAtSignIn();
 
-    public Task SetStartWithWindows(bool on)
+    // Back on the window's own turn, which the host's wait leaves free, to tell the page.
+    public async Task SetStartWithWindows(bool on)
     {
-        _host.StartsAtSignIn = on;
+        await _host.StartAtSignIn(on);
         Tell();
-        return Task.CompletedTask;
     }
 
     public Task Editing(int? overlay, string? selected, string? pointed)

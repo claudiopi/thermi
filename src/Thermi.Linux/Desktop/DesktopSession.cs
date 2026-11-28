@@ -28,12 +28,11 @@ internal enum SurfaceKind
 internal static class DesktopSession
 {
     /// <summary>
-    /// GNOME by the desktop the session says, or by the Shell on its bus, as a session started by hand says nothing; GTK is
-    /// left alone there, as the extension shows the overlays.
+    /// GNOME by its Shell on the session's bus, never by the desktop the session names: Budgie and GNOME Flashback name GNOME
+    /// too and run no Shell, whose extension would never come. GTK is left alone there, as the extension shows the overlays.
+    /// The Shell owns its name before it tells systemd it is ready, so before graphical-session.target starts the overlay.
     /// </summary>
-    public static bool IsGnome() =>
-        (Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Split(':').Contains("GNOME", StringComparer.OrdinalIgnoreCase)
-        || SessionBus.HasOwner("org.gnome.Shell");
+    public static bool IsGnome() => SessionBus.HasOwner("org.gnome.Shell");
 
     /// <summary>
     /// GirCore's libraries that paint: each binds its library as its module starts, and nothing of theirs runs before,

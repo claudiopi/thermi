@@ -2,7 +2,7 @@
 
 **Status**: approved
 
-**Budget**: 58 .NET and 4 page cases
+**Budget**: 60 .NET and 4 page cases
 
 thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel exposes, the overlay stays above every window on GNOME, KDE Plasma, Hyprland, Sway, Cinnamon, Xfce and MATE, the settings window is the same page as on Windows, `thermi-cli` and its MCP server answer agents as they do there, and updates come through the system's own updater. Many of the developers thermi is for run their agents on Linux, often on a box with no screen, so the sensors and `thermi-cli` install alone too. How it is built, and why each desktop gets its own surface, is in `docs/adr/0019-linux.md`.
 
@@ -51,6 +51,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 - R13. The overlay starts at sign-in, one per person's session, comes back on its own if it fails, and not after "Exit thermi"; starting at sign-in is a switch, as on Windows.
   Release check: Restart and sign-in on Linux.
   Exception: On GNOME and on layer-shell desktops an overlay has no frame, close button or taskbar entry, so nothing closes it but "Exit thermi"; on X11 a window manager's close ends thermi, as closing an overlay window does on Windows.
+  Exception: Hyprland started without uwsm brings no graphical session for systemd and runs no autostart, so nothing starts the overlay at sign-in there: start at sign-in reads off, in the window and in `start-with-windows`, and turning it on is refused with why.
 - R14. At rest the overlay holds 48 MB and 0.5 % of one core, the desktop's compositor no more than 0.5 % of one core beyond what it takes without thermi, the idle window 1 %, and the service 80 MB and 3 %, as `AGENTS.md`'s budgets say. A board's chip whose read costs over 10 ms of CPU is read only as often as keeps it within 1 % of one core, and its last values show between. Exception: where WebKitGTK paints in software, as it does on an NVIDIA card's driver, the idle window with WebKit's processes holds 3.5 % of one core, as WebKit's painting alone takes about 1 %.
   Release check: Costs at rest on Linux.
 

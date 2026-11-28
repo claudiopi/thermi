@@ -41,10 +41,12 @@ internal sealed class WindowsHost(WindowStart start) : IWindowHost
 
     public bool ForEveryone => SensorPipes.InstallsForEveryone;
 
-    public bool StartsAtSignIn
+    public Task<bool> StartsAtSignIn() => Task.FromResult(start.Environment.Startup.On);
+
+    public Task StartAtSignIn(bool on)
     {
-        get => start.Environment.Startup.On;
-        set => start.Environment.Startup.Set(value);
+        start.Environment.Startup.Set(on);
+        return Task.CompletedTask;
     }
 
     public IReadOnlyList<Screen> Screens() => start.Environment.Screens();

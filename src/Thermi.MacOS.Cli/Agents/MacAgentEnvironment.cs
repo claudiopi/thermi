@@ -60,8 +60,12 @@ internal sealed class MacAgentEnvironment(ILogger log, TimeProvider time) : IAge
     // Open at login is whether launchd starts the overlay's agent at login, as its plist says.
     private sealed class OpenAtLogin : IStartAtSignIn
     {
-        public bool On => LaunchAgents.OpensAtLogin();
+        public Task<bool> OnAsync(CancellationToken cancel) => Task.FromResult(LaunchAgents.OpensAtLogin());
 
-        public void Set(bool on) => LaunchAgents.SetOpenAtLogin(on);
+        public Task SetAsync(bool on, CancellationToken cancel)
+        {
+            LaunchAgents.SetOpenAtLogin(on);
+            return Task.CompletedTask;
+        }
     }
 }

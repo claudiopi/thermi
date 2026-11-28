@@ -33,6 +33,7 @@ public sealed partial class RepoRulesTests
     private static readonly Dictionary<string, string> NeedNoLinuxApi = new(StringComparer.Ordinal)
     {
         ["Thermi.Linux/Agents/LinuxAbout.cs"] = "the channel as the files of apt's and dnf's repositories name it, which only Linux's packages write",
+        ["Thermi.Linux/Agents/SystemProgram.cs"] = "systemctl, systemd-run and pkexec, each run by the path Linux's packages give it, and waited for",
         ["Thermi.Linux/Agents/UserUnit.cs"] = "the start at sign-in as the overlay's systemd user unit, through systemctl, which only Linux has",
         ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
         ["Thermi.Linux/Gnome/ShellSurfaces.cs"] = "GNOME's surfaces, thermi's Shell extension, spoken to through the link to it on the session's bus",
@@ -49,6 +50,7 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Overlay/OverlayParts.cs"] = "what the overlays on Linux share on the host's GLib main loop, the desktop's surfaces among it",
         ["Thermi.Linux/Overlay/OverlayPointer.cs"] = "the pointer on an overlay as Linux's surfaces tell it, each event by the kind the extension names",
         ["Thermi.Linux/Window/LinuxFixes.cs"] = "the overlay and the sensor service started through systemd and polkit, which only Linux has",
+        ["Thermi.Linux/Window/SignIn.cs"] = "the overlay's start at sign-in where a Linux desktop brings no graphical session for systemd",
         ["Thermi.Linux/Window/WindowPainter.cs"] = "the window's previews painted by Linux's Cairo painter, as Windows' Painter paints them with GDI+",
         ["Thermi.Linux/X11/RootWatch.cs"] = "what an X11 window manager says on the root window, read on thermi's own XCB connection",
         ["Thermi.Sensors.Linux/Reading/ChipKinds.cs"] = "what each of the kernel's hwmon drivers measures, by the name only Linux gives it",

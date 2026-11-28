@@ -28,14 +28,14 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     private readonly ILogger _log;
     private readonly DesktopPortal _portal;
-    private readonly UserUnit _signInUnit = new();
+    private readonly UserUnit _signInUnit;
     private readonly Gnome.ShellLink? _link;
     private readonly WindowScreens _screens;
     private readonly OverlayLink _overlay;
     private readonly BusObjects? _objects;
 
-    // GNOME as the overlay tells it, by the session's names or its Shell on the bus, so a window started without the
-    // session's variables names the top bar as the overlay sits on it.
+    // GNOME as the overlay tells it, by its Shell on the bus, so a window started without the session's variables names the
+    // top bar as the overlay sits on it, and Budgie's, which names GNOME, none.
     private readonly bool _gnome;
     private WindowEnd? _windowEnd;
     private WindowTheme _theme;
@@ -46,9 +46,10 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private bool _installRefused;
     private bool? _signIn;
 
-    public LinuxHost(ILogger log)
+    public LinuxHost(ILogger log, TimeProvider time)
     {
         _log = log;
+        _signInUnit = new UserUnit(time);
         var bus = Connect();
         _portal = new DesktopPortal(bus, Changed, log);
         _link = bus is null ? null : new Gnome.ShellLink(bus, log) { StateChanged = () => Turn.Post(Changed) };
@@ -87,19 +88,18 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     // Linux's packages install the sensors for everyone, and starting them asks through polkit's own prompt.
     public bool ForEveryone => true;
 
-    public bool StartsAtSignIn
+    // GTK's loop turns on while systemctl answers, and GLib's context brings the answer back to it.
+    public async Task<bool> StartsAtSignIn() => _signIn ??= await _signInUnit.OnAsync(CancellationToken.None);
+
+    public async Task StartAtSignIn(bool on)
     {
-        get => _signIn ??= _signInUnit.On;
-        set
+        try
         {
-            try
-            {
-                _signInUnit.Set(value);
-            }
-            finally
-            {
-                _signIn = null;
-            }
+            await _signInUnit.SetAsync(on, CancellationToken.None);
+        }
+        finally
+        {
+            _signIn = null;
         }
     }
 

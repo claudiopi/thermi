@@ -69,4 +69,13 @@ internal sealed class StartWithWindows(string key, string approvedKey, string ex
             run.DeleteValue(RunAtSignIn.Name, throwOnMissingValue: false);
         }
     }
+
+    // The registry answers at once.
+    Task<bool> IStartAtSignIn.OnAsync(CancellationToken cancel) => Task.FromResult(On);
+
+    Task IStartAtSignIn.SetAsync(bool on, CancellationToken cancel)
+    {
+        Set(on);
+        return Task.CompletedTask;
+    }
 }
