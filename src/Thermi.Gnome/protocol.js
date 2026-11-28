@@ -1,14 +1,22 @@
 import Atk from 'gi://Atk';
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-// What thermi's overlay and its icons and hotkeys share in the protocol with thermi: who may call, how a call out of its
-// bounds is refused, how a picture shows and how a menu's rows read.
+// What thermi's overlay and its icons and hotkeys share in the protocol with thermi: who may call and who hears, how a
+// call out of its bounds is refused, how a picture shows and how a menu's rows read.
 export const OVERLAY = 'io.github.claudiopi.thermi.Overlay';
 export const PATH = '/io/github/claudiopi/thermi';
+
+// What thermi alone hears, as where the pointer is, a key pressed or a row chosen, goes to the owner of the overlay's
+// name, never to every program on the session's bus; with no owner, to none.
+export function tell(owner, face, name, type, values) {
+    if (owner)
+        Gio.DBus.session.emit_signal(owner, PATH, face, name, new GLib.Variant(type, values));
+}
 
 // Cairo's ARGB32, as thermi paints, on a little-endian machine.
 const FORMAT = Cogl.PixelFormat.BGRA_8888_PRE;

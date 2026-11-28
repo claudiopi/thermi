@@ -8,7 +8,7 @@ import {ON_X11, boxShape, coverWindows, isShape, leftShape, showShape} from './c
 import {ThermiDesktop} from './desktop.js';
 import {closeMenu, openMenu, refuseMenu} from './overlayMenu.js';
 import {PointerWatch} from './pointerWatch.js';
-import {OVERLAY, PATH, answer, finite, place, refusePicture, refuseUnless, setPicture, under, unplaced} from './protocol.js';
+import {OVERLAY, PATH, answer, finite, place, refusePicture, refuseUnless, setPicture, tell, under, unplaced} from './protocol.js';
 
 // thermi's surface on GNOME Shell (docs/adr/0019-linux.md): it shows what thermi paints, where thermi says, and passes
 // the pointer, the monitors and the menu's choice back; its icons in the top bar and its hotkeys are desktop.js'. It
@@ -250,12 +250,14 @@ export default class ThermiExtension extends Extension {
         openMenu(shown, [x, y, width, height], side, rows, index => this._emit('Chosen', '(ui)', [overlay, index]));
     }
 
+    // The monitors, which Monitors tells any program, go to all: the settings window's map hears them too.
     _monitorsChanged() {
-        this._emit('MonitorsChanged', '(a(ddddddbbdddddd))', [this.Monitors()]);
+        this._service?.emit_signal('MonitorsChanged', new GLib.Variant('(a(ddddddbbdddddd))', [this.Monitors()]));
     }
 
     _emit(name, type, values) {
-        this._service?.emit_signal(name, new GLib.Variant(type, values));
+        if (this._service)
+            tell(this._owner, SHELL, name, type, values);
     }
 
     // The picture draws and takes no click, so one passes to what is under it, and leaves the input region as it is. It

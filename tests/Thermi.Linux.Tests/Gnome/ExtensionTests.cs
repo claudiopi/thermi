@@ -14,7 +14,8 @@ public sealed class ExtensionTests
     // it added to the Shell or its top bar. "shows" makes a case's calls and says what the Shell shows of them, read through
     // its Eval once it painted a frame. "hold" shows the overlay and prints the key focus, then each signal of the
     // extension's, a line each, the key focus again at each press of the first button, and answers a right press with a
-    // menu, as thermi does, saying once the Shell took it; a line "x y" on its input shows the overlay there instead.
+    // menu, as thermi does, saying once the Shell took it; a line "x y" on its input shows the overlay there instead. A
+    // second connection of its own, which owns no name, says each pointer, key or menu signal it overheard.
     private const string Caller = """
         import json, math, sys, gi
         from gi.repository import Gio, GLib
@@ -198,6 +199,8 @@ public sealed class ExtensionTests
                     print('moved', call(*show(1, at=(float(line[0]), float(line[1])))), flush=True)
                 return bool(line)
             bus.signal_subscribe(None, None, None, PATH, None, Gio.DBusSignalFlags.NONE, heard)
+            other = another()
+            other.signal_subscribe(None, None, None, PATH, None, 0, lambda *s: s[4] in ('Pointer', 'Key', 'Chosen') and print('overheard', s[4], flush=True))
             GLib.io_add_watch(sys.stdin.fileno(), GLib.PRIORITY_DEFAULT, GLib.IOCondition.IN, move)
             shown = call(*show(1)) == 'taken'
             focus()
@@ -295,7 +298,7 @@ public sealed class ExtensionTests
     // it was; a right press opens thermi's menu and holds nothing, so the pointer is the person's again once the menu
     // closes; and another grab that takes the pointer from a press, as a modal dialog's, ends it as Esc does, as one already
     // there ends a press at once, which holds nothing. The overview does not open while a grab holds, so it never takes one.
-    // A press where thermi just moved the overlay takes it before the Shell laid it out there.
+    // A press where thermi just moved the overlay takes it before the Shell laid it out there, and no other program hears it.
     [Fact(Timeout = Bound.Test)]
     public async Task ThePointerAndTheKeysAreThermisOnlyWhileItsPressHolds()
     {
@@ -331,6 +334,7 @@ public sealed class ExtensionTests
         Assert.Contains("cancel after its press", lines);
         Assert.Equal(4, lines.Count(line => line.StartsWith("Pointer press 110.0 110.0 1", StringComparison.Ordinal)));
         Assert.Contains("Pointer press 610.0 610.0 1", lines);
+        Assert.DoesNotContain(lines, line => line.StartsWith("overheard", StringComparison.Ordinal));
 
         async Task Keys(CancellationToken held)
         {
