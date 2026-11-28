@@ -44,7 +44,6 @@ public sealed partial class DesktopTests
         var firstRun = notices.NextAsync("first-run", cancel);
         var missing = notices.NextAsync("install-extension", cancel);
         var critical = notices.NextAsync("critical", cancel);
-        await OffTheNetworkAsync(session, cancel);
         // No settings yet: thermi's first start, which writes them.
         var thermi = await desktop.StartThermiAsync(["--trace"], cancel);
 
@@ -116,21 +115,5 @@ public sealed partial class DesktopTests
         var squatter = await session.StartAsync("python3", [script, WindowProcess.Id], cancel: cancel);
         Assert.Equal("held", await squatter.ReadyAsync(cancel));
         return squatter;
-    }
-
-    // The Shell asks extensions.gnome.org for the extension thermi asks it to install: the session's proxy, which every
-    // connection of the Shell's follows, refuses them all, so the test never reaches the network.
-    private static async Task OffTheNetworkAsync(OwnSession session, CancellationToken cancel)
-    {
-        string[][] settings =
-        [
-            ["org.gnome.system.proxy.http", "host", "127.0.0.1"], ["org.gnome.system.proxy.http", "port", "9"],
-            ["org.gnome.system.proxy.https", "host", "127.0.0.1"], ["org.gnome.system.proxy.https", "port", "9"],
-            ["org.gnome.system.proxy", "mode", "manual"],
-        ];
-        foreach (var setting in settings)
-        {
-            Assert.Equal(0, (await session.RunAsync("gsettings", ["set", .. setting], cancel: cancel)).Exit);
-        }
     }
 }
