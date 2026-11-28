@@ -97,7 +97,7 @@ internal static class ThermiMenus
         {
             var away = new TPMPARAMS { cbSize = (uint)sizeof(TPMPARAMS) };
             var exclude = offOwner && PInvoke.GetWindowRect(owner, out away.rcExclude);
-            var (at, flags) = exclude ? Beside(owner, away.rcExclude, cursor) : (cursor, TRACK_POPUP_MENU_FLAGS.TPM_LEFTALIGN);
+            var (at, flags) = exclude ? NextTo(owner, away.rcExclude, cursor) : (cursor, TRACK_POPUP_MENU_FLAGS.TPM_LEFTALIGN);
             flags |= TRACK_POPUP_MENU_FLAGS.TPM_RETURNCMD;
             var choice = (nuint)(int)PInvoke.TrackPopupMenuEx(menu, (uint)flags, at.X, at.Y, owner, exclude ? away : null);
             PInvoke.PostMessage(owner, PInvoke.WM_NULL, 0, 0);
@@ -110,7 +110,7 @@ internal static class ThermiMenus
     }
 
     // The point the menu's top, below the overlay, or its bottom, above it, goes to, on the overlay's monitor.
-    private static unsafe (Point At, TRACK_POPUP_MENU_FLAGS Flags) Beside(HWND owner, RECT overlay, Point cursor)
+    private static unsafe (Point At, TRACK_POPUP_MENU_FLAGS Flags) NextTo(HWND owner, RECT overlay, Point cursor)
     {
         var info = new MONITORINFO { cbSize = (uint)sizeof(MONITORINFO) };
         var monitor = PInvoke.MonitorFromWindow(owner, MONITOR_FROM_FLAGS.MONITOR_DEFAULTTONEAREST);
@@ -119,7 +119,7 @@ internal static class ThermiMenus
             new PixelRect(overlay.left, overlay.top, overlay.right, overlay.bottom),
             new Position(cursor.X, cursor.Y),
             new PixelRect(screen.left, screen.top, screen.right, screen.bottom));
-        var side = spot.Side == MenuSide.Above ? TRACK_POPUP_MENU_FLAGS.TPM_BOTTOMALIGN : 0;
+        var side = spot.Side == MenuSide.Above ? TRACK_POPUP_MENU_FLAGS.TPM_BOTTOMALIGN : TRACK_POPUP_MENU_FLAGS.TPM_TOPALIGN;
         return (new Point(spot.At.X, spot.At.Y), TRACK_POPUP_MENU_FLAGS.TPM_VERTICAL | side);
     }
 
