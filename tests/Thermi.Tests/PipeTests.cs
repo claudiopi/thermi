@@ -232,8 +232,9 @@ public sealed class PipeTests
         Assert.Equal(golden, got);
     }
 
-    // The service counts its clients by who opened them, and a client trusts a server by who listens: on Linux the kernel
-    // says it of either end, and elsewhere nothing does.
+    // The service counts its clients by who opened them, and a client trusts a server by who listens: on Linux and macOS
+    // the kernel says it of either end, and on Windows nothing does. .NET names no user by number on a Mac, so there both
+    // ends name the same one.
     [Fact]
     public async Task ASocketsPeerIsTheUserWhoOpenedIt()
     {
@@ -254,7 +255,8 @@ public sealed class PipeTests
                 ? (await File.ReadAllLinesAsync("/proc/self/status", cancel)).First(line => line.StartsWith("Uid:", StringComparison.Ordinal))
                 : null;
             var own = uid is null ? (uint?)null : uint.Parse(uid.Split('\t')[2], CultureInfo.InvariantCulture);
-            Assert.Equal([own, own], [PeerCredentials.UserOf(server), PeerCredentials.UserOf(client)]);
+            uint?[] said = [PeerCredentials.UserOf(server), PeerCredentials.UserOf(client)];
+            Assert.Equal(OperatingSystem.IsMacOS() ? [said[0] ?? uint.MaxValue, said[0] ?? uint.MaxValue] : [own, own], said);
         }
         finally
         {
