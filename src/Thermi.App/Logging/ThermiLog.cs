@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using Serilog.Formatting.Display;
 using Serilog.Extensions.Logging;
 
 namespace Thermi.App.Logging;
@@ -36,9 +37,10 @@ internal static class ThermiLog
     // The agents' commands are many short processes at once: they share one file, of what went wrong and what they changed.
     public static string AgentsPath { get; } = Path.Combine(Folder, "thermi-agents.log");
 
-    public static ILoggerFactory Create(string path, TimeProvider time, bool trace)
+    /// <summary>The log at <paramref name="path"/>; what goes wrong, warnings and up, also to <paramref name="errors"/> where given.</summary>
+    public static ILoggerFactory Create(string path, TimeProvider time, bool trace, TextWriter? errors = null)
     {
-        var logger = new LoggerConfiguration()
+        var configuration = new LoggerConfiguration()
             .MinimumLevel.Is(trace ? LogEventLevel.Debug : LogEventLevel.Information)
             .Enrich.With(new Stamp(time))
             .WriteTo.File(
@@ -49,9 +51,13 @@ internal static class ThermiLog
                 rollOnFileSizeLimit: true,
                 retainedFileCountLimit: Files,
                 // Still shared: a second thermi that only brings the open window to the front writes a line or two.
-                shared: true)
-            .CreateLogger();
-        return new SerilogLoggerFactory(logger, dispose: true);
+                shared: true);
+        if (errors is not null)
+        {
+            configuration = configuration.WriteTo.Sink(new Echo(errors), LogEventLevel.Warning);
+        }
+
+        return new SerilogLoggerFactory(configuration.CreateLogger(), dispose: true);
     }
 
     /// <summary>
@@ -100,6 +106,14 @@ internal static class ThermiLog
     {
         var (ticks, frequency) = (time.GetTimestamp(), time.TimestampFrequency);
         return string.Create(CultureInfo.InvariantCulture, $"{ticks / frequency}.{ticks % frequency * 1_000_000 / frequency:D6}");
+    }
+
+    // A line a writer takes as the file does, among the trace's own lines where it is the standard error.
+    private sealed class Echo(TextWriter writer) : ILogEventSink
+    {
+        private readonly MessageTemplateTextFormatter _format = new(Line, CultureInfo.InvariantCulture);
+
+        public void Emit(LogEvent logEvent) => _format.Format(logEvent, writer);
     }
 
     // Serilog stamps each event from the system clock; the line takes its time from the injected one instead.

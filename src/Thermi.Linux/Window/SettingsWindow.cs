@@ -4,6 +4,7 @@ using Thermi.App.Window;
 using Thermi.Core.Bridge;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
+using Thermi.Linux.Desktop;
 
 namespace Thermi.Linux.Window;
 
@@ -59,7 +60,7 @@ internal sealed class SettingsWindow : IDisposable
         _window.SetDefaultSize(size.Width, size.Height);
         _window.SetSizeRequest(least, lowest);
         _view = WebKit.WebView.New();
-        Lock(_view, trace is not null);
+        Lock(_view, trace is not null, log);
         var content = _view.GetUserContentManager();
         content.AddScript(
             WebKit.UserScript.New(BridgeCalls.Client, WebKit.UserContentInjectedFrames.TopFrame, WebKit.UserScriptInjectionTime.Start, null, null));
@@ -136,7 +137,7 @@ internal sealed class SettingsWindow : IDisposable
 
     // What a person could do to a browser and not to a window: navigate away, open windows, zoom, print, open its menus or
     // tools, or grant a site anything. The tools stay with --trace, to look into a fault.
-    private static void Lock(WebKit.WebView view, bool trace)
+    private static void Lock(WebKit.WebView view, bool trace, ILogger log)
     {
         var settings = view.GetSettings();
         settings.SetEnableDeveloperExtras(trace);
@@ -149,7 +150,12 @@ internal sealed class SettingsWindow : IDisposable
         using var clear = new Gdk.RGBA { Red = 0, Green = 0, Blue = 0, Alpha = 0 };
         view.SetBackgroundColor(clear);
         view.OnDecidePolicy += (_, e) => Refused(e.Decision, e.DecisionType);
-        view.OnContextMenu += (_, _) => !trace;
+        view.OnContextMenu += (_, e) =>
+        {
+            // WebKit lets go of the menu once asked: what still holds it is freed on the main loop.
+            MainLoopRelease.Hold(log, e.ContextMenu, e.HitTestResult);
+            return !trace;
+        };
         view.OnPermissionRequest += (_, e) =>
         {
             e.Request.Deny();
@@ -318,6 +324,7 @@ internal sealed class SettingsWindow : IDisposable
     private void Received(WebKit.UserContentManager sender, WebKit.UserContentManager.ScriptMessageReceivedSignalArgs e)
     {
         using var message = e.Value;
+        MainLoopRelease.Hold(_log, message);
         _ = AnswerAsync(message.ToJson(0));
     }
 

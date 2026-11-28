@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
 
@@ -25,6 +26,7 @@ internal sealed class LayerProbe : IDisposable
 
     private readonly Action<LayerProbe> _measured;
     private readonly Action<LayerProbe> _restless;
+    private readonly ILogger _log;
     private readonly List<Gtk.DrawingArea> _areas = [];
     private readonly List<Gdk.Surface> _popups = [];
     private readonly Gtk.Window _keptOff;
@@ -39,10 +41,10 @@ internal sealed class LayerProbe : IDisposable
     // Each measure counts, so what an earlier one still waits for, as a panel changes again, tells nothing.
     private int _round;
 
-    public LayerProbe(Gdk.Monitor monitor, Action<LayerProbe> measured, Action<LayerProbe> restless)
+    public LayerProbe(Gdk.Monitor monitor, Action<LayerProbe> measured, Action<LayerProbe> restless, ILogger log)
     {
         Monitor = monitor;
-        (_measured, _restless) = (measured, restless);
+        (_measured, _restless, _log) = (measured, restless, log);
         _keptOff = Surface(zone: 0, size =>
         {
             _inside = size;
@@ -103,10 +105,10 @@ internal sealed class LayerProbe : IDisposable
         _round++;
         Drop();
         _keptOff.Destroy();
-        _keptOff.Dispose();
         _over.Destroy();
+        MainLoopRelease.Hold(_log, [_keptOff, _over, .. _areas]);
+        _keptOff.Dispose();
         _over.Dispose();
-
         _areas.ForEach(area => area.Dispose());
         _areas.Clear();
     }
@@ -115,13 +117,14 @@ internal sealed class LayerProbe : IDisposable
     {
         foreach (var popup in _popups)
         {
-            // GDK's destroy drops a reference of its own, besides the one GirCore's wrapper gives back as it is disposed: without
-            // one more for it, a copy GirCore keeps of a signal's arguments is left holding a freed popup, which .NET's finalizer
-            // then unrefs, and thermi crashes.
+            // GDK's destroy drops the reference a popup's maker holds, which GirCore's wrapper gives back too as it is disposed:
+            // the destroy gets one more of its own, and what GirCore's copies of the popup's signals still hold is freed on the
+            // main loop (MainLoopRelease).
 #pragma warning disable S3869 // GirCore has no call that refs an object but on its pointer.
             _ = GObject.Internal.Object.Ref(popup.Handle.DangerousGetHandle());
 #pragma warning restore S3869
             popup.Destroy();
+            MainLoopRelease.Hold(_log, popup);
             popup.Dispose();
         }
 

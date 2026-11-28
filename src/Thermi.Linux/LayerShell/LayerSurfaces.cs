@@ -195,7 +195,12 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
 
     private PictureWindow New(uint id)
     {
-        var window = new PictureWindow(id, Made, leaveLoses: true) { Pointer = each => Pointer(each), Key = (on, key) => Key(on, key), Lost = on => Lost(on) };
+        var window = new PictureWindow(id, Made, leaveLoses: true, log)
+        {
+            Pointer = each => Pointer(each),
+            Key = (on, key) => Key(on, key),
+            Lost = on => Lost(on),
+        };
         window.Closed = () => window.Window.SetVisible(false);
         return window;
     }
@@ -297,7 +302,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
                 monitor.OnNotify += (_, _) => Measure(monitor);
             }
 
-            _probes[monitor] = new LayerProbe(monitor, Measured, Restless);
+            _probes[monitor] = new LayerProbe(monitor, Measured, Restless, log);
         }
 
         Ready = Ready && _monitors.Count > 0;
@@ -326,7 +331,7 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
         }
         else if (_monitors.Contains(monitor))
         {
-            _probes[monitor] = new LayerProbe(monitor, Measured, Restless);
+            _probes[monitor] = new LayerProbe(monitor, Measured, Restless, log);
         }
     }
 

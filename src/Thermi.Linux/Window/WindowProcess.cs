@@ -30,7 +30,7 @@ internal static class WindowProcess
 
     public static async Task<int> RunAsync(SettingsRequest request, IReadOnlyList<string> args, TimeProvider time)
     {
-        using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace);
+        using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace, request.Trace ? Console.Error : null);
         var log = logs.CreateLogger("Thermi.Ui");
         var sensors = new SocketFeed(time, logs.CreateLogger<SocketFeed>());
         return await ThermiLog.RunLoggedAsync(log, () => ShowAsync(request, args, sensors, time, log));
@@ -103,10 +103,11 @@ internal static class WindowProcess
             Turn.Post(bridge.Arrived);
         }
 
-        // The other process ends once told it is done, which GTK would otherwise leave to a collection of the line.
+        // The other process ends once told it is done, as the line is freed: on the main loop, once GirCore's copy of it went.
         app.OnCommandLine += (application, line) =>
         {
             using var command = line.CommandLine;
+            MainLoopRelease.Hold(start.Log, command);
             if (!first)
             {
                 Again(command, bridge, window);

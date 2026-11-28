@@ -16,8 +16,8 @@ namespace Thermi.Linux.X11;
 /// window gone full screen too, while a dock stays above every other window and under that one; a panel that rises above
 /// it, as a dock that maps after it or one the person clicks, is put back under it. The panels' struts make each monitor's
 /// work area, as the window manager says it, and a monitor the active window covers is full screen, one of thermi's own
-/// never counting as active, read as the root window tells each changes (<see cref="RootWatch"/>). The window manager's close, as a pager's or a task switcher's, quits
-/// thermi, as Windows' overlay quits on its close.
+/// never counting as active, read as the root window tells each changes (<see cref="RootWatch"/>). The window manager's
+/// close, as a pager's or a task switcher's, quits thermi, as Windows' overlay quits on its close.
 /// </summary>
 internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
 {
@@ -91,7 +91,7 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
     {
         if (!_shown.TryGetValue(id, out var shown))
         {
-            shown = new Shown(id, this);
+            shown = new Shown(id, this, log);
             _shown[id] = shown;
         }
 
@@ -224,7 +224,7 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
         private bool _mapped;
         private nuint? _focusedBefore;
 
-        public Shown(uint id, X11Surfaces surfaces)
+        public Shown(uint id, X11Surfaces surfaces, ILogger log)
         {
             Window = new PictureWindow(id, window =>
             {
@@ -243,7 +243,7 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
                     _mapped = true;
                     Move(raise: false);
                 };
-            }, leaveLoses: false)
+            }, leaveLoses: false, log)
             {
                 Pointer = each => surfaces.Pointer(Rooted(each)),
                 // GTK gives a window it shows the keyboard, as the lifted pill's while a press holds an overlay's: Esc on

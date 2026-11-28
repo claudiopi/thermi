@@ -13,7 +13,8 @@ namespace Thermi.Linux.Overlay;
 
 /// <summary>
 /// <c>thermi</c> with no command, as its user unit starts it in the person's session: the overlay, until "Exit thermi".
-/// Under <c>--trace</c> its events go to the standard error, a line each, so a test waits for what thermi did. A desktop
+/// Under <c>--trace</c> its events go to the standard error, a line each, so a test waits for what thermi did, and what
+/// goes wrong there too. A desktop
 /// with nowhere to show the overlays ends it at once, with 1, and says why in one notice, only the first time; with no
 /// display for GTK, it ends so too, and only logs it, as no desktop is there to tell.
 /// </summary>
@@ -27,7 +28,7 @@ internal static class OverlayStart
 
     public static async Task<int> RunAsync(OverlayRequest request, TimeProvider time)
     {
-        using var logs = ThermiLog.Create(ThermiLog.OverlayPath, time, request.Trace);
+        using var logs = ThermiLog.Create(ThermiLog.OverlayPath, time, request.Trace, request.Trace ? Console.Error : null);
         var log = logs.CreateLogger("thermi");
         return await ThermiLog.RunLoggedAsync(log, async () =>
         {

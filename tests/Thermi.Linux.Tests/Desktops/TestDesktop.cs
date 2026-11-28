@@ -104,11 +104,19 @@ internal sealed class TestDesktop : IAsyncDisposable
     /// scale is GTK's own, which a person sets with GDK_SCALE: the X server and the panel know none.
     /// </summary>
     public Task<SessionProcess> StartThermiAsync(IEnumerable<string> args, CancellationToken cancel) =>
-        Session.StartAsync(
-            Built.Program("thermi"),
-            args,
-            Kind == DesktopKind.X11 ? new Dictionary<string, string> { ["GDK_SCALE"] = Scale.ToString(CultureInfo.InvariantCulture) } : null,
-            cancel);
+        StartThermiAsync(args, new Dictionary<string, string>(), cancel);
+
+    /// <summary>Starts thermi as the overload without it does, with <paramref name="environment"/> too.</summary>
+    public Task<SessionProcess> StartThermiAsync(IEnumerable<string> args, IReadOnlyDictionary<string, string> environment, CancellationToken cancel)
+    {
+        var all = environment.ToDictionary();
+        if (Kind == DesktopKind.X11)
+        {
+            all["GDK_SCALE"] = Scale.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return Session.StartAsync(Built.Program("thermi"), args, all.Count == 0 ? null : all, cancel);
+    }
 
     /// <summary>A window of another program under the overlay, maximized or full screen.</summary>
     public Task<TestWindow> OpenWindowAsync(bool fullScreen, CancellationToken cancel) => TestWindow.OpenAsync(Session, fullScreen, cancel);
@@ -117,9 +125,13 @@ internal sealed class TestDesktop : IAsyncDisposable
     /// thermi up with <c>--trace</c>, once its overlays are on screen as painted, which it says (<see cref="Traced.Shown"/>):
     /// the test waits for that, and reads the rest of its trace from the process.
     /// </summary>
-    public async Task<SessionProcess> ShowThermiAsync(IEnumerable<string> args, CancellationToken cancel)
+    public Task<SessionProcess> ShowThermiAsync(IEnumerable<string> args, CancellationToken cancel) =>
+        ShowThermiAsync(args, new Dictionary<string, string>(), cancel);
+
+    /// <summary>thermi up as the overload without it brings it, with <paramref name="environment"/> too.</summary>
+    public async Task<SessionProcess> ShowThermiAsync(IEnumerable<string> args, IReadOnlyDictionary<string, string> environment, CancellationToken cancel)
     {
-        var thermi = await StartThermiAsync(["--trace", .. args], cancel).ConfigureAwait(false);
+        var thermi = await StartThermiAsync(["--trace", .. args], environment, cancel).ConfigureAwait(false);
         await Traced.FirstAsync(thermi.Error, Traced.Shown, cancel).ConfigureAwait(false);
         return thermi;
     }

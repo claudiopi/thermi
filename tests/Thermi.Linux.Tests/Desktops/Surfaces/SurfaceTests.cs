@@ -5,7 +5,8 @@ namespace Thermi.Linux.Tests.Desktops.Surfaces;
 
 /// <summary>
 /// What a desktop off GNOME changes under a running overlay, which thermi must follow as GNOME's extension follows it: a
-/// panel that starts after thermi, a window that goes full screen, a panel raised above it, and the window manager's close.
+/// panel that starts after thermi, a window that goes full screen, a panel raised above it, and the window manager's close;
+/// and overlays hidden and shown again, often.
 /// </summary>
 public sealed partial class SurfaceTests
 {
@@ -25,6 +26,44 @@ public sealed partial class SurfaceTests
         FullScreen,
         PanelRaised,
         Closed,
+    }
+
+    public enum ChurnCase
+    {
+        X11,
+        KWin,
+    }
+
+    // An overlay hidden and shown again, as by its menu's Hide, the hide hotkey or a full-screen window, lets go of its window
+    // and makes another each time, whose objects GTK must free on its main loop: one freed on .NET's finalizer thread meets
+    // what the main loop does then, and crashes thermi now and then, so thermi logs each it sees. A small first generation
+    // has .NET collect every few edits, while GirCore's copies of the last signals' arguments still hold the windows.
+    [Theory(Timeout = Bound.Test)]
+    [InlineData(ChurnCase.X11)]
+    [InlineData(ChurnCase.KWin)]
+    public async Task AnOverlayHiddenAndShownOftenFreesItsWindowsOnTheMainLoop(ChurnCase row)
+    {
+        const int Edits = 100;
+        var cancel = TestContext.Current.CancellationToken;
+        await using var desktop = await TestDesktop.StartAsync(row == ChurnCase.X11 ? DesktopKind.X11 : DesktopKind.KWin, [Monitor], cancel);
+        OverlayConfig[] overlays =
+            [.. Enumerable.Range(0, ThermiConfig.MaxOverlays).Select(at => Scene.Overlay with { Position = new(200, 100 + (at * 200)) })];
+        await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = overlays }, cancel);
+        await SensorFeed.ServeSteadyAsync(desktop.Session, SensorFeed.Desktop, cancel);
+        var thermi = await desktop.ShowThermiAsync([], new Dictionary<string, string> { ["DOTNET_GCgen0size"] = "40000" }, cancel);
+        for (var edit = 0; edit < Edits; edit++)
+        {
+            var edited = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
+            // Half go and half come in each edit, so the main loop makes windows as the finalizer may free others.
+            var flipped = overlays.Select((overlay, at) => overlay with { Hidden = (at + edit) % 2 == 0 });
+            await desktop.WriteSettingsAsync(ThermiConfig.New with { Overlays = [.. flipped] }, cancel);
+            await edited;
+        }
+
+        await Traced.NextAsync(thermi.Error, Traced.Paint, cancel);
+        var lines = thermi.Error.Text.Split('\n');
+        Assert.True(lines.Count(line => Traced.Of(line)?.Event == Traced.EditApplied) >= Edits);
+        Assert.DoesNotContain(lines, line => line.Contains("off its main loop", StringComparison.Ordinal));
     }
 
     // A panel that maps after thermi, as plasmashell or a bar Sway's config starts, takes the overlay snapped to the panels,

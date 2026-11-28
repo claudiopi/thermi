@@ -14,12 +14,12 @@ internal sealed class PictureWindow : IDisposable
 {
     private const string Style = "thermi-overlay";
 
-    // A scale of eighths, as Wayland's fractional scales are 120ths that compositors keep to quarters or eighths, falls
-    // on a whole pixel within 8 logical ones.
+    // Eighths, as compositors keep Wayland's fractional scales of 120ths to quarters or eighths: a whole pixel within 8 logical ones.
     private const int Steps = 8;
 
     private static bool _styled;
 
+    private readonly Microsoft.Extensions.Logging.ILogger _log;
     private readonly Gtk.DrawingArea _area = Gtk.DrawingArea.New();
     private readonly List<TaskCompletionSource> _waiting = [];
     private readonly PicturePointer _pointer;
@@ -32,9 +32,11 @@ internal sealed class PictureWindow : IDisposable
     private Action _unmenu = () => { };
 
     /// <summary>The window of picture <paramref name="id"/>; a leave during a press loses it where <paramref name="leaveLoses"/>.</summary>
-    public PictureWindow(uint id, Action<Gtk.Window> made, bool leaveLoses)
+    public PictureWindow(uint id, Action<Gtk.Window> made, bool leaveLoses, Microsoft.Extensions.Logging.ILogger log)
     {
         Unpainted(Window);
+        _log = log;
+        MainLoopRelease.Watch(log, Window, _area);
         Window.SetDecorated(false);
         Window.SetResizable(false);
         Window.SetTitle("thermi");
@@ -165,14 +167,9 @@ internal sealed class PictureWindow : IDisposable
     /// <summary>Puts a PNG on the desktop's clipboard, which GTK serves to whoever pastes it while thermi runs.</summary>
     public static void Copy(byte[] png)
     {
-        if (Gdk.Display.GetDefault() is not { } display)
-        {
-            return;
-        }
-
         using var bytes = GLib.Bytes.New(png);
         using var texture = Gdk.Texture.NewFromBytes(bytes);
-        display.GetClipboard().SetTexture(texture);
+        Gdk.Display.GetDefault()?.GetClipboard().SetTexture(texture);
     }
 
     // Done once a frame drawn from now shows: GTK 4 draws a window's own opacity as whole, so the picture's area fades.
@@ -268,6 +265,7 @@ internal sealed class PictureWindow : IDisposable
                 _unmenu = () => { };
                 menu.Popdown();
                 menu.Unparent();
+                MainLoopRelease.Hold(_log, menu);
                 menu.Dispose();
             }
         }
@@ -295,6 +293,7 @@ internal sealed class PictureWindow : IDisposable
         _unmenu();
         Shown();
         Window.Destroy();
+        MainLoopRelease.Hold(_log, Window, _area);
         Window.Dispose();
         _area.Dispose();
         _image?.Dispose();

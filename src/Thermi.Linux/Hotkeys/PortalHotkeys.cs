@@ -189,7 +189,11 @@ internal sealed class PortalHotkeys : IHotkeyGrab
         }
         finally
         {
-            request?.Dispose();
+            if (request is not null)
+            {
+                MainLoopRelease.Hold(_log, request);
+                request.Dispose();
+            }
         }
     }
 
