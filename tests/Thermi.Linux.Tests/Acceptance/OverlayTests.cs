@@ -6,6 +6,7 @@ using Thermi.Linux.Gnome;
 using Thermi.Linux.Tests.Desktops;
 using Thermi.Linux.Tests.Desktops.X11;
 using Thermi.Linux.Tray;
+using Thermi.Linux.Window;
 
 namespace Thermi.Linux.Tests.Acceptance;
 
@@ -346,9 +347,10 @@ public sealed partial class OverlayTests
         var shown = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
         var running = await units.StartWaitingAsync(cancel);
         await shown;
-        // A second start hands the overlay the request, and the window opens as the overlay's own process.
+        // A second start, or the launcher's own command, hands the overlay the request, and the window opens as the overlay's
+        // own process, which ends with its unit, as a package's removal stops it.
         var opened = Traced.NextAsync(units.Trace, Traced.WindowShown, cancel);
-        await desktop.Session.RunAsync(Built.Program("thermi"), [], cancel: cancel);
+        await desktop.Session.RunAsync(Built.Program("thermi"), desktop.Kind == DesktopKind.Gnome ? [] : LauncherArgs(), cancel: cancel);
         await opened;
         var overlay = int.Parse(await units.SystemctlAsync(["show", "-p", "MainPID", "--value", "thermi.service"], cancel), CultureInfo.InvariantCulture);
         var window = ProcessTree.Under(overlay).Single(pid => File.ReadAllText($"/proc/{pid}/cmdline").Split('\0') is [_, "settings", ..]);
@@ -365,6 +367,11 @@ public sealed partial class OverlayTests
             (await units.SystemctlAsync(["show", "-p", "ExecMainStatus", "--value", "thermi.service"], cancel),
                 await units.SystemctlAsync(["show", "-p", "Result", "--value", "thermi.service"], cancel)));
     }
+
+    // What the package's launcher runs thermi with, as its desktop file says.
+    private static string[] LauncherArgs() =>
+        File.ReadAllLines(Path.Combine(Built.Root, "src", "Thermi.Linux", "Packaging", $"{WindowProcess.Id}.desktop"))
+            .Single(line => line.StartsWith("Exec=thermi ", StringComparison.Ordinal))["Exec=thermi ".Length..].Split(' ');
 
     // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts; the tree is read once a menu shows.
     internal static async Task<(string Program, int Entries)> OpenMenuAsync(TestDesktop desktop, CancellationToken cancel)
