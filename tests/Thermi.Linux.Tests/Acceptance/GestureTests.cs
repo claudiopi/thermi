@@ -23,6 +23,9 @@ public sealed partial class GestureTests
     // Where the third overlay of the gestures sits, fading near the pointer, away from where every gesture drags.
     private static readonly Position Fading = new(1300, 200);
 
+    // Where no overlay is, nor near enough for the fading one to fade.
+    private static readonly Position Away = new(960, 900);
+
     public enum Desktop
     {
         Gnome,
@@ -230,7 +233,9 @@ public sealed partial class GestureTests
     }
 
     // A drag that Esc cancels while the value is lifted and dragged over the other overlay puts everything back: what it
-    // changed on screen, and the settings after.
+    // changed on screen, and the settings after. The pointer leaves the overlays before the button goes up, as the other
+    // overlay's value it rests on would show its tooltip once the press is over, as Windows' does, where the screen before
+    // had none, its drop's quiet holding it.
     private static async Task<(long Changed, ThermiConfig Kept)> CancelledAsync(
         TestDesktop desktop, SessionProcess thermi, (int X, int Y) value, CancellationToken cancel)
     {
@@ -245,6 +250,7 @@ public sealed partial class GestureTests
             {
                 await desktop.Input.PressAsync("Escape", there);
                 await dropped.WaitAsync(there);
+                await desktop.Input.MoveAsync(Away.X, Away.Y, there);
             },
             cancel);
         var cancelled = await desktop.ScreenshotAsync(cancel);
