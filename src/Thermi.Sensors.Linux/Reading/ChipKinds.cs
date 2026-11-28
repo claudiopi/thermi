@@ -36,6 +36,7 @@ internal static class ChipKinds
         ["nvme"] = ChipKind.Storage,
         ["drivetemp"] = ChipKind.Storage,
         ["amdgpu"] = ChipKind.GpuAmd,
+        ["radeon"] = ChipKind.GpuAmd,
         ["i915"] = ChipKind.GpuIntel,
         ["xe"] = ChipKind.GpuIntel,
     };

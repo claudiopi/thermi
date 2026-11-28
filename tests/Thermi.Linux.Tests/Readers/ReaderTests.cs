@@ -22,6 +22,7 @@ public sealed class ReaderTests
         Laptop,
         AmdGpu,
         IntelGpu,
+        Radeon,
         RaplWrap,
         AbsurdInput,
         Replugged,
@@ -35,6 +36,7 @@ public sealed class ReaderTests
     [InlineData(Made.Laptop)]
     [InlineData(Made.AmdGpu)]
     [InlineData(Made.IntelGpu)]
+    [InlineData(Made.Radeon)]
     [InlineData(Made.RaplWrap)]
     [InlineData(Made.AbsurdInput)]
     [InlineData(Made.Replugged)]
@@ -152,6 +154,10 @@ public sealed class ReaderTests
                 case Made.IntelGpu:
                     tree.Gpu(second, "xe", ("temp2_label", "pkg"), ("temp2_input", "48000"));
                     break;
+                case Made.Radeon:
+                    // The older AMD cards' driver, whose chip has one temperature, with no label.
+                    tree.Gpu(second, "radeon", ("temp1_input", "52000"), ("temp1_crit", "120000"));
+                    break;
                 case Made.RaplWrap:
                     // Four joules a second across the counter's wrap: one before it, three after.
                     tree.Files(second, "/sys/class/powercap/intel-rapl:0", ("name", "package-0"), ("max_energy_range_uj", "262143328850"),
@@ -190,6 +196,7 @@ public sealed class ReaderTests
             Made.Laptop => ([Metrics.BatteryCharge, Metrics.BatteryRate, Metrics.BatteryTime], [80, -10, 4 * 3600]),
             Made.AmdGpu => ([Metrics.GpuTemperature, Metrics.GpuLoad, Metrics.GpuPower], [55, 40, 120]),
             Made.IntelGpu => ([Metrics.GpuTemperature], [48]),
+            Made.Radeon => ([Metrics.GpuTemperature], [52]),
             Made.RaplWrap => ([Metrics.CpuPower], [4]),
             Made.AbsurdInput or Made.Replugged => ([Metrics.CpuTemperature], [60]),
             Made.SleepingNvidia => ([Metrics.GpuTemperature], [null]),
