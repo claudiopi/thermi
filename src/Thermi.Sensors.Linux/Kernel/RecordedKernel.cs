@@ -60,6 +60,8 @@ internal sealed class RecordedKernel : IKernel
         _links = KernelJson.ReadLinks(Answer(KernelJson.LinksFile));
     }
 
+    public TimeSpan Spent() => TimeSpan.Zero;
+
     private static string? Text(string file)
     {
         try

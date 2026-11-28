@@ -80,6 +80,9 @@ internal sealed partial class RecordingKernel(IKernel kernel, string tree) : IKe
         kernel.Next();
     }
 
+    // A tree keeps every file each second, so that a replay finds each chip in each: no read of it is held back as costly.
+    public TimeSpan Spent() => TimeSpan.Zero;
+
     public void Dispose() => Flush();
 
     private void Flush()

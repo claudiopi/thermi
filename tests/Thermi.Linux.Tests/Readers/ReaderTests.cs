@@ -10,9 +10,10 @@ namespace Thermi.Linux.Tests.Readers;
 /// <summary>
 /// The readers over trees of hardware the recorded PCs lack, made as the kernel's documentation lays out its files: a
 /// laptop's battery beside a Bluetooth mouse's, AMD's and Intel's GPUs, RAPL's counter as it wraps, a chip with an
-/// input numbered past any real one, a USB pump plugged again, which takes the CPU's chip's number, and a laptop's
-/// NVIDIA and AMD cards falling asleep. Each reads as Windows' reads the same hardware; a sleeping card is read as
-/// missing, and NVML, whose open handles keep a card awake, is held only while the card is.
+/// input numbered past any real one, a USB pump plugged again, which takes the CPU's chip's number, a laptop's
+/// NVIDIA and AMD cards falling asleep, and a board's chip that costs much CPU to read. Each reads as Windows' reads the
+/// same hardware; a sleeping card is read as missing, and NVML, whose open handles keep a card awake, is held only while
+/// the card is.
 /// </summary>
 public sealed class ReaderTests
 {
@@ -63,6 +64,40 @@ public sealed class ReaderTests
             Assert.Equal((awake || made == Made.SleepingNvidia ? 1 : 0, awake), (kernel.Starts, kernel.Held));
             // A mouse's battery is the mouse's, and names it by its address.
             Assert.DoesNotContain(second.Sensors, sensor => sensor.Id.Contains("hid-", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    // A Super I/O chip whose driver takes 96 ms of CPU to read it, as an ASUS board's NCT6798D, is read again only once
+    // that is 1 % of a core, ten seconds on, sending its last values between, while the board's EC, cheap, is read each second.
+    [Fact]
+    public void AChipCostlyToReadIsReadLessOften()
+    {
+        var root = Directory.CreateTempSubdirectory("thermi-costly-").FullName;
+        try
+        {
+            var tree = new Tree(root);
+            var seconds = Enumerable.Range(0, 12).ToList();
+            foreach (var second in seconds)
+            {
+                tree.Cpu(second);
+                var rpm = string.Create(CultureInfo.InvariantCulture, $"{1000 + second}");
+                tree.Files(second, "/sys/class/hwmon/hwmon0", ("name", "nct6798"), ("fan1_input", rpm));
+                tree.Link(second, "/sys/class/hwmon/hwmon0/device", "/sys/devices/platform/nct6775.656");
+                tree.Files(second, "/sys/class/hwmon/hwmon1", ("name", "asusec"), ("fan1_input", rpm));
+                tree.Link(second, "/sys/class/hwmon/hwmon1/device", "/sys/devices/platform/asus-ec-sensors");
+                tree.Flush(second);
+            }
+
+            var sensors = new LinuxSensors(new Costing(new RecordedKernel(root), "/sys/class/hwmon/hwmon0/", TimeSpan.FromMilliseconds(96)));
+            var fans = seconds.Select(_ => sensors.Read().Sensors.Where(sensor => sensor.Type == "Fan")
+                .ToDictionary(sensor => sensor.Hardware, sensor => sensor.Value, StringComparer.Ordinal)).ToList();
+
+            Assert.Equal(seconds.Select(second => (double?)(1000 + (second < 10 ? 0 : 10))), fans.Select(fan => fan["Nuvoton NCT6798"]));
+            Assert.Equal(seconds.Select(second => (double?)(1000 + second)), fans.Select(fan => fan["ASUS EC"]));
         }
         finally
         {
@@ -201,6 +236,38 @@ public sealed class ReaderTests
         public void LetGoOfNvml() => Held = false;
 
         public void Next() => kernel.Next();
+
+        public TimeSpan Spent() => kernel.Spent();
+    }
+
+    // A kernel whose files under a folder cost the CPU as a chip's driver may: each read of one spends that time.
+    private sealed class Costing(IKernel kernel, string costly, TimeSpan each) : IKernel
+    {
+        private TimeSpan _spent;
+
+        public string? Read(string path)
+        {
+            if (path.StartsWith(costly, StringComparison.Ordinal))
+            {
+                _spent += each;
+            }
+
+            return kernel.Read(path);
+        }
+
+        public IReadOnlyList<string> List(string folder) => kernel.List(folder);
+
+        public string? Resolve(string path) => kernel.Resolve(path);
+
+        public Moment? Now() => kernel.Now();
+
+        public IReadOnlyList<GpuAnswer>? Nvml() => kernel.Nvml();
+
+        public void LetGoOfNvml() => kernel.LetGoOfNvml();
+
+        public void Next() => kernel.Next();
+
+        public TimeSpan Spent() => _spent;
     }
 
     // A tree as thermi-sensors --tree records one: each second's files at their escaped paths, its links and its moment.

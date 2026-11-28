@@ -11,8 +11,9 @@ namespace Thermi.Sensors.Linux.Reading;
 /// <see cref="SystemSensors"/> adds. The hardware is found at the first read, again whenever <c>hwmon</c>'s chips change,
 /// as a USB pump plugged again may take another chip's <c>hwmonN</c>, and every <see cref="RescanEvery"/> reads, as
 /// Windows' service rescans, for a module that loads or a drive that comes; a chip is known by its device's path, which a
-/// rescan keeps where the kernel renumbers <c>hwmonN</c>. Adapters, which come and go, are listed each
-/// second, and the counters that make rates are kept across rescans. A read never throws: a reader that fails on what the
+/// rescan keeps where the kernel renumbers <c>hwmonN</c>. A board's chip that costs much to read is read less often
+/// (<see cref="ChipPace"/>). Adapters, which come and go, are listed each second, and the counters that make rates are
+/// kept across rescans. A read never throws: a reader that fails on what the
 /// kernel gave reads nothing that second, and the hardware is found again at the next, as a throw would end the service,
 /// and systemd would start it again into the same failure until it gave up. <paramref name="scrubbed"/> moves the
 /// address into the range kept for documentation, as a dump keeps it.
@@ -47,8 +48,7 @@ internal sealed class LinuxSensors(IKernel kernel, bool scrubbed = false)
             Guarded(() => found?.Cpu.Read(kernel, moment?.Elapsed).ToList()) ?? [],
             Guarded(() => found?.Gpus.Read().ToList()) ?? [],
             Guarded(() => MemoryReader.Read(kernel).ToList()) ?? [],
-            Guarded(() => found?.Board.SelectMany(chip =>
-                Hwmon.Read(kernel, chip, $"/{chip.Name}/{chip.Device}", ChipKinds.HardwareTypeOf(chip.Kind), ChipKinds.NameOf(chip.Name))).ToList()) ?? [],
+            Guarded(() => found is null ? null : Board(found, moment?.Elapsed)) ?? [],
             Guarded(() => found?.Drives.Read(kernel, moment?.Elapsed).ToList()) ?? [],
             Guarded(() => _network.Read(kernel, moment?.Elapsed).ToList()) ?? [],
             Guarded(() => found?.Batteries.Read().ToList()) ?? [],
@@ -81,6 +81,10 @@ internal sealed class LinuxSensors(IKernel kernel, bool scrubbed = false)
         }
     }
 
+    private List<RawSensor> Board(Found found, double? at) =>
+        [.. found.Board.SelectMany(chip => found.Pace.Read(kernel, chip, at, () =>
+            [.. Hwmon.Read(kernel, chip, $"/{chip.Name}/{chip.Device}", ChipKinds.HardwareTypeOf(chip.Kind), ChipKinds.NameOf(chip.Name))]))];
+
     private static uint? Address(string? address) =>
         IPAddress.TryParse(address, out var parsed) && parsed.GetAddressBytes() is { Length: 4 } bytes ? SystemSensors.AddressOf(bytes) : null;
 
@@ -97,9 +101,10 @@ internal sealed class LinuxSensors(IKernel kernel, bool scrubbed = false)
             new GpuReader(kernel, Of(ChipKind.GpuAmd, ChipKind.GpuIntel)),
             Of(ChipKind.SuperIO, ChipKind.EmbeddedController, ChipKind.Motherboard),
             new DriveReader(kernel, Of(ChipKind.Storage), _drives),
-            new BatteryReader(kernel));
+            new BatteryReader(kernel),
+            new ChipPace());
     }
 
     private sealed record Found(
-        CpuReader Cpu, GpuReader Gpus, IReadOnlyList<Chip> Board, DriveReader Drives, BatteryReader Batteries);
+        CpuReader Cpu, GpuReader Gpus, IReadOnlyList<Chip> Board, DriveReader Drives, BatteryReader Batteries, ChipPace Pace);
 }

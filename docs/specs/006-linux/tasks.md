@@ -11,7 +11,7 @@
 ## B2. The sensors
 
 - [x] T4. The trees of the 5900X desktop recorded with `--tree`, as the service's user and as a plain user, and of a virtual machine, and their snapshots. (R7)
-- [x] T5. `Thermi.Sensors.Linux`'s readers over a root folder: `hwmon`, `/proc`, `/sys`, the energy counters, the uptime, local IP and clock. (R3)
+- [x] T5. `Thermi.Sensors.Linux`'s readers over a root folder: `hwmon`, `/proc`, `/sys`, the energy counters, the uptime, local IP and clock. (R3) A board's chip that costs its driver much CPU to read is read less often, for R14: the physical PC's NCT6798D takes 96 ms each time its driver refreshes it, every two seconds when read each second, which held the service at 6 % of a core.
 - [x] T6. NVML, loaded only when present. (R3)
 - [x] T7. Linux's names and the -40 °C rule in Core's `SensorMap`. (R6)
 - [x] T8. The socket's server and client, with the peer check and the share of connections. (R5)

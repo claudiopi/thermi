@@ -27,6 +27,8 @@ internal sealed partial class StandInKernel(IKernel kernel) : IKernel
 
     public void Next() => kernel.Next();
 
+    public TimeSpan Spent() => kernel.Spent();
+
     private string StandIn(string name)
     {
         if (!Address().IsMatch(name))

@@ -30,6 +30,9 @@ internal interface IKernel
     /// <summary>Moves to the next second's answers, before each read of the sensors.</summary>
     void Next();
 
+    /// <summary>The CPU time the service has spent so far, which tells what a read cost; a replay reads files and spends none.</summary>
+    TimeSpan Spent();
+
     /// <summary>Whether a path is the kernel's, under <c>/sys</c> or <c>/proc</c>: all a reader reads, and all a tree keeps.</summary>
     static bool Holds(string path) => path.StartsWith("/sys/", StringComparison.Ordinal) || path.StartsWith("/proc/", StringComparison.Ordinal);
 }

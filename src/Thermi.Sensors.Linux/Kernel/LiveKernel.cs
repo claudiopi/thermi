@@ -100,6 +100,8 @@ internal sealed class LiveKernel(TimeProvider time) : IKernel, IDisposable
         // The live system is always at its own second.
     }
 
+    public TimeSpan Spent() => Environment.CpuUsage.TotalTime;
+
     public void Dispose() => LetGoOfNvml();
 
     private static string? Target(string path)
