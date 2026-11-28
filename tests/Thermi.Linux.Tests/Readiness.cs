@@ -33,10 +33,27 @@ internal static class Readiness
 
     /// <summary>
     /// Whether <paramref name="ready"/>, from <see cref="ListenAsync"/>, came before <paramref name="ended"/>, the end of what
-    /// was to say it: one that ended never says it, and a test waits for it no longer.
+    /// was to say it: one that ended never says it, and a test waits for it no longer. One that still runs and never said
+    /// it fails here, saying so: a wait that ran out also ends first.
     /// </summary>
-    public static async Task<bool> BeforeEndAsync(Task ready, Task ended) =>
+    public static async Task<bool> BeforeEndAsync(Task ready, Task ended)
+    {
 #pragma warning disable VSTHRD003 // Both run on their own, on no thread of a UI's: this only sees which ends first.
-        await Task.WhenAny(ready, ended).ConfigureAwait(false) == ready;
+        if (await Task.WhenAny(ready, ended).ConfigureAwait(false) != ready)
+        {
+            return false;
+        }
+
+        try
+        {
+            await ready.ConfigureAwait(false);
+        }
 #pragma warning restore VSTHRD003
+        catch (TimeoutException late)
+        {
+            throw new TimeoutException($"systemd did not say READY=1 in {Bound.Line.TotalSeconds:0} s, and has not ended.", late);
+        }
+
+        return true;
+    }
 }
