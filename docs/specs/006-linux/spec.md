@@ -37,14 +37,17 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
   Release check: Install on Linux.
 - R10. The overlay shows what it shows on Windows, by Core's layout and looks: every style, level, missing value and "Sensors stopped", sharp at each monitor's scale, fractional ones too. `thermi preview` writes the same picture.
   Exception: With no driver to install on Linux, a value never reads "Driver" in place of "–".
+  Exception: Off GNOME, where the desktop tells a program nothing of its panels' colours, a look that matches the panel takes it to be dark, so a light panel's overlay keeps dark pills.
 - R11. An overlay is dragged to its place, snaps to a corner of its monitor's work area or onto a panel of it as onto a taskbar, GNOME's top bar among them, anywhere along it, and stays there across restarts and monitor changes, as spec 002 says of the taskbar on Windows.
   Release check: Restart and sign-in on Linux.
   Exception: Off GNOME and KDE Plasma, whose panel's launcher, task manager and tray plasmashell's scripting tells, a desktop tells a program nothing of where its tray sits, so a panel's overlay keeps the 220 px reserve before the panel's end, with no mark or magnet beside the tray. So does a Plasma panel that does not fill its monitor's edge or holds no tray. On Plasma's panel, whose task manager fills what the others leave, an overlay dropped anywhere along it, its start too, sits beside the tray, never over the task manager's buttons.
+  Exception: Off GNOME, a panel that hides itself keeps no room for windows, no strut on X11 and no exclusive zone on Wayland, so thermi knows of none there: its overlay floats at the monitor's edge, as on an edge with no panel.
 - R12. A right-click opens the overlay's menu of Core's entries, on GNOME as the Shell's own popup menu and elsewhere as GTK's. Each entry does what it does on Windows, and Undo takes it back; "Task Manager" opens the desktop's system monitor.
   Exception: The Shell's popup menu has no access keys, so on GNOME no entry shows or takes one.
 - R23. The desktop gestures of spec 002 work on every surface: a drag moves an overlay and merges it into another; a hold lifts a pill or an item to join it elsewhere or make it an overlay; Esc puts everything back; Ctrl and the wheel resize. Fade near the pointer fades as on Windows on GNOME and X11, and on KDE Plasma, Hyprland and Sway, which tell a program where the pointer is only over its own surfaces, as the pointer comes over the overlay.
 - R13. The overlay starts at sign-in, one per person's session, comes back on its own if it fails, and not after "Exit thermi"; starting at sign-in is a switch, as on Windows.
   Release check: Restart and sign-in on Linux.
+  Exception: On GNOME and on layer-shell desktops an overlay has no frame, close button or taskbar entry, so nothing closes it but "Exit thermi"; on X11 a window manager's close ends thermi, as closing an overlay window does on Windows.
 - R14. At rest the overlay holds 48 MB and 0.5 % of one core, the desktop's compositor no more than 0.5 % of one core beyond what it takes without thermi, the idle window 1 %, and the service 80 MB and 3 %, as `AGENTS.md`'s budgets say.
   Release check: Costs at rest on Linux.
 
@@ -52,7 +55,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 
 - R18. The settings window of spec 002 runs on Linux, in a process of its own, with the same page and every requirement of spec 002 but those it names Windows' and those R19 gives their Linux form. It opens from the overlay's menu, thermi's icon, a double-click on a value, `thermi settings` and the desktop's app launcher; opened from the overlay, it comes in front of the windows over it, as on Windows, but on Sway, whose default `focus_on_window_activation urgent` only marks it urgent, a known limit; one window exists; and closing it leaves no process behind.
   Release check: Open the window every way on Linux.
-  Exception: On GNOME, the Shell keeps every overlay above every window, so the window does not sit above the overlays it is not editing.
+  Exception: On Linux the overlays sit above every window, GNOME's in the Shell's top chrome, the others in layer shell's top layer or as X11's docks, so the window does not sit above the overlays it is not editing.
 - R19. On Linux, the window follows the desktop's light or dark scheme and its accent unless Settings chose its own theme, and its high contrast even then, as on Windows; "Start with Windows" reads "Start at sign-in"; the fixes it offers are those of Linux: installing or enabling the GNOME extension, and starting a stopped service through the desktop's own prompt for administrator rights, with no driver to install; and the page reads well and reads aloud with Orca as with Narrator. Its texts are in every translation.
   Release check: Orca, themes and the window's frame on Linux.
   Exception: With no driver, a double-click on a value opens no driver bar.
@@ -60,6 +63,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 ### Tray, hotkeys and notices
 
 - R20. thermi's icon and the items' tray icons of spec 002 show on every desktop: in GNOME's top bar through the extension, and elsewhere in the desktop's tray as StatusNotifierItems, with the same menus, values and colors, and kept across restarts.
+  Exception: Off GNOME the icons show only where a StatusNotifier tray runs, as Plasma's does; on Sway, Xfce, MATE and Cinnamon it takes a bar or panel with one. GNOME's top bar shows no tooltips, so there an icon's hottest value and what it hides are its screen reader's name alone.
 - R21. The four hotkeys of spec 002 work on every desktop: through the extension on GNOME, through the desktop's GlobalShortcuts portal on KDE Plasma and Hyprland, which asks the person once, and by grabbing the keys on X11. A combination another program holds is refused as on Windows.
 - R22. thermi's notices, the first start's, "Notify me when critical" and the extension's, are the desktop's own notifications, and their buttons do what they do on Windows.
 
