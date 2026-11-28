@@ -72,7 +72,7 @@ internal sealed partial class OverlayLinks : IDisposable
         _terminated = Termination.QuitsOn(_quit);
         _parts.Window.Start(firstStart);
         var folder = _folder = new ProgramFolder(_parts.Time, _parts.Log);
-        var idle = new SessionIdle(_bus);
+        var idle = new SessionIdle(_bus, _parts.Log);
         _handOver = new OverlayHandOver(() => folder.SinceChange, () => (idle.SinceInput(), idle.Locked()), _quit, _parts.Log);
         _portal = new DesktopPortal(_bus, Looked, _parts.Log);
         Watch();
