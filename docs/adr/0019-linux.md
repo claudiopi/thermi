@@ -55,3 +55,14 @@ Two projects, as ADR 0018 lays out, and one GNOME Shell extension:
 ## What it changes in earlier ADRs
 
 - `docs/adr/0013-agents-cli-and-mcp.md`: "Nothing `thermi-cli` runs starts the service" holds on Windows. On Linux a `thermi-cli` read starts it, as any client's does, through its socket; `thermi-cli` still starts nothing itself.
+
+## Addendum: WebKit's sandbox under Ubuntu's user namespace restriction
+
+**Why.** Ubuntu turns on `kernel.apparmor_restrict_unprivileged_userns` from 24.04: a program AppArmor does not confine that makes a user namespace lands in its `unprivileged_userns` profile, which takes away what the namespace was for. WebKitGTK runs its web process and its D-Bus proxy in bubblewrap's sandbox, which makes one. Measured on Ubuntu 24.04 with GNOME 46: AppArmor refuses bwrap's uid map, WebKit aborts, and the settings window never opens, however it is asked for. Ubuntu 26.04 is spared, as its AppArmor ships `bwrap-userns-restrict`, a profile for bwrap itself; Debian, Fedora and Arch do not restrict user namespaces. The tests' containers run AppArmor unconfined, so only the release checks' Ubuntu 24.04 machine shows it.
+
+**Decision.** The `.deb` installs `/etc/apparmor.d/thermi`, a conffile: a profile for `/usr/lib/thermi/thermi` alone, `/usr/bin/thermi` being its link, in unconfined mode, that allows `userns`. It is the pattern Ubuntu ships for epiphany, which embeds WebKitGTK too, and for Chrome. It confines nothing: thermi runs as it did, with the namespace the restriction took back. What the window starts runs under it as well, WebKit's web and network processes, bwrap and `xdg-dbus-proxy`, as `ps -eZ` shows on 24.04. The package's scripts load it on install and update and unload it on removal, only where the kernel has AppArmor and its parser is installed, and a failure never fails the package. The `.rpm` and the AUR's package have none.
+
+**Rejected.**
+
+- **Turning WebKit's sandbox off**, with `WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS`: the page loads only thermi's own files, but the sandbox is the one wall between a flaw in WebKit and the person's account.
+- **Asking the person to turn the restriction off** with `sysctl`: it lowers a protection for every program on the PC, by hand, for one of them.
