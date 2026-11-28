@@ -68,7 +68,8 @@ public sealed class SdkTests
                     }
                 }
 
-                found.Add(ThermiClient.Locate(onPath + Path.PathSeparator + Path.Combine(root, "none"), programFiles, local));
+                var path = onPath + Path.PathSeparator + Path.Combine(root, "none");
+                found.Add(ThermiClient.OnPathOr(path, ThermiClient.InstallsOn(windows: true, programFiles, local)));
             }
 
             Assert.Equal([null, .. installs.Reverse().Select(folder => Path.Combine(folder, name))], found);

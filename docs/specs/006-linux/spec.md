@@ -51,7 +51,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 - R13. The overlay starts at sign-in, one per person's session, comes back on its own if it fails, and not after "Exit thermi"; starting at sign-in is a switch, as on Windows.
   Release check: Restart and sign-in on Linux.
   Exception: On GNOME and on layer-shell desktops an overlay has no frame, close button or taskbar entry, so nothing closes it but "Exit thermi"; on X11 a window manager's close ends thermi, as closing an overlay window does on Windows.
-- R14. At rest the overlay holds 48 MB and 0.5 % of one core, the desktop's compositor no more than 0.5 % of one core beyond what it takes without thermi, the idle window 1 %, and the service 80 MB and 3 %, as `AGENTS.md`'s budgets say. A board's chip whose read costs over 10 ms of CPU is read only as often as keeps it within 1 % of one core, and its last values show between.
+- R14. At rest the overlay holds 48 MB and 0.5 % of one core, the desktop's compositor no more than 0.5 % of one core beyond what it takes without thermi, the idle window 1 %, and the service 80 MB and 3 %, as `AGENTS.md`'s budgets say. A board's chip whose read costs over 10 ms of CPU is read only as often as keeps it within 1 % of one core, and its last values show between. Exception: where WebKitGTK paints in software, as it does on an NVIDIA card's driver, the idle window with WebKit's processes holds 3.5 % of one core, as WebKit's painting alone takes about 1 %.
   Release check: Costs at rest on Linux.
 
 ### The settings window

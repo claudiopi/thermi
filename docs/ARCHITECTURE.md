@@ -13,6 +13,7 @@ sequenceDiagram
     participant Chip as CPU chip
     participant Lhm as LhmSensorSource
     participant Server as SensorPipeServer
+    participant Broadcast as SnapshotBroadcast
     participant Client as SensorClient
     participant Host as OverlayHost
     participant Window as OverlayWindow
@@ -21,9 +22,10 @@ sequenceDiagram
     participant Layout as OverlayLayout
     participant Painter as Painter
     Lhm->>Chip: 1. read the register, through PawnIO
-    Server->>Lhm: 2. ReadAsync, through FramedSource, once a second while a client listens
-    Lhm-->>Server: Snapshot
-    Server->>Client: 3. one JSON line on the pipe "thermi-sensors"
+    Server->>Broadcast: TakeIn(stream, owner), each client of the pipe
+    Broadcast->>Lhm: 2. ReadAsync, through FramedSource, once a second while a client listens
+    Lhm-->>Broadcast: Snapshot
+    Broadcast->>Client: 3. one JSON line on the pipe "thermi-sensors"
     Host->>Client: 4. Latest, as each reading arrives: a snapshot under 3 s old, or none
     Host->>Window: Repaint(scene)
     Window->>Mark: Overlay(config, overlay, input, openedOnce)
@@ -38,7 +40,7 @@ sequenceDiagram
 
 1. **The chip.** The CPU keeps its temperature in a register that only kernel code may read. LibreHardwareMonitor reads it through PawnIO, a small signed driver. That is why the reader runs in `thermi-sensors`, a Windows service running as SYSTEM. A per-user install has no service: `thermi-sensors --user` runs as you, and reads what your rights allow, which leaves out this register. On Linux the kernel's `hwmon` drivers read the chips, NVML the NVIDIA card, and `thermi-sensors` reads their files under `/sys` and `/proc` as the user `thermi`, with no driver of thermi's (`docs/adr/0019-linux.md`). On a Mac it reads the SMC, the HID sensors and IOReport as you, with no root (`docs/adr/0021-macos.md`).
 2. **The 1 s read.** `LhmSensorSource` updates each device once a second and turns what LibreHardwareMonitor says into a `Snapshot`: every sensor with its id, kind, name and value. A device that stalls holds back none of the others.
-3. **The pipe.** `SensorPipeServer` writes the snapshot as one line of JSON to every client of the named pipe `thermi-sensors`: Core's `SnapshotWriter` sends a new client the names once, then the values alone, and the client's `SnapshotLines` turns the lines back into snapshots. In a per-user install, the overlay starts `thermi-sensors --user`, a hidden process of yours, which serves the pipe `thermi-sensors-<your SID>`, owned by you, and ends 10 s after its last client leaves. The pipe is read-only: nobody can send the sensors a command. On Linux the same lines go down a Unix socket, `/run/thermi/sensors.sock`, which systemd opens and hands the service on the first connection, through the same `SnapshotBroadcast`. On a Mac they go down `~/Library/Application Support/thermi/sensors.sock`, which launchd opens for your LaunchAgent and hands the service, and Core's `SocketServer` serves it, as on Linux.
+3. **The pipe.** `SensorPipeServer` takes in each client of the named pipe `thermi-sensors` and hands it to Core's `SnapshotBroadcast`, which writes it the snapshot as one line of JSON: Core's `SnapshotWriter` sends a new client the names once, then the values alone, and the client's `SnapshotLines` turns the lines back into snapshots. In a per-user install, the overlay starts `thermi-sensors --user`, a hidden process of yours, which serves the pipe `thermi-sensors-<your SID>`, owned by you, and ends 10 s after its last client leaves. The pipe is read-only: nobody can send the sensors a command. On Linux the same lines go down a Unix socket, `/run/thermi/sensors.sock`, which systemd opens and hands the service on the first connection, through the same `SnapshotBroadcast`. On a Mac they go down `~/Library/Application Support/thermi/sensors.sock`, which launchd opens for your LaunchAgent and hands the service, and Core's `SocketServer` serves it, as on Linux.
 4. **The client.** In `thermi.exe`, which runs as you, `SensorClient` reads the pipe, over Thermi.App's `SensorReader`. It trusts the service's pipe only when SYSTEM or Administrators own it; the per-user pipe only when you, SYSTEM or Administrators own it and `SensorPipes` finds its server running from your install folder, at an integrity level no lower than the overlay's. A snapshot older than 3 s counts as gone, and the overlay says "Sensors stopped" instead of showing old numbers. Each reading that arrives has `OverlayHost` ask each `OverlayWindow` to repaint; its once-a-second tick repaints only once no reading has come for 1.5 s, so stopped sensors still show as stopped. The window asks Core's `ThermiMark` what its overlay shows.
 
    On Linux, `SocketFeed` reads the socket over the same `SensorReader`, and trusts it only when root or the user `thermi` serves it. Only where that one is missing or refuses does it read the one `thermi-sensors --console` serves in your runtime folder, which only you and root can write, trusted when you or root serve it. `THERMI_SENSORS_SOCKET` names one socket to read in their place, trusted as your own; the Linux tests use it (`tests/Thermi.Linux.Tests/README.md`).

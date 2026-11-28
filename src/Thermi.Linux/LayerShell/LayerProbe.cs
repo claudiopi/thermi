@@ -14,7 +14,8 @@ namespace Thermi.Linux.LayerShell;
 /// neither tells, the room is taken to be on the left and the top. Nothing of it shows or takes the pointer. It stays as
 /// long as its monitor: a panel that maps after thermi, as plasmashell or a bar Sway's config starts, one that grows,
 /// moves or hides itself changes the size of the surface kept off the panels, and the room is measured again. A compositor
-/// that gives it its size again for each of its frames, as Hyprland, would keep it drawing: it is told restless, and goes.
+/// that gives it its size again for each of its frames, as Hyprland does a surface that draws nothing, would keep it
+/// drawing: it draws a pixel all but transparent, and one sized again past its measure all the same is told restless, and goes.
 /// </summary>
 internal sealed class LayerProbe : IDisposable
 {
@@ -157,6 +158,14 @@ internal sealed class LayerProbe : IDisposable
 
         LayerShellLibrary.SetExclusiveZone(window, zone);
         PictureWindow.Unpainted(window);
+        // Hyprland configures a surface that draws nothing again for each of its commits, which each configure brings: the
+        // probe would go restless and miss every later change of the zones. A pixel all but transparent keeps it still.
+        area.SetDrawFunc(static (_, cr, _, _) =>
+        {
+            cr.SetSourceRgba(0, 0, 0, 1 / 255.0);
+            cr.Rectangle(0, 0, 1, 1);
+            cr.Fill();
+        });
         window.SetChild(area);
         (int Width, int Height)? last = null;
         area.OnResize += (_, size) =>
