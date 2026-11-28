@@ -38,6 +38,16 @@ internal static class Raw
             }
         }, cancel);
 
+    /// <summary>A key whose read fails in the second <paramref name="second"/> alone, as the SMC answers an error mid-read.</summary>
+    public static Task FailAsync(string recording, string key, int second, CancellationToken cancel) =>
+        EachSecondAsync(recording, "smc.json", (each, smc) =>
+        {
+            if (each == second && smc.ContainsKey(key))
+            {
+                smc[key] = null;
+            }
+        }, cancel);
+
     /// <summary>
     /// The Mac's names written where IOKit's registry gives them: its host's and its person's names, its serial number
     /// and its adapters' MAC addresses.

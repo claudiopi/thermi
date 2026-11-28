@@ -30,12 +30,12 @@ public sealed partial class ServiceTests
     }
 
     [Theory(Timeout = Bound.Test)]
-    [InlineData(Mac.AtRest, Skip = "Waiting for its code")]
-    [InlineData(Mac.UnderLoad, Skip = "Waiting for its code")]
-    [InlineData(Mac.VanishingKeys, Skip = "Waiting for its code")]
-    [InlineData(Mac.OtherChip, Skip = "Waiting for its code")]
-    [InlineData(Mac.Fanless, Skip = "Waiting for its code")]
-    [InlineData(Mac.VirtualMachine, Skip = "Waiting for its code")]
+    [InlineData(Mac.AtRest)]
+    [InlineData(Mac.UnderLoad)]
+    [InlineData(Mac.VanishingKeys)]
+    [InlineData(Mac.OtherChip)]
+    [InlineData(Mac.Fanless)]
+    [InlineData(Mac.VirtualMachine)]
     public async Task TheServiceReadsWhatTheMacGives(Mac mac)
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -57,9 +57,9 @@ public sealed partial class ServiceTests
             var readings = SensorMap.Read(now, OverlayConfig.First);
             foreach (var metric in Metrics.All.Where(metric => metric.Label != MetricLabel.Fps))
             {
-                // A value the Mac does not give is missing, never a number: a vanished key, a fan that is not there.
-                var value = readings[metric.Id].Usable;
-                Assert.Equal(Missing(mac, metric, second) ? null : Timeless(metric) ? expected[metric.Id].Usable : value, value);
+                // A value the Mac does not give is missing, never a number: a vanished key, a fan that is not there. The
+                // uptime and the clock read the moment the recording kept, as the Mac read them then.
+                Assert.Equal(Missing(mac, metric, second) ? null : expected[metric.Id].Usable, readings[metric.Id].Usable);
             }
 
             // The CPU's temperature is its cores' hottest, and its power the CPU's energy over the second, as IOReport gives it.
@@ -74,13 +74,13 @@ public sealed partial class ServiceTests
         }
     }
 
-    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
+    [Fact(Timeout = Bound.Test)]
     public async Task AMacRecordingReplaysAndNamesNoMac()
     {
         var cancel = TestContext.Current.CancellationToken;
         await using var session = new OwnSession();
         var mac = Raw.Copy(session, SensorFeed.MacMini);
-        string[] names = ["claudios-mac-mini", "claudio", "C02ZK1ABCDEF", "a8:a1:59:12:34:56"];
+        string[] names = ["robins-mac-mini", "robin", "C02ZK1ABCDEF", "a8:a1:59:12:34:56"];
         await Raw.NameTheMacAsync(mac, names, cancel);
         var raw = Path.Combine(session.Temporary, "raw");
         var dump = Path.Combine(session.Temporary, "dump.jsonl");
@@ -100,28 +100,28 @@ public sealed partial class ServiceTests
     // launchd starts the service at its socket's first client, in the person's background session, which an SSH login
     // shares; another user's server stands where the service's socket would be, or where THERMI_SENSORS_SOCKET points.
     [Theory(Timeout = Bound.Test)]
-    [InlineData(Client.Person, Skip = "Waiting for its code")]
-    [InlineData(Client.OverSsh, Skip = "Waiting for its code")]
-    [InlineData(Client.AnotherUsersServer, Skip = "Waiting for its code")]
-    [InlineData(Client.Writer, Skip = "Waiting for its code")]
-    [InlineData(Client.NamedSocket, Skip = "Waiting for its code")]
+    [InlineData(Client.Person)]
+    [InlineData(Client.OverSsh)]
+    [InlineData(Client.AnotherUsersServer)]
+    [InlineData(Client.Writer)]
+    [InlineData(Client.NamedSocket)]
     public async Task TheSocketServesOnlyThePersonsService(Client client)
     {
         var cancel = TestContext.Current.CancellationToken;
         await using var session = OwnSession.OnScreen();
-        await WriteScriptsAsync(session, cancel);
-        var named = Path.Combine(session.Temporary, "other.sock");
-        if (client is Client.AnotherUsersServer or Client.NamedSocket)
+        await File.WriteAllTextAsync(Path.Combine(session.Temporary, "writer.py"), Writer, cancel);
+        await using var impostor = client is Client.AnotherUsersServer or Client.NamedSocket ? await Impostor.StartAsync(session, cancel) : null;
+        if (client == Client.AnotherUsersServer)
         {
-            await ImpostorAsync(session, client == Client.NamedSocket ? named : session.Socket, cancel);
+            // Another user's server where the service's socket would be: the session's socket leads to it.
+            File.CreateSymbolicLink(session.Socket, impostor!.Socket);
         }
-
-        if (client != Client.AnotherUsersServer)
+        else
         {
             await Launchd.LoadServiceAsync(session, SensorFeed.MacMini, cancel);
         }
 
-        var said = await ConnectAsync(session, client, named, cancel);
+        var said = await ConnectAsync(session, client, impostor?.Socket ?? "", cancel);
         var left = TimeProvider.System.GetTimestamp();
         var (_, user) = await session.DomainsAsync(cancel);
         var service = await Launchd.PrintAsync(session, user, Launchd.ServiceLabel, cancel);
@@ -142,10 +142,10 @@ public sealed partial class ServiceTests
         }
 
         Assert.True(client == Client.AnotherUsersServer || service is not null, "launchd had no service to start at the socket.");
-        Assert.True(!trusted || ended >= 10, $"The service ended {ended} s after the last client left.");
+        Assert.True(!trusted || ended is >= 10 and < 15, $"The service ended {ended} s after the last client left.");
     }
 
-    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
+    [Fact(Timeout = Bound.Test)]
     public async Task TheAgentsAreThePersonsAlone()
     {
         var cancel = TestContext.Current.CancellationToken;
@@ -164,7 +164,7 @@ public sealed partial class ServiceTests
         string?[] gone =
             [await Launchd.PrintAsync(session, user, Launchd.ServiceLabel, cancel), await Launchd.PrintAsync(session, gui, Launchd.OverlayLabel, cancel)];
         var off = await session.RunAsync(Built.Thermi, ["register", "--open-at-login", "off"], cancel: cancel);
-        var overlayOff = await File.ReadAllTextAsync(Path.Combine(agents, $"{Launchd.OverlayLabel}.plist"), cancel);
+        var overlayOff = await PackageTests.PlistAsync(session, Path.Combine(agents, $"{Launchd.OverlayLabel}.plist"), cancel);
 
         // Both loaded with no prompt, each in its session: the service started by its socket and every 4 hours to check for
         // updates; the overlay kept alive when it fails, and not once it exits with 0, as Exit thermi does.
@@ -181,11 +181,8 @@ public sealed partial class ServiceTests
         Assert.Empty(left);
         Assert.Equal(await File.ReadAllTextAsync(Built.Config("v6.json"), cancel), await File.ReadAllTextAsync(settings, cancel));
         // With Open at login off, the overlay's agent stays, so the window turns it on again, but launchd starts it at no login.
-        Assert.Contains("<key>RunAtLoad</key>\n  <false/>", overlayOff.ReplaceLineEndings("\n"), StringComparison.Ordinal);
+        Assert.False((bool)overlayOff["RunAtLoad"]!);
     }
 
     private static List<Snapshot> Snapshots(string file) => [.. File.ReadLines(file).Select(line => SnapshotJson.Read(line)!)];
-
-    // Clocks and counters of time read the moment they replay at, not the one they were recorded at.
-    private static bool Timeless(Metric metric) => metric != Metrics.Clock && metric != Metrics.Uptime;
 }
