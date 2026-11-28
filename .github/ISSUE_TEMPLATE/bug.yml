@@ -6,7 +6,7 @@ body:
     attributes:
       value: >-
         Thanks. Every field here helps us reproduce the bug on a PC like yours.
-        Before you attach a file, look it over: the logs name files under your profile, so they may show your Windows user name.
+        Before you attach a file, look it over: the logs name files under your profile, so they may show your user name.
   - type: input
     id: version
     attributes:
@@ -17,8 +17,9 @@ body:
   - type: input
     id: windows
     attributes:
-      label: Windows version
-      placeholder: Windows 11 24H2
+      label: Windows version, or Linux distribution and desktop
+      description: On Linux, the distribution and the desktop, with GNOME's or KDE Plasma's version, and whether it runs on Wayland or X11.
+      placeholder: Windows 11 24H2, or Ubuntu 26.04 with GNOME 50 on Wayland
     validations:
       required: true
   - type: textarea
@@ -50,11 +51,14 @@ body:
     attributes:
       label: What the sensors read
       description: >-
-        For a wrong or missing value: run `thermi-sensors --dump admin.json` in a terminal opened as administrator, and
-        `thermi-sensors --dump user.json` in a normal one, and attach both files.
+        For a wrong or missing value: on Windows, run `thermi-sensors --dump admin.json` in a terminal opened as administrator,
+        and `thermi-sensors --dump user.json` in a normal one, and attach both files. On Linux, run
+        `sudo /usr/lib/thermi/thermi-sensors --tree tree-sudo` and `/usr/lib/thermi/thermi-sensors --tree tree-user`, and
+        attach both folders in one archive, as `tar czf trees.tar.gz tree-sudo tree-user`.
   - type: textarea
     id: logs
     attributes:
       label: Logs
       description: >-
-        Attach `thermi.log` and, for the settings window, `thermi-window.log`, from `%LOCALAPPDATA%\thermi`.
+        Attach `thermi.log` and, for the settings window, `thermi-window.log`, from `%LOCALAPPDATA%\thermi` on Windows or
+        `~/.local/state/thermi` on Linux; on Linux, the service's too, from `journalctl -u thermi-sensors`.
