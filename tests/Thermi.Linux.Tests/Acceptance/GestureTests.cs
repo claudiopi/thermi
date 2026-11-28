@@ -141,7 +141,7 @@ public sealed partial class GestureTests
         Assert.Equal(0, changed);
         Assert.Equal(ThermiConfigJson.Write(joined), ThermiConfigJson.Write(kept));
         Assert.Equal(first.Size + (2 * OverlaySizes.Step), grown.Overlays[0].Size, 6);
-        await FadesAsync(desktop, thermi, row, cancel);
+        await FadesAsync(desktop, thermi, row, 2 * value.Item2, cancel);
         if (row is Desktop.KWin or Desktop.X11)
         {
             await InFrontAsync(desktop, thermi, (Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8), cancel);
@@ -254,14 +254,32 @@ public sealed partial class GestureTests
             },
             cancel);
         var cancelled = await desktop.ScreenshotAsync(cancel);
-        var (width, height) = await Pictures.SizeAsync(desktop.Session, screen, cancel);
-        var changed = await Pictures.ChangedAsync(desktop.Session, screen, cancelled, (0, 0, width, height), cancel);
+        var size = await Pictures.SizeAsync(desktop.Session, screen, cancel);
+        var changed = await ChangedButTheClockAsync(desktop, screen, cancelled, size, 2 * value.Y, cancel);
         return (changed, await Settings.ReadAsync(desktop.Session, cancel));
     }
 
+    // The pixels two screenshots differ by from the top of the screen down to height, but for the middle third of the
+    // strip the first overlay sits in, from the top down to strip: GNOME's clock is there, and turns its minute whenever
+    // it will, as between two screenshots once in sixty runs or so.
+    private static async Task<long> ChangedButTheClockAsync(
+        TestDesktop desktop, string before, string after, (int Width, int Height) size, int strip, CancellationToken cancel)
+    {
+        var (width, height) = size;
+        var third = width / 3;
+        (int, int, int, int)[] parts = [(0, 0, third, strip), (width - third, 0, third, strip), (0, strip, width, height - strip)];
+        long changed = 0;
+        foreach (var part in parts)
+        {
+            changed += await Pictures.ChangedAsync(desktop.Session, before, after, part, cancel);
+        }
+
+        return changed;
+    }
+
     // Fade near the pointer: GNOME's extension and X11 know where the pointer is anywhere, KWin tells thermi only over its
-    // surface. What fades is the overlay itself: the rest of the screen stays as it was.
-    private static async Task FadesAsync(TestDesktop desktop, SessionProcess thermi, Desktop row, CancellationToken cancel)
+    // surface. What fades is the overlay itself: the rest of the screen stays as it was, the bar's clock aside.
+    private static async Task FadesAsync(TestDesktop desktop, SessionProcess thermi, Desktop row, int strip, CancellationToken cancel)
     {
         var shown = await desktop.ScreenshotAsync(cancel);
         var (x, y) = Near(row);
@@ -271,7 +289,7 @@ public sealed partial class GestureTests
         var screen = await desktop.ScreenshotAsync(cancel);
         var (width, _) = await Pictures.SizeAsync(desktop.Session, shown, cancel);
         Assert.NotEqual(0, await Pictures.ChangedAsync(desktop.Session, shown, screen, (Fading.X, Fading.Y, 200, 40), cancel));
-        Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, shown, screen, (0, 0, width, Fading.Y - 50), cancel));
+        Assert.Equal(0, await ChangedButTheClockAsync(desktop, shown, screen, (width, Fading.Y - 50), strip, cancel));
     }
 
     // While the settings window is open no overlay fades, as on Windows, so what the person edits shows whole: with the
