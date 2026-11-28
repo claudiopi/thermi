@@ -1,6 +1,6 @@
 # thermi for AI agents and other programs
 
-`thermi-cli` reads the PC's sensors and changes thermi's settings, from any shell, with or without an overlay on screen. It is installed with thermi, or with its sensors alone (`scripts/install.ps1 -SensorsOnly`), and is on the machine's `PATH`. It never runs elevated, never asks for administrator rights and never installs or starts anything: when the sensors cannot be read, `status` says why and what a person does about it. Why it is built this way: `docs/adr/0013-agents-cli-and-mcp.md`.
+`thermi-cli` reads the PC's sensors and changes thermi's settings, from any shell, with or without an overlay on screen. It is installed with thermi, or with its sensors alone (`scripts/install.ps1 -SensorsOnly` on Windows, the `thermi-sensors` package on Linux), and is on the machine's `PATH`. It never runs elevated, never asks for administrator rights and never installs or starts anything itself: when the sensors cannot be read, `status` says why and what a person does about it. On Linux, systemd starts the sensor service when any client connects to its socket, `thermi-cli` too, and ends it 10 s after the last leaves. Why it is built this way: `docs/adr/0013-agents-cli-and-mcp.md`.
 
 ## As an MCP server
 
@@ -62,7 +62,7 @@ A command that ends with 0 or 1 prints one JSON document on stdout, with `"schem
 | 1 | Refused by thermi's rules, or by the person, who lets agents only read: nothing was written; the document on stdout holds the refusal's key, and stderr its English text. A command that writes, run from an elevated terminal, is refused with nothing on stdout. |
 | 2 | Bad arguments. |
 | 3 | The sensor service is not installed, stopped, stale or held by another program, or a per-user install's thermi is not running. |
-| 4 | The settings file is broken, newer than this thermi or locked, or Windows refused to write it or a saved look's file; nothing was written, and stderr says why. |
+| 4 | The settings file is broken, newer than this thermi or locked, or the system refused to write it or a saved look's file; nothing was written, and stderr says why. |
 
 Each value is in its type's fixed unit, whatever the overlay shows it in: °C, % (load and fan duty), MHz, W, RPM, GB, B/s, `s`, `fps`, `ms` for a frame's time, `V`, and `ipv4` for an address, whose `text` holds it. A value that cannot be read is null, with `why`, never 0; a 0 that is read, as a fan at rest, stays 0 and says why. An item's `shown` is its reading of this moment as the overlay writes it, in its unit and decimals; an overlay item that shows a minimum, maximum, average or smoothed value shows one over its own history, which `read --seconds` gives as `min`, `max` and `average`. A choice, as a type or a problem's code, is a word in kebab-case; a reader should take a word it does not know as unknown, not as an error.
 

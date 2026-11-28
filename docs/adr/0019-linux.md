@@ -51,3 +51,7 @@ Two projects, as ADR 0018 lays out, and one GNOME Shell extension:
 - What Windows' project holds and Linux needs too, as the desktop gestures, moves to `Thermi.App`.
 - The CI gets Ubuntu jobs, required by `CI gate`: Core's tests and the Linux tests, the page's Playwright tests on WebKit too, and the packages built and installed in clean containers of each distribution.
 - What to watch: the extension's review on extensions.gnome.org and each GNOME release, which can break an extension; the extension stays small so a new Shell costs little. `gtk4-layer-shell` must load before `libwayland-client`, which thermi sees to by loading it before GTK.
+
+## What it changes in earlier ADRs
+
+- `docs/adr/0013-agents-cli-and-mcp.md`: "Nothing `thermi-cli` runs starts the service" holds on Windows. On Linux a `thermi-cli` read starts it, as any client's does, through its socket; `thermi-cli` still starts nothing itself.
