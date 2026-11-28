@@ -86,7 +86,7 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
         AgentVerb.Edit => EditAsync(request.Text ?? "", stop),
         AgentVerb.Look => OneAtATimeAsync(() => LookAsync(request), stop),
         AgentVerb.FindCpuFan => FindCpuFanAsync(request.Switch == true, stop),
-        AgentVerb.StartWithWindows => Task.FromResult(StartWithWindows(request.Switch)),
+        AgentVerb.StartWithWindows => StartWithWindowsAsync(request.Switch, stop),
         AgentVerb.Watch or AgentVerb.Mcp => throw new ArgumentException($"{request.Verb} is served, not answered.", nameof(request)),
         _ => throw new ArgumentOutOfRangeException(nameof(request), request.Verb, "Unknown agent command."),
     };

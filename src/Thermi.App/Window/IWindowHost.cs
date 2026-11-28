@@ -54,7 +54,10 @@ internal interface IWindowHost
     void Editing(int? overlay, string? selected, string? pointed);
 
     /// <summary>Whether thermi starts at sign-in, as "Start with Windows" or "Start at sign-in" sets it.</summary>
-    bool StartsAtSignIn { get; set; }
+    Task<bool> StartsAtSignIn();
+
+    /// <summary>Turns start at sign-in on or off: an <see cref="IOException"/> when the OS refused.</summary>
+    Task StartAtSignIn(bool on);
 
     /// <summary>Asks the overlay to close, and then closes the window.</summary>
     void ExitThermi();

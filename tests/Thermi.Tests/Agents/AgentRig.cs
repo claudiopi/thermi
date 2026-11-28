@@ -183,7 +183,13 @@ internal sealed class AgentRig : IDisposable
         /// <summary>Whether the OS refuses every change, as systemctl --user does with no user manager to reach.</summary>
         public bool Refuses { get; set; }
 
-        public void Set(bool on) => On = Refuses ? throw new IOException("systemctl --user enable thermi.service ended with 1.") : on;
+        public Task<bool> OnAsync(CancellationToken cancel) => Task.FromResult(On);
+
+        public Task SetAsync(bool on, CancellationToken cancel)
+        {
+            On = Refuses ? throw new IOException("systemctl --user enable thermi.service ended with 1.") : on;
+            return Task.CompletedTask;
+        }
     }
 
     // What the rig says, read at each call, so a test changes it between commands.

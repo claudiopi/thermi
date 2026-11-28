@@ -127,7 +127,7 @@ internal static class WindowProcess
         PageServer.Serve(WebKit.WebContext.GetDefault());
         var editor = new WindowEditor(settings, Turn.Post, start.Log, start.Time);
         var chart = new ChartHistory(start.Time);
-        using var host = new LinuxHost(start.Log);
+        using var host = new LinuxHost(start.Log, start.Time);
         using var follow = asked.Updates.Follow(app, host, start.Time, start.Log);
         using var bridge = new PageBridge(host, start, editor, chart, Turn.Post);
         using var window = new SettingsWindow(app, bridge, host, start.Log, asked.Trace ? new TraceEvents(start.Time, Console.Error) : null, start.Item);

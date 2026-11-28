@@ -42,7 +42,7 @@ internal static class OverlayStart
         {
             var kind = DesktopSession.Start();
             FoundSurfaces.Write(kind);
-            new UserUnit().EnableOnce(UserUnit.Marker, log);
+            await new UserUnit(time).EnableOnceAsync(UserUnit.Marker, log, CancellationToken.None);
             // GirCore hands the session's one connection out as one object, which lives as long as the process.
             var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
             if (kind == SurfaceKind.NoDisplay)

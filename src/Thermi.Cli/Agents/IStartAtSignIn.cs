@@ -1,9 +1,12 @@
 namespace Thermi.Cli.Agents;
 
-/// <summary>Whether the overlay starts at sign-in, as the OS holds it, and the switch that changes it.</summary>
+/// <summary>
+/// Whether the overlay starts at sign-in, as the OS holds it, and the switch that changes it; asked of another program on
+/// Linux, which the window's loop and thermi-cli wait for without blocking.
+/// </summary>
 internal interface IStartAtSignIn
 {
-    bool On { get; }
+    Task<bool> OnAsync(CancellationToken cancel);
 
-    void Set(bool on);
+    Task SetAsync(bool on, CancellationToken cancel);
 }

@@ -21,7 +21,15 @@ internal sealed class DesktopHost(HostDesktop desktop) : IWindowHost
 
     public bool ForEveryone => false;
 
-    public bool StartsAtSignIn { get; set; }
+    private bool _signIn;
+
+    public Task<bool> StartsAtSignIn() => Task.FromResult(_signIn);
+
+    public Task StartAtSignIn(bool on)
+    {
+        _signIn = on;
+        return Task.CompletedTask;
+    }
 
     public IReadOnlyList<Screen> Screens() => [];
 
