@@ -7,7 +7,7 @@
     Here it runs only what the change can affect (scripts/check-scope.ps1), with the .NET half and the page's side by side
     and the steps that need nothing of each other at once; -Full runs every step. The CI runs every step of this same
     script, each part in a job of its own, so nothing merges red.
-    On Linux it builds and runs Thermi.Tests and the Linux tests.
+    On Linux it builds and runs Thermi.Tests and the Linux tests, and on a Mac Thermi.Tests and the macOS tests.
     Prints one line per step; on failure, only the errors and how to fix them.
 #>
 param(
@@ -20,8 +20,9 @@ param(
     # One part alone. DotNet is Core, Windows and WindowsAlone: Core's tests with the build's own checks, the Windows tests
     # that run in parallel, and those that run alone. On Linux it is LinuxCore and Linux: Thermi.Tests and the Linux tests;
     # the page's half runs there only as Web, its tests in Chromium and in WebKit, where on Windows they run in the Edge
-    # that Windows ships. The CI runs each part in a job of its own.
-    [ValidateSet('All', 'DotNet', 'Core', 'Windows', 'WindowsAlone', 'Web', 'LinuxCore', 'Linux')]
+    # that Windows ships. On a Mac it is MacCore and MacOS: Thermi.Tests, and the macOS tests with thermi.app's build. The
+    # CI runs each part in a job of its own.
+    [ValidateSet('All', 'DotNet', 'Core', 'Windows', 'WindowsAlone', 'Web', 'LinuxCore', 'Linux', 'MacCore', 'MacOS')]
     [string]$Part = 'All',
     # Every step, as the CI runs them, whatever the change.
     [switch]$Full,
@@ -42,8 +43,10 @@ $coverageFloors = [ordered]@{ 'Thermi.Core' = 90; 'Thermi.Cli' = 85 }
 $appResults = Join-Path $results 'app'
 $everything = $Ci -or $Full
 $half = if ($Part -eq 'Web') { 'web' } else { 'dotnet' }
-# Each OS builds its own projects: the Windows ones target Windows, and the Linux tests start what only Linux has.
-if ($IsWindows -and $Part -in 'LinuxCore', 'Linux') { throw "-Part $Part runs on Linux." }
+# Each OS builds its own projects: the Windows ones target Windows, the Linux tests start what only Linux has, and the
+# macOS ones build with Xcode.
+if (-not $IsLinux -and $Part -in 'LinuxCore', 'Linux') { throw "-Part $Part runs on Linux." }
+if (-not $IsMacOS -and $Part -in 'MacCore', 'MacOS') { throw "-Part $Part runs on macOS." }
 if (-not $IsWindows -and $Part -in 'Core', 'Windows', 'WindowsAlone') { throw "-Part $Part runs on Windows." }
 Set-Location $root
 
@@ -71,10 +74,10 @@ function Invoke-DotNet($Scope) {
     $core = $Part -in 'All', 'DotNet', 'Core'
     $windows = $Scope.WindowsTests -and $Part -in 'All', 'DotNet', 'Windows'
     $alone = $Scope.WindowsTests -and $Part -in 'All', 'DotNet', 'WindowsAlone'
-    # Core's job builds all, for the count lists every test project and the Linux projects build here too; the Windows jobs
-    # build what their tests run.
+    # Core's job builds all, for the count lists every test project and the Linux and macOS projects build here too, but
+    # thermi.app, which builds on a Mac alone; the Windows jobs build what their tests run.
     $built = if (-not $core) { 'tests/Thermi.Windows.Tests' }
-        elseif ($Scope.WindowsTests -or $Scope.LinuxTests -or $Scope.TestCount) { 'thermi.slnx' }
+        elseif ($Scope.WindowsTests -or $Scope.LinuxTests -or $Scope.MacTests -or $Scope.TestCount) { 'thermi.slnx' }
         else { 'tests/Thermi.Tests' }
     # Thermi.Windows' build writes what the page builds from and builds it, so the page's half waits for it.
     $script:buildsPage = $built -ne 'tests/Thermi.Tests'
@@ -137,11 +140,15 @@ function Invoke-DotNet($Scope) {
     }
 }
 
-# The .NET half on Linux: Thermi.Tests, whose Core and rules hold on every OS, and the Linux tests, each project restored
-# and built alone, as the Windows projects build on Windows only.
-function Invoke-Linux($Scope) {
-    $projects = @(if ($Part -in 'All', 'DotNet', 'LinuxCore') { 'tests/Thermi.Tests' }) +
-        @(if ($Scope.LinuxTests -and $Part -in 'All', 'DotNet', 'Linux') { 'tests/Thermi.Linux.Tests' })
+# The .NET half on Linux and on a Mac: Thermi.Tests, whose Core and rules hold on every OS, and the OS's own tests, each
+# project restored and built alone, as the Windows projects build on Windows only; on a Mac, with thermi.app, which the
+# macOS tests start.
+function Invoke-Unix($Scope) {
+    $os = if ($IsMacOS) { @{ Name = 'macOS'; Core = 'MacCore'; Tests = 'MacOS'; Project = 'Thermi.MacOS.Tests'; Scoped = $Scope.MacTests } }
+        else { @{ Name = 'Linux'; Core = 'LinuxCore'; Tests = 'Linux'; Project = 'Thermi.Linux.Tests'; Scoped = $Scope.LinuxTests } }
+    $own = $os.Scoped -and $Part -in 'All', 'DotNet', $os.Tests
+    $projects = @(if ($Part -in 'All', 'DotNet', $os.Core) { 'tests/Thermi.Tests' }) + @(if ($own) { "tests/$($os.Project)" }) +
+        @(if ($own -and $IsMacOS) { 'src/Thermi.MacOS' })
     $locked = @(if ($Ci) { '--locked-mode' })
     Invoke-Step 'restore' { foreach ($project in $projects) { dotnet restore $project @locked; if ($LASTEXITCODE -ne 0) { break } } }
     Invoke-Step 'build Release' { foreach ($project in $projects) { dotnet build $project -c Release --no-restore; if ($LASTEXITCODE -ne 0) { break } } }
@@ -161,18 +168,18 @@ function Invoke-Linux($Scope) {
         $packed = Get-ChildItem $packages -File | Where-Object { $_.Name -match '\.(deb|rpm|tar\.gz)$' }
         Save-Stats 'packages' @{ files = @($packed | ForEach-Object { @{ name = $_.Name; megabytes = $_.Length / 1MB } }) }
     }
-    # The Linux tests measure what they run of thermi, thermi-sensors and Thermi.App in their own process, as the Windows
-    # tests do on Windows: shown, not gated. Each filter is one argument with its option: PowerShell on Linux expands a
+    # The OS's tests measure what they run of thermi's programs and Thermi.App in their own process, as the Windows tests
+    # do on Windows: shown, not gated. Each filter is one argument with its option: PowerShell off Windows expands a
     # program's argument that matches files, as [thermi]* matches tests and thermi.slnx.
-    $linuxCoverage = @('--coverlet') + @($coverageMeasured['Thermi.Linux.Tests'].Keys | ForEach-Object { "--coverlet-include=[$_]*" }) +
-        @('--coverlet-single-hit', '--coverlet-output-format', 'json', '--coverlet-file-prefix', 'Thermi.Linux.Tests')
+    $coverage = @('--coverlet') + @($coverageMeasured[$os.Project].Keys | ForEach-Object { "--coverlet-include=[$_]*" }) +
+        @('--coverlet-single-hit', '--coverlet-output-format', 'json', '--coverlet-file-prefix', $os.Project)
     Invoke-Together @(foreach ($project in $projects) {
             if ($project -eq 'tests/Thermi.Tests') {
-                New-Step 'tests on Linux' 'dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $results
+                New-Step "tests on $($os.Name)" 'dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $results
             }
-            else {
-                New-Step 'Linux tests' (@('dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $appResults, '--') +
-                    $linuxCoverage)
+            elseif ($project -like 'tests/*') {
+                New-Step "$($os.Name) tests" (@('dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $appResults) +
+                    @('--') + $coverage)
             }
         })
 }
@@ -242,7 +249,7 @@ try {
         if ($scope.Web) { Invoke-Web }
     }
     elseif (-not $IsWindows) {
-        if ($scope.CoreTests) { Invoke-Linux $scope }
+        if ($scope.CoreTests) { Invoke-Unix $scope }
     }
     elseif ($scope.CoreTests) {
         Invoke-DotNet $scope
@@ -262,7 +269,7 @@ finally {
     if (-not $Ci) { Exit-Check }
     $titles = @{
         All = 'Check'; DotNet = '.NET'; Core = 'Build and Thermi.Tests'; Windows = 'Windows tests'; WindowsAlone = 'Windows tests alone'; Web = 'Settings page'
-        LinuxCore = 'Thermi.Tests on Linux'; Linux = 'Linux tests'
+        LinuxCore = 'Thermi.Tests on Linux'; Linux = 'Linux tests'; MacCore = 'Thermi.Tests on macOS'; MacOS = 'macOS tests'
     }
     Write-Summary $titles[$Part] $Part
 }

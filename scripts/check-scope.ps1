@@ -17,6 +17,8 @@ $windowsReads = @('scripts/install.ps1')
 $linuxReads = @(
     'src/Thermi.Gnome/*', 'scripts/updates.ps1', 'scripts/linux-packages.ps1', 'tests/Thermi.Tests/Recordings/Trees/*', 'tests/Thermi.Tests/Configs/*'
 )
+# Read by the macOS tests as files: the levers' script, the Mac's recordings they replay and the settings files they read.
+$macReads = @('scripts/updates.ps1', 'tests/Thermi.Tests/Recordings/Mac/*', 'tests/Thermi.Tests/Configs/*')
 # What only the repo rules of Thermi.Tests read: docs, agent briefs, workflows, tools and the scripts no step runs.
 $rulesOnly = @('*.md', 'docs/*', '.claude/*', '.github/*', '.config/*', 'scripts/*', 'LICENSE', '.gitignore', 'renovate.json')
 $notices = @('THIRD-PARTY-NOTICES.md', 'scripts/notices.ps1', 'scripts/licenses/*', '*packages.lock.json', 'src/Thermi.Settings.Web/package*.json')
@@ -101,11 +103,12 @@ function Test-Like([string]$Path, [string[]]$Patterns) { @($Patterns | Where-Obj
 function Get-Scope([string]$Root, [string[]]$Changed) {
     $scope = [pscustomobject]@{
         All = $true; Files = @($Changed).Count; Restore = $true; Notices = $true; Pack = $true; TestCount = $true
-        CoreTests = $true; WindowsTests = $true; WindowsFilter = $null; LinuxTests = $true; Web = $true
+        CoreTests = $true; WindowsTests = $true; WindowsFilter = $null; LinuxTests = $true; MacTests = $true; Web = $true
     }
     if ($null -eq $Changed) { return $scope }
     $scope.All = $false
-    $scope.Restore = $scope.Notices = $scope.Pack = $scope.TestCount = $scope.CoreTests = $scope.WindowsTests = $scope.LinuxTests = $scope.Web = $false
+    $scope.Restore = $scope.Notices = $scope.Pack = $scope.TestCount = $scope.CoreTests = $scope.WindowsTests = $false
+    $scope.LinuxTests = $scope.MacTests = $scope.Web = $false
     if ($scope.Files -eq 0) { return $scope }
 
     $projects = Get-Projects $Root
@@ -123,9 +126,11 @@ function Get-Scope([string]$Root, [string[]]$Changed) {
         foreach ($owner in $owners) { [void]$touched.Add($owner) }
         $linuxRead = Test-Like $file $linuxReads
         if ($linuxRead) { [void]$touched.Add('Thermi.Linux.Tests') }
+        $macRead = Test-Like $file $macReads
+        if ($macRead) { [void]$touched.Add('Thermi.MacOS.Tests') }
         # The extension is linted with the page's ESLint, in the page's half.
         if ($file -like 'src/Thermi.Gnome/*') { $scope.Web = $true }
-        if ($owners -or $linuxRead) { continue }
+        if ($owners -or $linuxRead -or $macRead) { continue }
         if ($file.StartsWith($page, [StringComparison]::OrdinalIgnoreCase)) { $scope.Web = $pageChanged = $true }
         elseif (Test-Like $file $windowsReads) { [void]$touched.Add('Thermi.Windows.Tests') }
         elseif ($file -like 'src/Thermi.Installer/*') { $scope.Restore = $scope.Notices = $true }
@@ -147,6 +152,8 @@ function Get-Scope([string]$Root, [string[]]$Changed) {
     $scope.CoreTests = $true
     $scope.WindowsTests = $affected.Contains('Thermi.Windows.Tests') -or $pageChanged
     $scope.LinuxTests = $affected.Contains('Thermi.Linux.Tests')
+    # thermi.app is no test project's reference, as the macOS tests start it built, so a change to it runs them too.
+    $scope.MacTests = $affected.Contains('Thermi.MacOS.Tests') -or $affected.Contains('Thermi.MacOS')
     if (-not $affected.Contains('Thermi.Windows.Tests') -and $pageChanged) { $scope.WindowsFilter = $pageTests }
     $scope.Pack = $affected.Contains('Thermi.Client')
     $scope
@@ -168,6 +175,7 @@ function Format-Scope($Scope, [string]$Half) {
     $parts = @('Thermi.Tests')
     if ($Scope.WindowsTests) { $parts += if ($Scope.WindowsFilter) { "the Windows tests of $($Scope.WindowsFilter)" } else { 'the Windows tests' } }
     if ($Scope.LinuxTests) { $parts += 'the Linux projects' }
+    if ($Scope.MacTests) { $parts += 'the macOS projects' }
     if ($Scope.Notices) { $parts += 'the notices' }
     "$($name): $(Format-Files $Scope.Files), for $($parts -join ', ')"
 }

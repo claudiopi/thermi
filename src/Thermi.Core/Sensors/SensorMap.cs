@@ -1,5 +1,6 @@
 using System.Globalization;
 using Thermi.Core.Frames;
+using Thermi.Core.Sensors.Rules;
 using Thermi.Core.Settings;
 
 namespace Thermi.Core.Sensors;
@@ -10,15 +11,11 @@ namespace Thermi.Core.Sensors;
 /// </summary>
 public static class SensorMap
 {
-    // Hardware types in order of preference: a discrete GPU usually reports as Nvidia or AMD, and a
-    // Ryzen's integrated GPU also reports as AMD, so Nvidia goes first and the config settles the rest.
-    private static readonly string[] Gpus = ["GpuNvidia", "GpuAmd", "GpuIntel"];
-
     private const char RepeatMark = '#';
 
     internal const string Network = "Network";
 
-    private const string Storage = "Storage";
+    internal const string Storage = "Storage";
 
     /// <summary>The end of the name the library gives an Intel core's distance to TjMax, after the core's own.</summary>
     public const string DistanceToTjMax = "Distance to TjMax";
@@ -28,61 +25,6 @@ public static class SensorMap
     {
         ["Level"] = SensorKind.Load,
         ["TimeSpan"] = SensorKind.Duration,
-    };
-
-    // OnlyPreferred: a "Data" sensor is any size (used, available, a stick's capacity), so a guess would be a wrong number;
-    // a network's, a drive's and a battery's sensors of one type mean different things, so only the named one is the metric.
-    // Device: which adapter or drive the metric follows, when a machine has several. SkipName: a sensor of the type that
-    // measures something else. OnChip: the preferred names on a chip whose name starts with the key, in their place.
-    private sealed record Rule(
-        string[] HardwareTypes,
-        string Type,
-        string[] PreferredNames,
-        string? SkipHardware = null,
-        bool OnlyPreferred = false,
-        Follow Device = Follow.Any,
-        string? SkipName = null,
-        (string Chip, string[] Names)? OnChip = null);
-
-    private enum Follow
-    {
-        Any,
-        Adapter,
-        Drive,
-    }
-
-    // Each rule's names are LibreHardwareMonitor's on Windows, then the Linux kernel's for the same: k10temp's Tdie and Tctl
-    // on AMD, coretemp's Package id 0 on Intel, RAPL's package-0, amdgpu's edge and PPT, and Intel's xe's pkg.
-    private static readonly Dictionary<string, Rule> Rules = new(StringComparer.Ordinal)
-    {
-        [Metrics.CpuTemperature.Id] = new(
-            ["Cpu"], "Temperature", ["Core (Tctl/Tdie)", "Core (Tctl)", "CPU Package", "Core Average", "Tdie", "Tctl", "Package id 0"]),
-        [Metrics.CpuLoad.Id] = new(["Cpu"], "Load", ["CPU Total"]),
-        [Metrics.CpuPower.Id] = new(["Cpu"], "Power", ["Package", "CPU Package", "package-0"]),
-        // An Intel CPU reports its bus's clock first, at about 100 MHz: never a core's.
-        [Metrics.CpuClock.Id] = new(["Cpu"], "Clock", ["Cores (Average)", "Core #1", "P-Core #1", "CPU Core #1"], SkipName: "Bus Speed"),
-        [Metrics.GpuTemperature.Id] = new(Gpus, "Temperature", ["GPU Core", "edge", "pkg"]),
-        [Metrics.GpuLoad.Id] = new(Gpus, "Load", ["GPU Core"]),
-        [Metrics.GpuPower.Id] = new(Gpus, "Power", ["GPU Package", "GPU Power", "PPT"]),
-        // Virtual memory reports a load named "Memory" too, and it comes first.
-        [Metrics.RamLoad.Id] = new(["Memory"], "Load", ["Memory"], SkipHardware: "Virtual Memory"),
-        [Metrics.RamUsed.Id] = new(["Memory"], "Data", ["Memory Used"], SkipHardware: "Virtual Memory", OnlyPreferred: true),
-        // A laptop reports its fans on its embedded controller, with no board chip. Nuvoton's NCT67xx chips have their CPU
-        // fan's input second, after a system fan's, and boards wire the CPU fan header to it.
-        [Metrics.CpuFan.Id] = new(["SuperIO", "EmbeddedController"], "Fan", ["CPU Fan", "Fan #1"], OnChip: ("Nuvoton NCT67", ["CPU Fan", "Fan #2"])),
-        [Metrics.NetDownload.Id] = new([Network], "Throughput", ["Download Speed"], OnlyPreferred: true, Device: Follow.Adapter),
-        [Metrics.NetUpload.Id] = new([Network], "Throughput", ["Upload Speed"], OnlyPreferred: true, Device: Follow.Adapter),
-        [Metrics.DiskActivity.Id] = new([Storage], "Load", ["Total Activity"], OnlyPreferred: true, Device: Follow.Drive),
-        [Metrics.DiskRead.Id] = new([Storage], "Throughput", ["Read Rate"], OnlyPreferred: true, Device: Follow.Drive),
-        [Metrics.DiskWrite.Id] = new([Storage], "Throughput", ["Write Rate"], OnlyPreferred: true, Device: Follow.Drive),
-        [Metrics.BatteryCharge.Id] = new(["Battery"], "Level", ["Charge Level"], OnlyPreferred: true),
-        [Metrics.BatteryRate.Id] = new(["Battery"], "Power", ["Charge/Discharge Rate", "Charge Rate", "Discharge Rate"], OnlyPreferred: true),
-        [Metrics.BatteryTime.Id] = new(["Battery"], "TimeSpan", ["Remaining Time (Estimated)"], OnlyPreferred: true),
-        [Metrics.Uptime.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Duration), [SystemSensors.Uptime], OnlyPreferred: true),
-        [Metrics.LocalIp.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Address), [SystemSensors.LocalIp], OnlyPreferred: true),
-        [Metrics.Clock.Id] = new([SystemSensors.HardwareType], nameof(SensorKind.Time), [SystemSensors.Clock], OnlyPreferred: true),
-        [Metrics.Fps.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameRate), [GameSensors.Fps], OnlyPreferred: true),
-        [Metrics.FrameTime.Id] = new([GameSensors.HardwareType], nameof(SensorKind.FrameTime), [GameSensors.FrameTime], OnlyPreferred: true),
     };
 
     /// <summary>
@@ -181,14 +123,14 @@ public static class SensorMap
     public static bool HasCpuTemperature(Snapshot snapshot) =>
         snapshot.Sensors.Any(sensor => sensor is { HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) });
 
-    public static bool IsGpu(RawSensor sensor) => Gpus.Contains(sensor.HardwareType, StringComparer.Ordinal);
+    public static bool IsGpu(RawSensor sensor) => SensorRules.Gpus.Contains(sensor.HardwareType, StringComparer.Ordinal);
 
     /// <summary>
     /// Whether <paramref name="gpu"/> comes after <paramref name="than"/> in the GPU metrics' order of preference, as a graphics
     /// chip in a CPU after a card.
     /// </summary>
     public static bool GpuAfter(RawSensor gpu, RawSensor than) =>
-        Array.IndexOf(Gpus, gpu.HardwareType) > Array.IndexOf(Gpus, than.HardwareType);
+        Array.IndexOf(SensorRules.Gpus, gpu.HardwareType) > Array.IndexOf(SensorRules.Gpus, than.HardwareType);
 
     /// <summary>What the sensor measures, or null for a type thermi does not show.</summary>
     public static SensorKind? KindOf(RawSensor sensor) => KindOfType(sensor.Type);
@@ -238,13 +180,13 @@ public static class SensorMap
     {
         var device = DeviceOf(sensor);
         var alike = Metrics.All
-            .Where(metric => Rules.TryGetValue(metric.Id, out var rule)
+            .Where(metric => SensorRules.All.TryGetValue(metric.Id, out var rule)
                 && rule.HardwareTypes.Contains(sensor.HardwareType, StringComparer.Ordinal)
                 && rule.Type == sensor.Type
                 && sensor.Hardware != rule.SkipHardware)
             .ToList();
         return PickedBy(sensor)
-            ?? alike.Find(metric => device is not null && Metrics.DeviceOf(metric) == device && !Rules[metric.Id].OnlyPreferred);
+            ?? alike.Find(metric => device is not null && Metrics.DeviceOf(metric) == device && !SensorRules.All[metric.Id].OnlyPreferred);
     }
 
     /// <summary>
@@ -254,7 +196,7 @@ public static class SensorMap
     public static Metric? PickedBy(RawSensor sensor) =>
         sensor.Type == nameof(SensorKind.Control)
             ? (PickedBy(sensor with { Type = nameof(SensorKind.Fan) }) == Metrics.CpuFan ? Metrics.CpuFanDuty : null)
-            : Metrics.All.FirstOrDefault(metric => Rules.TryGetValue(metric.Id, out var rule)
+            : Metrics.All.FirstOrDefault(metric => SensorRules.All.TryGetValue(metric.Id, out var rule)
                 && Picks(rule, sensor)
                 && Preference(rule, sensor) >= 0);
 
@@ -276,7 +218,7 @@ public static class SensorMap
     internal static Dictionary<string, double> DriveActivity(Snapshot snapshot)
     {
         var activity = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var sensor in snapshot.Sensors.Where(sensor => Picks(Rules[Metrics.DiskActivity.Id], sensor)))
+        foreach (var sensor in snapshot.Sensors.Where(sensor => Picks(SensorRules.All[Metrics.DiskActivity.Id], sensor)))
         {
             activity.TryAdd(DeviceIdOf(sensor), sensor.Value is { } value && double.IsFinite(value) ? value : 0);
         }
@@ -360,7 +302,7 @@ public static class SensorMap
                 : null;
         }
 
-        var rule = Rules[metric.Id];
+        var rule = SensorRules.All[metric.Id];
         var device = devices.GetValueOrDefault(rule.Device);
         var candidates = rule.HardwareTypes
             .SelectMany(type => byHardware[type].Where(sensor => Picks(rule, sensor) && (device is null || DeviceIdOf(sensor) == device)))

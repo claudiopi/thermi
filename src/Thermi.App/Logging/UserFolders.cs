@@ -2,7 +2,8 @@ namespace Thermi.App.Logging;
 
 /// <summary>
 /// The user's application data folders, the environment's first, so a test or a person trying a build gives that thermi a
-/// profile of its own and never touches the installed thermi's settings or logs.
+/// profile of its own and never touches the installed thermi's settings or logs. A Mac keeps both in the home's
+/// <c>Library/Application Support</c>, where .NET would answer Linux's folders.
 /// </summary>
 internal static class UserFolders
 {
@@ -16,5 +17,7 @@ internal static class UserFolders
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "state");
 
     private static string Of(string variable, Environment.SpecialFolder folder) =>
-        Environment.GetEnvironmentVariable(variable) is { Length: > 0 } named ? named : Environment.GetFolderPath(folder);
+        Environment.GetEnvironmentVariable(variable) is { Length: > 0 } named ? named
+        : OperatingSystem.IsMacOS() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support")
+        : Environment.GetFolderPath(folder);
 }

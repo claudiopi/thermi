@@ -1,0 +1,162 @@
+[
+  {
+    "product": "PMU tdie12",
+    "value": 40.20751953125
+  },
+  {
+    "product": "PMU tdie4",
+    "value": 40.4473876953125
+  },
+  {
+    "product": "PMU tdie7",
+    "value": 41.64677429199219
+  },
+  {
+    "product": "PMU tdie11",
+    "value": 40.60731506347656
+  },
+  {
+    "product": "PMU2 tdie2",
+    "value": 29.8128662109375
+  },
+  {
+    "product": "PMU2 tdev4",
+    "value": 28.869827270507812
+  },
+  {
+    "product": "PMU2 tdie9",
+    "value": 28.933319091796875
+  },
+  {
+    "product": "PMU2 tdie3",
+    "value": 29.892822265625
+  },
+  {
+    "product": "PMU2 tdie5",
+    "value": 28.933319091796875
+  },
+  {
+    "product": "PMU tdev1",
+    "value": 34.59489440917969
+  },
+  {
+    "product": "PMU2 tdev3",
+    "value": 30.295623779296875
+  },
+  {
+    "product": "NAND CH0 temp",
+    "value": 28
+  },
+  {
+    "product": "PMU2 tdev1",
+    "value": 29.674560546875
+  },
+  {
+    "product": "PMU2 tdev5",
+    "value": 29.446746826171875
+  },
+  {
+    "product": "PMU2 tdie10",
+    "value": 28.773406982421875
+  },
+  {
+    "product": "PMU tdie13",
+    "value": 40.60731506347656
+  },
+  {
+    "product": "PMU tdie8",
+    "value": 45.80462646484375
+  },
+  {
+    "product": "PMU tdev7",
+    "value": 31.277374267578125
+  },
+  {
+    "product": "PMU tdie3",
+    "value": 41.64677429199219
+  },
+  {
+    "product": "PMU2 tcal",
+    "value": 51.82000732421875
+  },
+  {
+    "product": "PMU2 tdie7",
+    "value": 29.4930419921875
+  },
+  {
+    "product": "PMU2 tdev2",
+    "value": 30.01824951171875
+  },
+  {
+    "product": "PMU tdev2",
+    "value": 33.0401611328125
+  },
+  {
+    "product": "PMU2 tdie6",
+    "value": 29.093246459960938
+  },
+  {
+    "product": "PMU tdev6",
+    "value": 30.649642944335938
+  },
+  {
+    "product": "PMU tdev3",
+    "value": 31.1824951171875
+  },
+  {
+    "product": "PMU tdev8",
+    "value": 29.662734985351562
+  },
+  {
+    "product": "PMU tdie9",
+    "value": 40.20751953125
+  },
+  {
+    "product": "PMU2 tdie8",
+    "value": 29.972793579101562
+  },
+  {
+    "product": "PMU tdie1",
+    "value": 48.92301940917969
+  },
+  {
+    "product": "PMU tcal",
+    "value": 51.82000732421875
+  },
+  {
+    "product": "PMU tdie10",
+    "value": 41.167022705078125
+  },
+  {
+    "product": "PMU tdev4",
+    "value": 28.973373413085938
+  },
+  {
+    "product": "PMU2 tdie1",
+    "value": 29.73291015625
+  },
+  {
+    "product": "PMU tdie14",
+    "value": 40.12754821777344
+  },
+  {
+    "product": "PMU tdie2",
+    "value": 40.68727111816406
+  },
+  {
+    "product": "PMU tdie6",
+    "value": 47.88356018066406
+  },
+  {
+    "product": "PMU tdev5",
+    "value": 30.029205322265625
+  },
+  {
+    "product": "PMU tdie5",
+    "value": 41.246978759765625
+  },
+  {
+    "product": "PMU2 tdie4",
+    "value": 28.933319091796875
+  }
+]

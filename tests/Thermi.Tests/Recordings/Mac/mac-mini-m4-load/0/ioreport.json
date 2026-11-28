@@ -1,0 +1,1756 @@
+[
+  {
+    "group": "Energy Model",
+    "name": "ECPU0",
+    "unit": "mJ",
+    "value": 2189032
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU1",
+    "unit": "mJ",
+    "value": 1660874
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU2",
+    "unit": "mJ",
+    "value": 1109712
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU3",
+    "unit": "mJ",
+    "value": 839690
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU4",
+    "unit": "mJ",
+    "value": 630544
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU5",
+    "unit": "mJ",
+    "value": 530483
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPU0",
+    "unit": "mJ",
+    "value": 74369548
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPU1",
+    "unit": "mJ",
+    "value": 71037728
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPU2",
+    "unit": "mJ",
+    "value": 68634294
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPU3",
+    "unit": "mJ",
+    "value": 67484956
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPM",
+    "unit": "mJ",
+    "value": 2961714
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPM",
+    "unit": "mJ",
+    "value": 12432403
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU0_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU1_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU2_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU3_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU4_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU5_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPU0_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPU1_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPU2_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPU3_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPM_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPM_SRAM",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPU",
+    "unit": "mJ",
+    "value": 9922052
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPU",
+    "unit": "mJ",
+    "value": 293958931
+  },
+  {
+    "group": "Energy Model",
+    "name": "CPU Energy",
+    "unit": "mJ",
+    "value": 303880983
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL00",
+    "unit": "mJ",
+    "value": 45771
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL01",
+    "unit": "mJ",
+    "value": 856027
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL02",
+    "unit": "mJ",
+    "value": 54292
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL03",
+    "unit": "mJ",
+    "value": 40374
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL04",
+    "unit": "mJ",
+    "value": 50378
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL05",
+    "unit": "mJ",
+    "value": 52132
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL06",
+    "unit": "mJ",
+    "value": 41985
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL07",
+    "unit": "mJ",
+    "value": 1048069
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL10",
+    "unit": "mJ",
+    "value": 30060
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL11",
+    "unit": "mJ",
+    "value": 630982
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL12",
+    "unit": "mJ",
+    "value": 52048
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL13",
+    "unit": "mJ",
+    "value": 38483
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL14",
+    "unit": "mJ",
+    "value": 45168
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL15",
+    "unit": "mJ",
+    "value": 45888
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL16",
+    "unit": "mJ",
+    "value": 35516
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL17",
+    "unit": "mJ",
+    "value": 782725
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL20",
+    "unit": "mJ",
+    "value": 17280
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL21",
+    "unit": "mJ",
+    "value": 319002
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL22",
+    "unit": "mJ",
+    "value": 24179
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL23",
+    "unit": "mJ",
+    "value": 31346
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL24",
+    "unit": "mJ",
+    "value": 37834
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL25",
+    "unit": "mJ",
+    "value": 38308
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL26",
+    "unit": "mJ",
+    "value": 29938
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL27",
+    "unit": "mJ",
+    "value": 611819
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL30",
+    "unit": "mJ",
+    "value": 5630
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL31",
+    "unit": "mJ",
+    "value": 167883
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL32",
+    "unit": "mJ",
+    "value": 15100
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL33",
+    "unit": "mJ",
+    "value": 20518
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL34",
+    "unit": "mJ",
+    "value": 26155
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL35",
+    "unit": "mJ",
+    "value": 25802
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL36",
+    "unit": "mJ",
+    "value": 20868
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL37",
+    "unit": "mJ",
+    "value": 557731
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL40",
+    "unit": "mJ",
+    "value": 2823
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL41",
+    "unit": "mJ",
+    "value": 108310
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL42",
+    "unit": "mJ",
+    "value": 10134
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL43",
+    "unit": "mJ",
+    "value": 14414
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL44",
+    "unit": "mJ",
+    "value": 18901
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL45",
+    "unit": "mJ",
+    "value": 18493
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL46",
+    "unit": "mJ",
+    "value": 15174
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL47",
+    "unit": "mJ",
+    "value": 442293
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL50",
+    "unit": "mJ",
+    "value": 3842
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL51",
+    "unit": "mJ",
+    "value": 87433
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL52",
+    "unit": "mJ",
+    "value": 7955
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL53",
+    "unit": "mJ",
+    "value": 11664
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL54",
+    "unit": "mJ",
+    "value": 15601
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL55",
+    "unit": "mJ",
+    "value": 15308
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL56",
+    "unit": "mJ",
+    "value": 12312
+  },
+  {
+    "group": "Energy Model",
+    "name": "ECPUDTL57",
+    "unit": "mJ",
+    "value": 376365
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL00",
+    "unit": "mJ",
+    "value": 3534
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL01",
+    "unit": "mJ",
+    "value": 68
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL02",
+    "unit": "mJ",
+    "value": 185234
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL03",
+    "unit": "mJ",
+    "value": 267072
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL04",
+    "unit": "mJ",
+    "value": 227459
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL05",
+    "unit": "mJ",
+    "value": 241602
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL06",
+    "unit": "mJ",
+    "value": 243919
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL07",
+    "unit": "mJ",
+    "value": 328485
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL08",
+    "unit": "mJ",
+    "value": 287513
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL09",
+    "unit": "mJ",
+    "value": 298271
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL0a",
+    "unit": "mJ",
+    "value": 228309
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL0b",
+    "unit": "mJ",
+    "value": 203312
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL0c",
+    "unit": "mJ",
+    "value": 207325
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL0d",
+    "unit": "mJ",
+    "value": 139817
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL0e",
+    "unit": "mJ",
+    "value": 133635
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL0f",
+    "unit": "mJ",
+    "value": 103807
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL010",
+    "unit": "mJ",
+    "value": 134310
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL011",
+    "unit": "mJ",
+    "value": 372127
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL012",
+    "unit": "mJ",
+    "value": 1692721
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL013",
+    "unit": "mJ",
+    "value": 69071017
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL10",
+    "unit": "mJ",
+    "value": 2289
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL11",
+    "unit": "mJ",
+    "value": 20
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL12",
+    "unit": "mJ",
+    "value": 69161
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL13",
+    "unit": "mJ",
+    "value": 117298
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL14",
+    "unit": "mJ",
+    "value": 136564
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL15",
+    "unit": "mJ",
+    "value": 142091
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL16",
+    "unit": "mJ",
+    "value": 163091
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL17",
+    "unit": "mJ",
+    "value": 236889
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL18",
+    "unit": "mJ",
+    "value": 226470
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL19",
+    "unit": "mJ",
+    "value": 229073
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL1a",
+    "unit": "mJ",
+    "value": 173642
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL1b",
+    "unit": "mJ",
+    "value": 163095
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL1c",
+    "unit": "mJ",
+    "value": 176990
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL1d",
+    "unit": "mJ",
+    "value": 121225
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL1e",
+    "unit": "mJ",
+    "value": 121398
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL1f",
+    "unit": "mJ",
+    "value": 99461
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL110",
+    "unit": "mJ",
+    "value": 126444
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL111",
+    "unit": "mJ",
+    "value": 336911
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL112",
+    "unit": "mJ",
+    "value": 1433560
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL113",
+    "unit": "mJ",
+    "value": 66962048
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL20",
+    "unit": "mJ",
+    "value": 1275
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL21",
+    "unit": "mJ",
+    "value": 7
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL22",
+    "unit": "mJ",
+    "value": 32483
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL23",
+    "unit": "mJ",
+    "value": 45051
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL24",
+    "unit": "mJ",
+    "value": 39624
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL25",
+    "unit": "mJ",
+    "value": 60385
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL26",
+    "unit": "mJ",
+    "value": 74871
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL27",
+    "unit": "mJ",
+    "value": 123221
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL28",
+    "unit": "mJ",
+    "value": 114661
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL29",
+    "unit": "mJ",
+    "value": 114551
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL2a",
+    "unit": "mJ",
+    "value": 103482
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL2b",
+    "unit": "mJ",
+    "value": 126469
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL2c",
+    "unit": "mJ",
+    "value": 153415
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL2d",
+    "unit": "mJ",
+    "value": 105320
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL2e",
+    "unit": "mJ",
+    "value": 100867
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL2f",
+    "unit": "mJ",
+    "value": 81305
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL210",
+    "unit": "mJ",
+    "value": 108812
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL211",
+    "unit": "mJ",
+    "value": 308910
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL212",
+    "unit": "mJ",
+    "value": 1305359
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL213",
+    "unit": "mJ",
+    "value": 65634216
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL30",
+    "unit": "mJ",
+    "value": 1034
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL31",
+    "unit": "mJ",
+    "value": 2
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL32",
+    "unit": "mJ",
+    "value": 18780
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL33",
+    "unit": "mJ",
+    "value": 30199
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL34",
+    "unit": "mJ",
+    "value": 26733
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL35",
+    "unit": "mJ",
+    "value": 41174
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL36",
+    "unit": "mJ",
+    "value": 52069
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL37",
+    "unit": "mJ",
+    "value": 92846
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL38",
+    "unit": "mJ",
+    "value": 82796
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL39",
+    "unit": "mJ",
+    "value": 88376
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL3a",
+    "unit": "mJ",
+    "value": 82132
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL3b",
+    "unit": "mJ",
+    "value": 99198
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL3c",
+    "unit": "mJ",
+    "value": 124746
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL3d",
+    "unit": "mJ",
+    "value": 89432
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL3e",
+    "unit": "mJ",
+    "value": 87481
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL3f",
+    "unit": "mJ",
+    "value": 70642
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL310",
+    "unit": "mJ",
+    "value": 96664
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL311",
+    "unit": "mJ",
+    "value": 287869
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL312",
+    "unit": "mJ",
+    "value": 1263019
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCPUDTL313",
+    "unit": "mJ",
+    "value": 64849754
+  },
+  {
+    "group": "Energy Model",
+    "name": "GPU",
+    "unit": "mJ",
+    "value": 1084406
+  },
+  {
+    "group": "Energy Model",
+    "name": "GPU SRAM",
+    "unit": "mJ",
+    "value": 15231
+  },
+  {
+    "group": "Energy Model",
+    "name": "ANE",
+    "unit": "mJ",
+    "value": 4778
+  },
+  {
+    "group": "Energy Model",
+    "name": "ISP",
+    "unit": "mJ",
+    "value": 3522794
+  },
+  {
+    "group": "Energy Model",
+    "name": "AVE",
+    "unit": "mJ",
+    "value": 1344957
+  },
+  {
+    "group": "Energy Model",
+    "name": "MSR",
+    "unit": "mJ",
+    "value": 1029940
+  },
+  {
+    "group": "Energy Model",
+    "name": "AMCC",
+    "unit": "mJ",
+    "value": 28617710
+  },
+  {
+    "group": "Energy Model",
+    "name": "DCS",
+    "unit": "mJ",
+    "value": 25191145
+  },
+  {
+    "group": "Energy Model",
+    "name": "DRAM",
+    "unit": "mJ",
+    "value": 25640366
+  },
+  {
+    "group": "Energy Model",
+    "name": "DISP",
+    "unit": "mJ",
+    "value": 972305
+  },
+  {
+    "group": "Energy Model",
+    "name": "DISPEXT",
+    "unit": "mJ",
+    "value": 3094903
+  },
+  {
+    "group": "Energy Model",
+    "name": "VDEC",
+    "unit": "mJ",
+    "value": 997
+  },
+  {
+    "group": "Energy Model",
+    "name": "SOC_AON",
+    "unit": "mJ",
+    "value": 73399
+  },
+  {
+    "group": "Energy Model",
+    "name": "SOC_REST",
+    "unit": "mJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "apciec3 Energy",
+    "unit": "uJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "apciec1 Energy",
+    "unit": "uJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "apciec0 Energy",
+    "unit": "uJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCIe Port 0 Energy",
+    "unit": "uJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "PCIe Port 2 Energy",
+    "unit": "uJ",
+    "value": 0
+  },
+  {
+    "group": "Energy Model",
+    "name": "GPU Energy",
+    "unit": "nJ",
+    "value": 1051016974428
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "ECPU0",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7181289224967
+      },
+      {
+        "name": "V0P7",
+        "residency": 34623178340
+      },
+      {
+        "name": "V1P6",
+        "residency": 396344191124
+      },
+      {
+        "name": "V2P5",
+        "residency": 15631891840
+      },
+      {
+        "name": "V3P4",
+        "residency": 8251429539
+      },
+      {
+        "name": "V4P3",
+        "residency": 8567387355
+      },
+      {
+        "name": "V5P2",
+        "residency": 6477925302
+      },
+      {
+        "name": "V6P1",
+        "residency": 4071485240
+      },
+      {
+        "name": "V7P0",
+        "residency": 81837027885
+      }
+    ]
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "ECPU1",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7304995372827
+      },
+      {
+        "name": "V0P7",
+        "residency": 22894585438
+      },
+      {
+        "name": "V1P6",
+        "residency": 306852890267
+      },
+      {
+        "name": "V2P5",
+        "residency": 14912148633
+      },
+      {
+        "name": "V3P4",
+        "residency": 7871582212
+      },
+      {
+        "name": "V4P3",
+        "residency": 7705909010
+      },
+      {
+        "name": "V5P2",
+        "residency": 5720085248
+      },
+      {
+        "name": "V6P1",
+        "residency": 3456699176
+      },
+      {
+        "name": "V7P0",
+        "residency": 62684468781
+      }
+    ]
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "ECPU2",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7479669221968
+      },
+      {
+        "name": "V0P7",
+        "residency": 13663745910
+      },
+      {
+        "name": "V1P6",
+        "residency": 160357026426
+      },
+      {
+        "name": "V2P5",
+        "residency": 7363335254
+      },
+      {
+        "name": "V3P4",
+        "residency": 6344377757
+      },
+      {
+        "name": "V4P3",
+        "residency": 6257510118
+      },
+      {
+        "name": "V5P2",
+        "residency": 4596074262
+      },
+      {
+        "name": "V6P1",
+        "residency": 2781510459
+      },
+      {
+        "name": "V7P0",
+        "residency": 56060939438
+      }
+    ]
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "ECPU3",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7588656659387
+      },
+      {
+        "name": "V0P7",
+        "residency": 4586161031
+      },
+      {
+        "name": "V1P6",
+        "residency": 78817980962
+      },
+      {
+        "name": "V2P5",
+        "residency": 4534441675
+      },
+      {
+        "name": "V3P4",
+        "residency": 4187085556
+      },
+      {
+        "name": "V4P3",
+        "residency": 4458374128
+      },
+      {
+        "name": "V5P2",
+        "residency": 3197370063
+      },
+      {
+        "name": "V6P1",
+        "residency": 2001718846
+      },
+      {
+        "name": "V7P0",
+        "residency": 46653949944
+      }
+    ]
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "ECPU4",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7634524491110
+      },
+      {
+        "name": "V0P7",
+        "residency": 2422657631
+      },
+      {
+        "name": "V1P6",
+        "residency": 49665746040
+      },
+      {
+        "name": "V2P5",
+        "residency": 3060073182
+      },
+      {
+        "name": "V3P4",
+        "residency": 2982211878
+      },
+      {
+        "name": "V4P3",
+        "residency": 3264042633
+      },
+      {
+        "name": "V5P2",
+        "residency": 2320393611
+      },
+      {
+        "name": "V6P1",
+        "residency": 1484125093
+      },
+      {
+        "name": "V7P0",
+        "residency": 37370000414
+      }
+    ]
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "ECPU5",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7651583056243
+      },
+      {
+        "name": "V0P7",
+        "residency": 3468140778
+      },
+      {
+        "name": "V1P6",
+        "residency": 39057331247
+      },
+      {
+        "name": "V2P5",
+        "residency": 2364524114
+      },
+      {
+        "name": "V3P4",
+        "residency": 2405468499
+      },
+      {
+        "name": "V4P3",
+        "residency": 2676936352
+      },
+      {
+        "name": "V5P2",
+        "residency": 1899581483
+      },
+      {
+        "name": "V6P1",
+        "residency": 1192102416
+      },
+      {
+        "name": "V7P0",
+        "residency": 32446600460
+      }
+    ]
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "PCPU0",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7338497473116
+      },
+      {
+        "name": "V0P19",
+        "residency": 505128488
+      },
+      {
+        "name": "V1P18",
+        "residency": 3299206
+      },
+      {
+        "name": "V2P17",
+        "residency": 8804035975
+      },
+      {
+        "name": "V3P16",
+        "residency": 10406508007
+      },
+      {
+        "name": "V4P15",
+        "residency": 6918803019
+      },
+      {
+        "name": "V5P14",
+        "residency": 5353614923
+      },
+      {
+        "name": "V6P13",
+        "residency": 4352104278
+      },
+      {
+        "name": "V7P12",
+        "residency": 4586758427
+      },
+      {
+        "name": "V8P11",
+        "residency": 3424305187
+      },
+      {
+        "name": "V9P10",
+        "residency": 2987233323
+      },
+      {
+        "name": "V10P9",
+        "residency": 2164030455
+      },
+      {
+        "name": "V11P8",
+        "residency": 1862321384
+      },
+      {
+        "name": "V12P7",
+        "residency": 1568209668
+      },
+      {
+        "name": "V13P6",
+        "residency": 896297260
+      },
+      {
+        "name": "V14P5",
+        "residency": 858434149
+      },
+      {
+        "name": "V15P4",
+        "residency": 664365317
+      },
+      {
+        "name": "V16P3",
+        "residency": 864299587
+      },
+      {
+        "name": "V17P2",
+        "residency": 2347248065
+      },
+      {
+        "name": "V18P1",
+        "residency": 8308718184
+      },
+      {
+        "name": "V19P0",
+        "residency": 331720553974
+      }
+    ]
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "PCPU1",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7365641899584
+      },
+      {
+        "name": "V0P19",
+        "residency": 346437796
+      },
+      {
+        "name": "V1P18",
+        "residency": 966446
+      },
+      {
+        "name": "V2P17",
+        "residency": 3371169980
+      },
+      {
+        "name": "V3P16",
+        "residency": 4804689896
+      },
+      {
+        "name": "V4P15",
+        "residency": 4178360239
+      },
+      {
+        "name": "V5P14",
+        "residency": 3179166019
+      },
+      {
+        "name": "V6P13",
+        "residency": 2956965323
+      },
+      {
+        "name": "V7P12",
+        "residency": 3390436018
+      },
+      {
+        "name": "V8P11",
+        "residency": 2776741594
+      },
+      {
+        "name": "V9P10",
+        "residency": 2340310048
+      },
+      {
+        "name": "V10P9",
+        "residency": 1670726318
+      },
+      {
+        "name": "V11P8",
+        "residency": 1505673837
+      },
+      {
+        "name": "V12P7",
+        "residency": 1345401284
+      },
+      {
+        "name": "V13P6",
+        "residency": 783284136
+      },
+      {
+        "name": "V14P5",
+        "residency": 787191251
+      },
+      {
+        "name": "V15P4",
+        "residency": 639963328
+      },
+      {
+        "name": "V16P3",
+        "residency": 820235348
+      },
+      {
+        "name": "V17P2",
+        "residency": 2136546102
+      },
+      {
+        "name": "V18P1",
+        "residency": 7240213810
+      },
+      {
+        "name": "V19P0",
+        "residency": 327177363635
+      }
+    ]
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "PCPU2",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7385243883366
+      },
+      {
+        "name": "V0P19",
+        "residency": 200825975
+      },
+      {
+        "name": "V1P18",
+        "residency": 378628
+      },
+      {
+        "name": "V2P17",
+        "residency": 1617978814
+      },
+      {
+        "name": "V3P16",
+        "residency": 1942812766
+      },
+      {
+        "name": "V4P15",
+        "residency": 1206893326
+      },
+      {
+        "name": "V5P14",
+        "residency": 1402133682
+      },
+      {
+        "name": "V6P13",
+        "residency": 1352786107
+      },
+      {
+        "name": "V7P12",
+        "residency": 1743951534
+      },
+      {
+        "name": "V8P11",
+        "residency": 1387625343
+      },
+      {
+        "name": "V9P10",
+        "residency": 1196879701
+      },
+      {
+        "name": "V10P9",
+        "residency": 1040915780
+      },
+      {
+        "name": "V11P8",
+        "residency": 1179268089
+      },
+      {
+        "name": "V12P7",
+        "residency": 1160040031
+      },
+      {
+        "name": "V13P6",
+        "residency": 678950618
+      },
+      {
+        "name": "V14P5",
+        "residency": 652687074
+      },
+      {
+        "name": "V15P4",
+        "residency": 522639328
+      },
+      {
+        "name": "V16P3",
+        "residency": 707100748
+      },
+      {
+        "name": "V17P2",
+        "residency": 1966721204
+      },
+      {
+        "name": "V18P1",
+        "residency": 6666845696
+      },
+      {
+        "name": "V19P0",
+        "residency": 325222424182
+      }
+    ]
+  },
+  {
+    "group": "CPU Stats",
+    "subgroup": "CPU Core Performance States",
+    "name": "PCPU3",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "IDLE",
+        "residency": 7391220293525
+      },
+      {
+        "name": "V0P19",
+        "residency": 162186712
+      },
+      {
+        "name": "V1P18",
+        "residency": 125950
+      },
+      {
+        "name": "V2P17",
+        "residency": 954277634
+      },
+      {
+        "name": "V3P16",
+        "residency": 1285055857
+      },
+      {
+        "name": "V4P15",
+        "residency": 780939485
+      },
+      {
+        "name": "V5P14",
+        "residency": 935912549
+      },
+      {
+        "name": "V6P13",
+        "residency": 918292502
+      },
+      {
+        "name": "V7P12",
+        "residency": 1292807163
+      },
+      {
+        "name": "V8P11",
+        "residency": 1000785784
+      },
+      {
+        "name": "V9P10",
+        "residency": 928827244
+      },
+      {
+        "name": "V10P9",
+        "residency": 831569481
+      },
+      {
+        "name": "V11P8",
+        "residency": 935689808
+      },
+      {
+        "name": "V12P7",
+        "residency": 945168885
+      },
+      {
+        "name": "V13P6",
+        "residency": 579059987
+      },
+      {
+        "name": "V14P5",
+        "residency": 574450667
+      },
+      {
+        "name": "V15P4",
+        "residency": 459469453
+      },
+      {
+        "name": "V16P3",
+        "residency": 636390625
+      },
+      {
+        "name": "V17P2",
+        "residency": 1837344172
+      },
+      {
+        "name": "V18P1",
+        "residency": 6456392173
+      },
+      {
+        "name": "V19P0",
+        "residency": 324358702336
+      }
+    ]
+  },
+  {
+    "group": "GPU Stats",
+    "subgroup": "GPU Performance States",
+    "name": "GPUPH",
+    "unit": "24Mticks",
+    "states": [
+      {
+        "name": "OFF",
+        "residency": 7716691691718
+      },
+      {
+        "name": "P1",
+        "residency": 1965648613
+      },
+      {
+        "name": "P2",
+        "residency": 0
+      },
+      {
+        "name": "P3",
+        "residency": 10861452679
+      },
+      {
+        "name": "P4",
+        "residency": 765002987
+      },
+      {
+        "name": "P5",
+        "residency": 0
+      },
+      {
+        "name": "P6",
+        "residency": 1103923772
+      },
+      {
+        "name": "P7",
+        "residency": 0
+      },
+      {
+        "name": "P8",
+        "residency": 1249093089
+      },
+      {
+        "name": "P9",
+        "residency": 0
+      },
+      {
+        "name": "P10",
+        "residency": 276718661
+      },
+      {
+        "name": "P11",
+        "residency": 0
+      },
+      {
+        "name": "P12",
+        "residency": 61201576
+      },
+      {
+        "name": "P13",
+        "residency": 0
+      },
+      {
+        "name": "P14",
+        "residency": 71792903
+      },
+      {
+        "name": "P15",
+        "residency": 4026297048
+      }
+    ]
+  }
+]

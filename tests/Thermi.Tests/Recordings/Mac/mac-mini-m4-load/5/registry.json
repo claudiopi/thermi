@@ -1,0 +1,117 @@
+{
+  "AppleARMIODevice": [
+    {
+      "voltage-states1-sram": "oLsNABYDAADAehAAFgMAAKCFFgAbAwAAoGEcAEgDAABgJCEAdQMAAAAWJgCiAwAAwNgqAO0DAADgICwA7QMAAA==",
+      "voltage-states5-sram": "gOoNABYDAADgORMAFgMAAEASFwAWAwAAQHcbADQDAABA3B8ATQMAAIDjIwBhAwAAwOonAHoDAAAgwysAjgMAAMA9LwCxAwAAoFoyANQDAADg6jQA2QMAAEBMNwDoAwAA4E85AAYEAACgJDsAJAQAAAAPPAAkBAAAgMo8ACQEAADgtD0AJAQAAECfPgAkBAAAAGJDAGUEAACAHUQAZQQAAA==",
+      "IORegistryEntryName": "pmgr"
+    }
+  ],
+  "IOAccelerator": [
+    {
+      "IOClass": "AGXAcceleratorG16G",
+      "PerformanceStatistics": {
+        "In use system memory (driver)": 0,
+        "Alloc system memory": 1251934208,
+        "Tiler Utilization %": 0,
+        "recoveryCount": 0,
+        "lastRecoveryTime": 0,
+        "Renderer Utilization %": 0,
+        "TiledSceneBytes": 0,
+        "Device Utilization %": 0,
+        "SplitSceneCount": 0,
+        "Allocated PB Size": 57671680,
+        "In use system memory": 24428544
+      },
+      "IORegistryEntryName": "AGXAcceleratorG16G"
+    }
+  ],
+  "IOBlockStorageDriver": [
+    {
+      "Statistics": {
+        "Operations (Write)": 7992196,
+        "Latency Time (Write)": 0,
+        "Bytes (Read)": 102392147968,
+        "Errors (Write)": 0,
+        "Total Time (Read)": 2397308191219,
+        "Latency Time (Read)": 0,
+        "Retries (Read)": 0,
+        "Errors (Read)": 0,
+        "Total Time (Write)": 568136677832,
+        "Bytes (Write)": 359549898752,
+        "Operations (Read)": 5722969,
+        "Retries (Write)": 0
+      },
+      "child:BSD Name": "disk0",
+      "parent:Device Characteristics/Product Name": "APPLE SSD AP0256Z",
+      "parent:Protocol Characteristics/Physical Interconnect Location": "Internal",
+      "IORegistryEntryName": "IOBlockStorageDriver"
+    }
+  ],
+  "IONetworkInterface": [
+    {
+      "BSD Name": "en7",
+      "IOBuiltin": false,
+      "IORegistryEntryName": "en7"
+    },
+    {
+      "BSD Name": "anpi3",
+      "IOBuiltin": false,
+      "IORegistryEntryName": "anpi3"
+    },
+    {
+      "BSD Name": "anpi1",
+      "IOBuiltin": false,
+      "IORegistryEntryName": "anpi1"
+    },
+    {
+      "BSD Name": "anpi0",
+      "IOBuiltin": false,
+      "IORegistryEntryName": "anpi0"
+    },
+    {
+      "BSD Name": "en5",
+      "IOBuiltin": false,
+      "IORegistryEntryName": "en5"
+    },
+    {
+      "BSD Name": "en6",
+      "IOBuiltin": false,
+      "IORegistryEntryName": "en6"
+    },
+    {
+      "BSD Name": "en4",
+      "IOBuiltin": true,
+      "IORegistryEntryName": "en4"
+    },
+    {
+      "BSD Name": "en2",
+      "IOBuiltin": true,
+      "IORegistryEntryName": "en2"
+    },
+    {
+      "BSD Name": "en3",
+      "IOBuiltin": true,
+      "IORegistryEntryName": "en3"
+    },
+    {
+      "BSD Name": "en0",
+      "IOBuiltin": true,
+      "IORegistryEntryName": "en0"
+    },
+    {
+      "BSD Name": "en1",
+      "IOBuiltin": true,
+      "IORegistryEntryName": "en1"
+    }
+  ],
+  "AppleSmartBattery": [
+    {
+      "BatteryInstalled": false,
+      "CurrentCapacity": 0,
+      "MaxCapacity": 0,
+      "Amperage": 0,
+      "Voltage": 0,
+      "IORegistryEntryName": "AppleSmartBattery"
+    }
+  ]
+}

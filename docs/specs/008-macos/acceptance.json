@@ -1,0 +1,145 @@
+{
+  "spec": "008-macos",
+  "steps": [
+    {
+      "id": "A1",
+      "covers": ["R5", "R6"],
+      "description": "Given the recordings of a Mac mini M4 and of a virtual machine (a table of the M4 at rest and under load, keys that vanish or fail to read mid-read, a chip family with other key names, a Mac with no fan, a virtual machine with no SMC), when the service reads each second and the default overlay is laid out, then every metric reads what the recording holds, mapped by the chip's family; the CPU's temperature is its cores' hottest and its power the CPU energy of the second; a vanished key, the fanless Mac's fans and every metric of the virtual machine are missing, never 0; the virtual adapters are set apart; and the uptime, local IP and clock read as on Windows.",
+      "check": "TheServiceReadsWhatTheMacGives",
+      "passes": true
+    },
+    {
+      "id": "A2",
+      "covers": ["R8"],
+      "description": "Given a Mac whose registry and adapters name its host, its user, its serial number and its MAC addresses, when the service records it with --raw and --dump, then the recording replays to the same snapshots and holds none of those names.",
+      "check": "AMacRecordingReplaysAndNamesNoMac",
+      "passes": true
+    },
+    {
+      "id": "A3",
+      "covers": ["R7"],
+      "description": "Given the service's socket started by launchd and clients (a table of the person, the person over SSH with no graphical session, another user serving the socket's path, one that writes to it, THERMI_SENSORS_SOCKET naming another), when they connect, then the person reads Core's snapshot lines from the service, from an SSH session too; a server of another user is refused; what a client writes is never read; and the service ends 10 s after the last client leaves.",
+      "check": "TheSocketServesOnlyThePersonsService",
+      "passes": true
+    },
+    {
+      "id": "A4",
+      "covers": ["R1", "R7", "R14"],
+      "description": "Given a person with no agents of thermi's, when thermi register runs, then thermi unregister, then register with Open at login off, then the agents in ~/Library/LaunchAgents are the service's, of the background session, started by its socket and every 4 hours, and the overlay's, of the graphical session, kept alive when it fails but not after it exits with 0; launchctl lists both, with no prompt; unregister stops and removes both and keeps the settings; and with Open at login off the overlay's does not start at login.",
+      "check": "TheAgentsAreThePersonsAlone",
+      "passes": true
+    },
+    {
+      "id": "A5",
+      "covers": ["R9", "R10"],
+      "description": "Given a session made for tests, a window under the overlay and a recorded feed, when thermi runs (a table of a Retina monitor and one that is not, a window of another app focused, an app full screen in its own Space, sensors stopped, an overlay that hides in full screen), then the screen shows, at the overlay's place and above the window and the Dock, the picture thermi preview paints for the same snapshot and scale; a click where it draws nothing reaches the window and the focus stays with it; over the full-screen app it shows still, and one that hides in full screen shows nothing on that monitor; and thermi is in neither the Dock nor the app switcher.",
+      "check": "TheOverlayShowsAboveEveryWindowOnMacOS",
+      "passes": false
+    },
+    {
+      "id": "A6",
+      "covers": ["R11"],
+      "description": "Given a session made for tests with two monitors and the Dock at the bottom, when an overlay is dragged into a corner, thermi restarts, the Dock moves to the left and then hides, and the monitors swap places, then it snaps inside the visible frame where it was let go, beside the menu bar and the Dock, the settings name the snap and not a position, it follows the Dock, and it shows on the same monitor after the swap.",
+      "check": "TheOverlayIsDraggedAndStaysOnMacOS",
+      "passes": false
+    },
+    {
+      "id": "A7",
+      "covers": ["R12", "R14"],
+      "description": "Given a session made for tests with the overlay, when the person right-clicks a pill, Control-clicks it, presses Esc, then chooses Hide overlays, undoes it, chooses Task Manager, then Exit thermi, then the menu is macOS's own with Core's entries; the overlay hides and comes back; Activity Monitor opens; and thermi ends with 0 and launchd starts it no more. Given thermi killed instead, then launchd starts it again, and one overlay shows.",
+      "check": "TheOverlaysMenuIsTheMacsOwn",
+      "passes": false
+    },
+    {
+      "id": "A8",
+      "covers": ["R13"],
+      "description": "Given a session made for tests with two overlays, when the person drags one onto the other, holds a pill and drops it on the desktop, presses Esc mid-drag, resizes with ⌘ and the wheel and with a pinch, and moves the pointer near an overlay that fades, then each gesture lands as spec 002 says on Windows and Undo takes it back, Esc puts everything back and reaches no other app, and the overlay fades and still takes a double-click.",
+      "check": "DesktopGesturesWorkOnMacOS",
+      "passes": false
+    },
+    {
+      "id": "A9",
+      "covers": ["R2", "R22"],
+      "description": "Given a recorded Mac feed served on the socket (a table of zsh and bash with no overlay running, an SSH session with no graphical session, the overlay running on a Retina monitor), when every command of spec 003 runs and the SDK reads, then each waits, answers JSON that validates against its schema and exits with its code; status says the service serves and whether an overlay runs; monitors gives the visible frames the running overlay places its overlays in, and with none running none and why, with no window server needed; start-with-windows sets Open at login without starting the overlay; and find-cpu-fan's load reaches the performance cores.",
+      "check": "TheCliAnswersOnMacOS",
+      "passes": false
+    },
+    {
+      "id": "A10",
+      "covers": ["R23"],
+      "description": "Given settings files written on Windows and on Linux, with FPS and frame time items, when thermi on macOS reads them, edits one and writes it back, then nothing is lost, Windows and Linux read the written file, the FPS items take no room in the overlay, and status says frames are not read on macOS.",
+      "check": "AFileLosesNothingOnMacOS",
+      "passes": false
+    },
+    {
+      "id": "A11",
+      "covers": ["R1", "R16"],
+      "description": "Given the app the CI builds and packs, when its bundle, its .dmg and the cask are checked, then the app is arm64 alone, signed with the hardened runtime and no entitlement but those its runtime needs, an agent app off the Dock, asks for no privacy permission in its Info.plist, and opens from the .dmg; and the cask installs it, links thermi-cli and runs thermi register.",
+      "check": "TheAppIsPackedAsItSays",
+      "passes": false
+    },
+    {
+      "id": "A12",
+      "covers": ["R17"],
+      "description": "Given a session made for tests, when the window is opened from the overlay's menu, the menu bar item, a double-click on a value, thermi settings and opening thermi.app, first closed and then behind another window, and is closed, then one window opens on the right item or overlay or comes to the front focused, its edits reach the overlay as on Windows, and once closed no process of it is left.",
+      "check": "TheSettingsWindowWorksOnMacOS",
+      "passes": false
+    },
+    {
+      "id": "A13",
+      "covers": ["R18"],
+      "description": "Given a session made for tests (a table of light, dark, another accent, Increase contrast, a theme Settings chose), when the window opens, the service stops and the person takes its fix, then the page follows the Mac's appearance, accent and contrast as on Windows, the service serves again with no prompt, and the start at login reads Open at login.",
+      "check": "TheWindowFollowsTheMac",
+      "passes": false
+    },
+    {
+      "id": "A14",
+      "covers": ["R18"],
+      "description": "Given the page with the macOS bridge, when the service is stopped and thermi-cli is not on the PATH, then the window offers macOS's two fixes, no driver bar, and the start at login as Open at login.",
+      "check": "TheWindowOffersTheMacsFixes",
+      "passes": false
+    },
+    {
+      "id": "A15",
+      "covers": ["R19"],
+      "description": "Given a session made for tests, when items' tray icons are shown and thermi restarts, then thermi's icon and each item show in the menu bar with their values, colors and menus, and are back after the restart.",
+      "check": "MenuBarItemsShowOnMacOS",
+      "passes": false
+    },
+    {
+      "id": "A16",
+      "covers": ["R20"],
+      "description": "Given a session made for tests and another program holding one combination, when the four hotkeys are set and pressed, then each does what it does on Windows, with no permission asked, and the held one is refused.",
+      "check": "HotkeysWorkOnMacOS",
+      "passes": false
+    },
+    {
+      "id": "A17",
+      "covers": ["R21"],
+      "description": "Given a session made for tests, when thermi first starts and an item with Notify me goes critical, then each notice is macOS's own, from thermi, and its buttons do what they do on Windows.",
+      "check": "NoticesAreTheMacsNotifications",
+      "passes": false
+    },
+    {
+      "id": "A18",
+      "covers": ["R3"],
+      "description": "Given a test channel and an installed app (a table of a newer app signed by thermi, one signed by another team, one not notarized, an app the person cannot write, a new app that fails at start), when the service checks, then it replaces thermi.app only with the newer app signed by thermi and notarized, whole, keeping the previous one; it leaves the rest as they were and logs why; for the app it cannot write it changes nothing and About says why; and after the failing one it goes back to the previous app.",
+      "check": "UpdatesReplaceTheAppOnlyWhenTrusted",
+      "passes": false
+    },
+    {
+      "id": "A19",
+      "covers": ["R3"],
+      "description": "Given a session made for tests with two overlays and the window open, when the service replaced the app, then each overlay hands over to the new version at its quiet moment without blinking, once the window is closed, and one overlay of each shows.",
+      "check": "TheOverlayHandsOverAfterAnUpdateOnMacOS",
+      "passes": false
+    },
+    {
+      "id": "A20",
+      "covers": ["R4"],
+      "description": "Given a test channel, when the levers publish, promote, roll back and disable it with a Mac app, then each manifest lists the Mac's app with its size and SHA-256, signed as on Windows, and the tap's cask names the published version and its SHA-256.",
+      "check": "TheLeversPublishTheMacApp",
+      "passes": false
+    }
+  ]
+}

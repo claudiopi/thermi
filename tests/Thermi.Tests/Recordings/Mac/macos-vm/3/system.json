@@ -1,0 +1,40 @@
+{
+  "moment": {
+    "elapsed": 865.838336541,
+    "localNow": "2026-11-28T15:27:12.253629+00:00",
+    "uptime": 865.2530000209808,
+    "address": "192.0.2.3"
+  },
+  "sysctl": {
+    "machdep.cpu.brand_string": "Apple M1 (Virtual)",
+    "hw.memsize": 7516192768,
+    "hw.pagesize": 16384
+  },
+  "cpuTicks": [
+    [
+      20042,
+      13119,
+      53310,
+      0
+    ],
+    [
+      19427,
+      10574,
+      56478,
+      0
+    ],
+    [
+      17870,
+      8808,
+      59815,
+      0
+    ]
+  ],
+  "memory": {
+    "free": 11306,
+    "wired": 83298,
+    "compressor": 37315,
+    "internal": 151103,
+    "purgeable": 2756
+  }
+}

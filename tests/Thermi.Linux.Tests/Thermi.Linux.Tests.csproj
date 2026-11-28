@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="Thermi.Tests.Shared" />
     <Using Include="Xunit" />
   </ItemGroup>
 
@@ -20,8 +21,10 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
-  <!-- The one check of the contract's schemas, which Thermi.Tests holds. -->
+  <!-- What the Linux and macOS tests share, from tests/Shared, and the one check of the contract's schemas, which
+       Thermi.Tests holds. -->
   <ItemGroup>
+    <Compile Include="..\Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
     <Compile Include="..\Thermi.Tests\Contract\SchemaCheck.cs" Link="Contract\SchemaCheck.cs" />
   </ItemGroup>
 

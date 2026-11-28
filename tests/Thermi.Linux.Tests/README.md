@@ -20,9 +20,9 @@ Entry points worth knowing:
 
 - `SensorFeed.cs` serves a recorded tree through the real `thermi-sensors`, as the person's own service, or one second of it over and over, so a screen holds still.
 - `Desktops/Scene.cs` shows thermi above a window and a panel, with the screen before and after.
-- `Traced.cs` names the events thermi writes under `--trace`, which the tests wait for.
+- `tests/Shared/Traced.cs` names the events thermi writes under `--trace`, which the tests wait for; it, a running program's lines and the bounds of a wait are shared with the macOS tests.
 - The contract's schema check is `tests/Thermi.Tests/Contract/SchemaCheck.cs`, shared rather than copied.
 
-Every test waits for what it waits on to say so, a line, a bus name or a traced event, never for a time: it arms the wait before what makes it happen. A wait that never ends would hang the run, so each is bounded (`Bound.cs`): a helper's wait runs out first and says what it waited for and the program's last lines on stderr, and each test's `Timeout` ends the rest.
+Every test waits for what it waits on to say so, a line, a bus name or a traced event, never for a time: it arms the wait before what makes it happen. A wait that never ends would hang the run, so each is bounded (`tests/Shared/Bound.cs`): a helper's wait runs out first and says what it waited for and the program's last lines on stderr, and each test's `Timeout` ends the rest.
 
 A session's bus starts only the D-Bus services a test needs, the settings' store and the accessibility bus, and what a desktop asks with `OwnSession.Activates`, never the file monitors, calendars, accounts and portals a desktop's own starts: each holds inotify instances, of which a user has 128 by default, most taken by their own desktop, and several sessions run at once. For the same reason the Shell's `ibus-daemon` is a stand-in that ends at once.

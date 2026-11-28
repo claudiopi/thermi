@@ -1,0 +1,79 @@
+[
+  {
+    "name": "lo0",
+    "type": 24,
+    "loopback": true,
+    "received": 170554,
+    "sent": 170554
+  },
+  {
+    "name": "gif0",
+    "type": 55,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "stf0",
+    "type": 57,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "anpi0",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "XHC12",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en1",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en0",
+    "type": 6,
+    "loopback": false,
+    "received": 486944036,
+    "sent": 2603815
+  },
+  {
+    "name": "utun0",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 200
+  },
+  {
+    "name": "utun1",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 80
+  },
+  {
+    "name": "utun2",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 200
+  },
+  {
+    "name": "utun3",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 200
+  }
+]

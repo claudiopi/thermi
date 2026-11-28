@@ -7,8 +7,9 @@ public sealed partial class RepoRulesTests
     // An agent runs as the user and asks a person to fix what needs an administrator (docs/adr/0013-agents-cli-and-mcp.md):
     // no code of its commands or of the MCP server reaches the elevated mode, a UAC prompt, the service manager or the
     // driver's install, and the pipe it reads never starts a host; on Linux, what thermi-cli runs there, its environment and
-    // what that reads, never reaches pkexec, sudo, systemd-run or a unit's start. The service's name, which status looks up,
-    // is all it may take of them.
+    // what that reads, never reaches pkexec, sudo, systemd-run or a unit's start; on macOS, thermi-cli never reaches an
+    // administrator's prompt, a privileged helper, launchctl's kickstart, bootstrap or load, or open, which starts an app.
+    // The service's name, which status looks up, is all it may take of them.
     [Fact]
     public void AgentsNeverElevate()
     {
@@ -23,6 +24,7 @@ public sealed partial class RepoRulesTests
             Path.Combine("src", "Thermi.Linux", "Desktop"),
             Path.Combine("src", "Thermi.Linux", "Gnome"),
             Path.Combine("src", "Thermi.Linux", "Program.cs"),
+            Path.Combine("src", "Thermi.MacOS.Cli") + Path.DirectorySeparatorChar,
         ];
         var reached = RepoFiles([".cs"])
             .Where(path => agents.Any(part => Relative(path).StartsWith(part, StringComparison.Ordinal)))
@@ -65,7 +67,9 @@ public sealed partial class RepoRulesTests
 
     [GeneratedRegex(
         @"\bElevated\w*|runas|ServiceController|IServiceManager|WindowsServices|DriverParts|InstallDriver|StartSensors\.(?!Service\b)\w+|\bShellExecute"
-            + @"|starts:\s*true|pkexec|\bsudo\b|systemd-run|SystemdRun|LinuxFixes|""(?:re)?start""",
+            + @"|starts:\s*true|pkexec|\bsudo\b|systemd-run|SystemdRun|LinuxFixes|""(?:re)?start"""
+            + @"|with administrator privileges|AuthorizationExecuteWithPrivileges|SMJobBless|\bkickstart\b"
+            + @"|\blaunchctl\s+(?:bootstrap|load)\b|""(?:bootstrap|load)""|""(?:/usr/bin/)?open""",
         RegexOptions.None,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex Elevating();

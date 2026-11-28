@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Logging;
 using Thermi.Core.Pipe;
@@ -7,9 +8,9 @@ using Thermi.Core.Tray;
 namespace Thermi.App.Sensors;
 
 /// <summary>
-/// Reads the sensor service's lines, on a connection each OS's client opens, a pipe on Windows and a socket on Linux, and
-/// waits <see cref="Retry"/> between tries while it is gone. Anyone may serve a pipe or a socket of the service's name
-/// while the service restarts, so only one the client trusts is read; one it does not marks the feed
+/// Reads the sensor service's lines, on a connection each OS's client opens, a pipe on Windows and a socket on Linux and
+/// macOS, and waits <see cref="Retry"/> between tries while it is gone. Anyone may serve a pipe or a socket of the
+/// service's name while the service restarts, so only one the client trusts is read; one it does not marks the feed
 /// <see cref="Taken"/>.
 /// </summary>
 internal abstract class SensorReader(TimeProvider time, ILogger log) : ISensorFeed
@@ -107,6 +108,42 @@ internal abstract class SensorReader(TimeProvider time, ILogger log) : ISensorFe
     /// nothing answered within <see cref="Retry"/>, and an <see cref="IOException"/> when nothing serves there.
     /// </summary>
     protected abstract Task<(Stream Connection, bool Ours)> ConnectAsync(CancellationToken stop);
+
+    /// <summary>
+    /// The connection to the Unix socket at <paramref name="path"/>, Linux's or macOS's service's, and whether one of the
+    /// <paramref name="trusted"/> users serves it, as the kernel tells its peer; a timeout when nothing answered within
+    /// <see cref="Retry"/>, and an <see cref="IOException"/> when nothing listens there.
+    /// </summary>
+    protected async Task<(Stream Connection, bool Ours)> ConnectAsync(string path, IReadOnlyList<uint?> trusted, CancellationToken stop)
+    {
+#pragma warning disable CA2000 // The stream it answers owns it, and each way out that answers none disposes it.
+        var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+#pragma warning restore CA2000
+        try
+        {
+            using var timeout = new CancellationTokenSource(Retry, Time);
+            using var connecting = CancellationTokenSource.CreateLinkedTokenSource(stop, timeout.Token);
+            await socket.ConnectAsync(new UnixDomainSocketEndPoint(path), connecting.Token);
+            var peer = PeerCredentials.UserOf(socket);
+            return (new NetworkStream(socket, ownsSocket: true), peer is not null && trusted.Contains(peer));
+        }
+        catch (OperationCanceledException ex) when (!stop.IsCancellationRequested)
+        {
+            socket.Dispose();
+            throw new TimeoutException("The sensors' socket did not answer in time.", ex);
+        }
+        catch (SocketException ex)
+        {
+            // Nothing listens there: the service is stopped or not installed.
+            socket.Dispose();
+            throw new IOException($"No sensor service listens on {path}: {ex.SocketErrorCode}.", ex);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
 
     /// <summary>Nothing answered within a retry.</summary>
     protected virtual void Missing()

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- thermi-cli on macOS (docs/adr/0021-macos.md): plain net10.0, marked for macOS in Program.cs, so it never loads AppKit
+       and answers on a Mac no one ever signed in to graphically. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>thermi-cli</AssemblyName>
+    <RootNamespace>Thermi.MacOS.Cli</RootNamespace>
+    <!-- Published self-contained for Apple silicon into the app; restored for it, so the lock file holds what that needs. -->
+    <RuntimeIdentifiers>osx-arm64</RuntimeIdentifiers>
+    <!-- LibraryImport's generated marshalling of geteuid. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Thermi.MacOS.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Thermi.App\Thermi.App.csproj" />
+    <ProjectReference Include="..\Thermi.Cli\Thermi.Cli.csproj" />
+    <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+  </ItemGroup>
+
+</Project>

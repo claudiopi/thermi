@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- thermi on macOS, as the person: the overlay, the menu bar's items and the settings window, through .NET for macOS's
+       bindings of AppKit, WebKit, CoreGraphics and CoreText (docs/adr/0021-macos.md). -->
+  <PropertyGroup>
+    <AssemblyName>thermi</AssemblyName>
+    <RootNamespace>Thermi.MacOS</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <TargetFramework>net10.0-macos</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <!-- Apple silicon alone, on macOS 15 and later. -->
+    <RuntimeIdentifier>osx-arm64</RuntimeIdentifier>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <ApplicationId>io.github.claudiopi.thermi</ApplicationId>
+    <ApplicationTitle>thermi</ApplicationTitle>
+    <!-- LibraryImport's generated marshalling of geteuid, in the file it shares with thermi-cli. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- thermi register writes the agents' plists as thermi-cli writes and reads them, and loads them as the person whose id
+       thermi-cli asks: the files are thermi-cli's, built into both, so neither program loads the other. -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <Compile Include="..\Thermi.MacOS.Cli\Agents\LaunchAgents.cs" Link="Agents\LaunchAgents.cs" />
+    <Compile Include="..\Thermi.MacOS.Cli\Native\User.cs" Link="Native\User.cs" />
+    <ProjectReference Include="..\Thermi.Core\Thermi.Core.csproj" />
+  </ItemGroup>
+
+  <!-- .NET for macOS builds only on a Mac with Xcode, and Windows and Linux build the whole solution too: there this project
+       is plain net10.0 with no code and no package, so it builds nothing of thermi's and has nothing to lock. The lock file
+       beside it is the Mac's. -->
+  <PropertyGroup Condition="!$([MSBuild]::IsOSPlatform('OSX'))">
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <NuGetLockFilePath>$(MSBuildProjectExtensionsPath)off-macos.lock.json</NuGetLockFilePath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('OSX'))">
+    <PackageReference Remove="@(PackageReference)" />
+  </ItemGroup>
+
+</Project>

@@ -42,7 +42,7 @@ The running overlay holds the bus name `io.github.claudiopi.thermi.Overlay`, and
 
 The tests drive thermi as a person's desktop does and wait for what it says it did, never for a time, so these are a contract: a change here changes `tests/Thermi.Linux.Tests` with it.
 
-Under `--trace`, the overlay and the settings window write each event as one line on their standard error, `<seconds on CLOCK_MONOTONIC, 3 decimals> <event>[ <about>]`, as `812.034 shown`, with the names `tests/Thermi.Linux.Tests/Traced.cs` gives them; a line of another shape is the log's.
+Under `--trace`, the overlay and the settings window write each event as one line on their standard error, `<seconds on CLOCK_MONOTONIC, 3 decimals> <event>[ <about>]`, as `812.034 shown`, with the names `tests/Shared/Traced.cs` gives them; a line of another shape is the log's.
 
 | Event | Written when |
 | --- | --- |

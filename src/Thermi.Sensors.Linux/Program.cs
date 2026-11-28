@@ -84,7 +84,7 @@ internal static class Program
     private static async Task<int> ServeAsync(
         LinuxSensors sensors, SensorServe serve, TimeProvider time, TextWriter output, TextWriter error, CancellationToken stop)
     {
-        using var listener = serve.Console ? Own() : SocketServer.FromSystemd();
+        using var listener = serve.Console ? Own() : Systemd.Socket();
         if (listener is null)
         {
             await error.WriteLineAsync(serve.Console

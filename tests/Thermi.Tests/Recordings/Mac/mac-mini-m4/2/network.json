@@ -1,0 +1,191 @@
+[
+  {
+    "name": "lo0",
+    "type": 24,
+    "loopback": true,
+    "received": 10535353,
+    "sent": 10535353
+  },
+  {
+    "name": "gif0",
+    "type": 55,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "stf0",
+    "type": 57,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "anpi3",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "anpi1",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "anpi0",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en0",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en5",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en6",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en7",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en2",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en3",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en4",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "ap1",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "en1",
+    "type": 6,
+    "loopback": false,
+    "received": 9323622321,
+    "sent": 10066915053
+  },
+  {
+    "name": "bridge0",
+    "type": 209,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "awdl0",
+    "type": 6,
+    "loopback": false,
+    "received": 356504,
+    "sent": 14851000
+  },
+  {
+    "name": "llw0",
+    "type": 6,
+    "loopback": false,
+    "received": 0,
+    "sent": 0
+  },
+  {
+    "name": "utun0",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 100
+  },
+  {
+    "name": "utun1",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 3031
+  },
+  {
+    "name": "utun2",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 2971
+  },
+  {
+    "name": "utun3",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 2971
+  },
+  {
+    "name": "utun4",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 260
+  },
+  {
+    "name": "utun5",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 80
+  },
+  {
+    "name": "utun6",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 200
+  },
+  {
+    "name": "utun7",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 320
+  },
+  {
+    "name": "utun8",
+    "type": 1,
+    "loopback": false,
+    "received": 0,
+    "sent": 320
+  }
+]
