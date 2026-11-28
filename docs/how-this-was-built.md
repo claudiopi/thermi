@@ -5,7 +5,7 @@ thermi is built by one person working with AI coding agents, in the open. This p
 ## The setup
 
 - `AGENTS.md` is the only guide, for people and agents alike. Every rule in it names the check that enforces it.
-- `scripts/check.ps1` is the only quality check. It runs locally and in CI, so they never disagree.
+- `scripts/check.ps1` is the one quality check. It runs locally and in CI, on Windows and on Linux, so they never disagree. The one step outside it is the page's Playwright tests on Linux: the CI runs `npm run build` and `npx playwright test` in Playwright's own image, whose browsers match the version the page pins, as a person runs them on Linux.
 - Every change goes through the same loop (in `AGENTS.md`): an agent prunes its comments, the check passes, a second agent reviews it with a fixed brief (`.claude/agents/reviewer.md`), and a person tests it on real hardware and merges.
 - Agents never merge on their own. The only automatic merges are updates to build tools and CI actions, by Renovate, once the CI passes.
 - Every commit made with an agent says which model wrote it, and every PR says what the reviewer agent concluded.
@@ -19,7 +19,7 @@ The same person built larger projects this way before. These are the things that
 | Rules written in docs and forgotten. | Each rule has a check that fails the build or the CI. |
 | Files of thousands of lines. | Size and complexity limits as build errors. |
 | Analyzers turned on late, leaving warnings nobody would ever fix. | Strict analyzers and warnings as errors from the first line. |
-| Local hooks and CI applying different rules. | One script for both. |
+| Local hooks and CI applying different rules. | One script for both, and the same two commands in both for the page's tests on Linux. |
 | Warnings silenced by the hundreds, nobody knew why. | Every suppression says why, and a test checks it. |
 | Comments narrating the code, or its history. | A check for history in comments, and an agent that prunes the rest. |
 | Fakes kinder than reality, so tests passed and the app failed. | Sensor tests replay real recorded data, failures included. |
