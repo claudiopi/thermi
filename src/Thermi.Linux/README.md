@@ -39,6 +39,7 @@ Under `--trace`, each event is one line on the standard error, `<seconds on CLOC
 | `edit-applied` | One change of the settings is saved and on screen, wherever it came from. |
 | `dropped` | A drag ended, let go or taken back with Esc, and what it left is saved and on screen. |
 | `hotkey-refused <role>` | The desktop refused a hotkey, held by another program, by its field's name in the settings, as `nextStyle`. |
+| `hotkeys-refused` | The desktop gave none of the hotkeys: it has no way to give them, or the person said no. Said once, in place of a `hotkey-refused` for each. |
 | `lifted` | A hold lifted a value or a pill, and its ghost is on screen under the pointer. |
 | `faded` | An overlay with Fade, opaque until then, is on screen fainter as the pointer nears it: its surface's opacity, never a new picture. |
 
