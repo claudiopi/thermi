@@ -4,7 +4,6 @@ using Thermi.Core.Settings;
 using Thermi.Windows.Overlay;
 using Thermi.Windows.Tests.OnTop;
 using Thermi.Windows.Ui;
-using Thermi.Windows.Ui.Web;
 using Thermi.Windows.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
