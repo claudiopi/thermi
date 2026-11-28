@@ -47,14 +47,18 @@ public sealed partial class DesktopTests
     public async Task HotkeysWorkOnMacOS()
     {
         var cancel = TestContext.Current.CancellationToken;
-        await using var mac = await TestMac.StartAsync(SensorFeed.MacMini, cancel);
+        await using var mac = await TestMac.StartAsync(null, cancel);
         var main = (await mac.MonitorsAsync(cancel))[0].Visible;
         var area = (main.X + 200, main.Y + 200, 200, 40);
-        // Spotlight holds ⌘Space, Win+Space in the file, on every Mac: thermi refuses it, as Windows does a combination another
+        // Another program holds Ctrl+Alt+F11 before thermi starts: thermi refuses it, as Windows does a combination another
         // program holds.
-        var hotkeys = new HotkeysConfig { Toggle = "Ctrl+Alt+F9", NextStyle = "Ctrl+Alt+F10", ClickThrough = "Win+Space", ResetMinMax = "Ctrl+Alt+F12" };
-        await mac.WriteSettingsAsync(
-            ThermiConfig.New with { Overlays = [OverlayConfig.First with { Position = new(main.X + 200, main.Y + 200) }], Hotkeys = hotkeys }, cancel);
+        await Input.HoldHotkeyAsync(mac.Session, Input.F11, Input.CarbonControlOption, cancel);
+        var hotkeys = new HotkeysConfig { Toggle = "Ctrl+Alt+F9", NextStyle = "Ctrl+Alt+F10", ClickThrough = "Ctrl+Alt+F11", ResetMinMax = "Ctrl+Alt+F12" };
+        // The CPU's temperature shows its highest, which only Reset min/max takes back to now.
+        var items = OverlayConfig.First.Items.Select(item => item.Metric == Metrics.CpuTemperature.Id ? item with { Stat = ItemStat.Max } : item).ToList();
+        var overlay = OverlayConfig.First with { Position = new(main.X + 200, main.Y + 200), Items = items };
+        await mac.WriteSettingsAsync(ThermiConfig.New with { Overlays = [overlay], Hotkeys = hotkeys }, cancel);
+        var feed = await SensorFeed.ServeAsync(mac.Session, SensorFeed.MacMiniLoaded, cancel);
         var thermi = await mac.ShowThermiAsync([], cancel);
         var refused = await Traced.FirstAsync(thermi.Error, Traced.HotkeyRefused, cancel);
 
@@ -63,18 +67,34 @@ public sealed partial class DesktopTests
         await Input.KeyAsync(mac.Session, Input.F10, cancel, Input.ControlOption);
         await styled;
         var after = await mac.ReadSettingsAsync(cancel);
+        var reset = await ResetsAsync(mac, thermi, feed, area, cancel);
         var shown = await Screen.CaptureAsync(mac.Session, area, cancel);
         var hidden = Traced.NextAsync(thermi.Error, Traced.Hidden, cancel);
         await Input.KeyAsync(mac.Session, Input.F9, cancel, Input.ControlOption);
         await hidden;
         var gone = await Screen.CaptureAsync(mac.Session, area, cancel);
-        var reset = Traced.NextAsync(thermi.Error, Traced.Paint, cancel);
-        await Input.KeyAsync(mac.Session, Input.F12, cancel, Input.ControlOption);
-        await reset;
 
         Assert.Equal("clickThrough", refused.About);
         Assert.NotEqual(before.Overlays[0].Style, after.Overlays[0].Style);
+        Assert.NotEqual(0, reset);
         Assert.NotEqual(0, gone.Differing(shown));
+    }
+
+    // The Mac cools, from the loaded recording to the one at rest: the highest stays as it was, until Reset min/max's hotkey
+    // takes it to now. How much of the overlay the reset changed, two of thermi's seconds after the press.
+    private static async Task<int> ResetsAsync(
+        TestMac mac, SessionProcess thermi, SessionProcess feed, (int X, int Y, int Width, int Height) area, CancellationToken cancel)
+    {
+        feed.Kill();
+        await feed.WaitForExitAsync(cancel);
+        var cooled = Traced.NextAsync(thermi.Error, Traced.Paint, cancel, count: 2);
+        await SensorFeed.ServeAsync(mac.Session, SensorFeed.MacMini, cancel);
+        await cooled;
+        var highest = await Screen.CaptureAsync(mac.Session, area, cancel);
+        var reset = Traced.NextAsync(thermi.Error, Traced.Paint, cancel, count: 2);
+        await Input.KeyAsync(mac.Session, Input.F12, cancel, Input.ControlOption);
+        await reset;
+        return (await Screen.CaptureAsync(mac.Session, area, cancel)).Differing(highest);
     }
 
     [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
@@ -85,24 +105,27 @@ public sealed partial class DesktopTests
         var items = OverlayConfig.First.Items.Select(item => item.Metric == Metrics.CpuTemperature.Id ? item with { Notify = true } : item).ToList();
         await mac.WriteSettingsAsync(ThermiConfig.New with { Overlays = [OverlayConfig.First with { Items = items }] }, cancel);
         await mac.Session.RunAsync("thermi-cli", ["edit", Hot], cancel: cancel);
-        var started = TimeProvider.System.GetTimestamp();
         var thermi = await mac.ShowThermiAsync([], cancel);
 
-        // The first start's notice, then the critical item's once it stayed critical: each a notification from thermi.
-        for (var second = 0; second <= NotifyMe.After.TotalSeconds; second++)
-        {
-            await TestMac.PaintedAsync(thermi, cancel);
-        }
-
-        var critical = TimeProvider.System.GetElapsedTime(started);
-        var shown = (await NoticeReader.ShownAsync(mac.Session, cancel)).Where(notice => notice.App == "thermi").ToList();
+        // The first start's notice at once, and the critical item's once it stayed critical for NotifyMe's while, by thermi's
+        // own seconds, and not before: each a notification from thermi.
+        var early = await NoticesAfterAsync(mac, thermi, (int)NotifyMe.After.TotalSeconds - 2, cancel);
+        var shown = await NoticesAfterAsync(mac, thermi, 4, cancel);
         var window = Traced.NextAsync(thermi.Error, Traced.WindowShown, cancel);
         var (_, title, buttons) = shown.First(notice => notice.Buttons.Length > 0);
         await NoticeReader.ClickAsync(mac.Session, title, buttons[0], cancel);
 
+        Assert.Single(early.Select(notice => notice.Title).Distinct(StringComparer.Ordinal));
         Assert.Equal(2, shown.Select(notice => notice.Title).Distinct(StringComparer.Ordinal).Count());
-        Assert.True(critical >= NotifyMe.After, $"The critical notice came {critical} after the start.");
         Assert.NotNull(await window);
+    }
+
+    // thermi's notifications on screen once it painted as many more seconds.
+    private static async Task<List<(string App, string Title, string[] Buttons)>> NoticesAfterAsync(
+        TestMac mac, SessionProcess thermi, int seconds, CancellationToken cancel)
+    {
+        await Traced.NextAsync(thermi.Error, Traced.Paint, cancel, count: seconds);
+        return [.. (await NoticeReader.ShownAsync(mac.Session, cancel)).Where(notice => notice.App == "thermi")];
     }
 
     // Each of thermi's windows at the menu bar's level, left to right, as the screen shows it.
