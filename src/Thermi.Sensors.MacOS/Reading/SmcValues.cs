@@ -15,8 +15,11 @@ internal sealed class SmcValues(IMac mac, string chip)
     /// <summary>The keys found, each with what it measures, in the SMC's order.</summary>
     public IReadOnlyList<(string Key, AppleKey Named)> Keys { get; private set; } = [];
 
-    /// <summary>The fans the SMC counts.</summary>
-    public int Fans { get; private set; }
+    /// <summary>
+    /// The fans the SMC counts this second, read each second as every key is, so a recording holds it in each; a Mac that
+    /// gives no count, as a virtual machine, has none, and that is no key failing.
+    /// </summary>
+    public int Fans => Value(AppleSilicon.FanCount) is { } fans ? (int)Math.Clamp(fans, 0, 10) : 0;
 
     /// <summary>Whether a key failed to read this second, so the keys are found again at the next.</summary>
     public bool Failed { get; private set; }
@@ -28,7 +31,6 @@ internal sealed class SmcValues(IMac mac, string chip)
             .Select(key => (Key: key, Named: AppleSilicon.KeyOf(chip, key)))
             .Where(found => found.Named is not null && this[found.Key] is not null)
             .Select(found => (found.Key, found.Named!))];
-        Fans = this[AppleSilicon.FanCount] is { } fans ? (int)Math.Clamp(fans, 0, 10) : 0;
         Failed = false;
     }
 
@@ -44,14 +46,20 @@ internal sealed class SmcValues(IMac mac, string chip)
     {
         get
         {
-            if (!_read.TryGetValue(key, out var value))
-            {
-                value = mac.Smc(key);
-                _read[key] = value;
-            }
-
+            var value = Value(key);
             Failed |= value is null;
             return value;
         }
+    }
+
+    private double? Value(string key)
+    {
+        if (!_read.TryGetValue(key, out var value))
+        {
+            value = mac.Smc(key);
+            _read[key] = value;
+        }
+
+        return value;
     }
 }
