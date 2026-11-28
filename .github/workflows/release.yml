@@ -539,14 +539,15 @@ jobs:
           FROM: ${{ vars.THERMI_UPDATES_FROM }}
         run: |
           # The repositories have no rollout: a promotion reaches every PC. A channel nothing was published to has nothing to sign.
-          $levers = switch ($env:LEVER) {
+          # A list of levers even when there is one: PowerShell would unroll a lone lever's words into a list of their own.
+          $levers = @(switch ($env:LEVER) {
             'refresh' {
               @($env:CHANNEL ? $env:CHANNEL : @('stable', 'beta')) | Where-Object { Test-Path "channels/linux/history/$_.json" } |
                 ForEach-Object { , @('sign', '--channel', $_) }
             }
             'promote' { , @('promote', '--from', 'beta', '--to', 'stable') }
             default { , @($env:LEVER, '--channel', $env:CHANNEL, '--updates-from', $env:FROM) }
-          }
+          })
           foreach ($lever in $levers) {
             pwsh scripts/updates.ps1 @lever --repository channels/linux
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
