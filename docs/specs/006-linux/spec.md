@@ -65,11 +65,13 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 - R20. thermi's icon and the items' tray icons of spec 002 show on every desktop: in GNOME's top bar through the extension, and elsewhere in the desktop's tray as StatusNotifierItems, with the same menus, values and colors, and kept across restarts.
   Exception: Off GNOME the icons show only where a StatusNotifier tray runs, as Plasma's does; on Sway, Xfce, MATE and Cinnamon it takes a bar or panel with one. GNOME's top bar shows no tooltips, so there an icon's hottest value and what it hides are its screen reader's name alone.
 - R21. The four hotkeys of spec 002 work on every desktop: through the extension on GNOME, through the desktop's GlobalShortcuts portal on KDE Plasma and Hyprland, which asks the person once, and by grabbing the keys on X11. A combination another program holds is refused as on Windows.
+  Exception: Sway offers no GlobalShortcuts portal, and Wayland lets no program grab keys, so on Sway thermi takes no hotkey and refuses them all.
 - R22. thermi's notices, the first start's, "Notify me when critical" and the extension's, are the desktop's own notifications, and their buttons do what they do on Windows.
 
 ### Agents
 
 - R15. Every command and MCP tool of spec 003 answers on Linux with the same JSON and schemas: `status` says whether the service is installed and serving, whether an overlay runs, and on a desktop where the overlay cannot show, that it cannot; `monitors` gives the desktop's monitors with their panels, as the running overlay places its overlays on them, and with none running says so, so `thermi-cli` needs no display; `start-with-windows` keeps its name, as the contract does, and sets the start at sign-in; `find-cpu-fan` loads the CPU at the scheduler's idle priority. The .NET SDK finds `thermi-cli` on Linux.
+  Exception: The service is started by its socket (R5), so a `thermi-cli` read starts it, as any client's does, even one a person stopped, where spec 003's R4 says nothing `thermi-cli` does starts it; `thermi-cli` still starts nothing itself.
 
 ### FPS
 
@@ -90,7 +92,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 | `tests/Thermi.Tests` | Linux recordings, the trees and their snapshots, from a Ryzen 9 5900X with an RTX 3060 on Ubuntu 26.04, as the service's user and as a plain user, and from a virtual machine with no `hwmon`. |
 | `Thermi.Linux.Tests` | The reader from recorded trees, the socket, the CLI on Linux, the window and the overlay against a headless GNOME Shell, KWin, Sway and an X11 desktop of the test's own, each started with its own D-Bus session, driven through the compositor's own input for tests and read back through its screenshots: the rule that no test touches the person's desktop holds on Linux too. |
 | `.github/workflows/ci.yml` | Jobs on Ubuntu, required by `CI gate`: Core's tests and the Linux tests, the extension's lint, the page on WebKit, and the packages built for both architectures and installed in clean containers of each distribution, from a repository the levers wrote. |
-| `docs/RELEASES.md` | The Linux checks, run on the physical Ubuntu PC and on the test machines, one per desktop and package. |
+| `docs/RELEASES.md` | The Linux checks, run on the physical Ubuntu PC and on the test machines: one per package, on GNOME, KDE Plasma and Hyprland, and one with no screen. Sway and the X11 desktops have no machine of their own: the CI's headless runs alone try them. |
 
 Logs go to `~/.local/state/thermi`, and the service's to the journal. The settings file is the same file, under `~/.config/thermi`, under the same mutex.
 

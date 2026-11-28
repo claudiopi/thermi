@@ -20,7 +20,7 @@
 ## B3. thermi-cli
 
 - [x] T10. `Thermi.Linux`'s `IAgentEnvironment` and `thermi-cli`. (R2, R15)
-- [ ] T11. The SDK finding `thermi-cli` on Linux, and `status` on frames and desktops. (R15, R16) Done but for A9, which waits for B4: it starts the overlay's unit, `thermi.service`, which B4 packages.
+- [ ] T11. The SDK finding `thermi-cli` on Linux, and `status` on frames and desktops. (R15, R16) Done but for A9's row from each shell and A10, a settings file from Windows: their tests still skip them, waiting for their code.
 
 ## B4. The overlay
 
