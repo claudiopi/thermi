@@ -182,11 +182,18 @@ public sealed class AgentTests
     // On GNOME without thermi's extension, and in a Wayland session with neither GNOME Shell nor layer surfaces, where the
     // overlay its sign-in started ended at once, status says the overlay cannot show there. On GNOME with the extension's
     // files in place that the running Shell never read, as right after a package put them there, its fix is to sign in again.
+    // Budgie and GNOME Flashback name GNOME among their desktops and run no Shell: there it never says so.
     private static async Task CannotShowAsync(CancellationToken cancel)
     {
         await CannotShowOnAsync(DesktopKind.Gnome, extension: null, cancel);
         await CannotShowOnAsync(DesktopKind.Gnome, extension: null, cancel, placed: true);
         await CannotShowOnAsync(DesktopKind.BareWayland, TestShell.Thermi, cancel);
+
+        await using var budgie = new OwnSession();
+        await SensorFeed.ServeAsync(budgie, SensorFeed.Desktop, cancel);
+        var named = new Dictionary<string, string> { ["XDG_CURRENT_DESKTOP"] = "Budgie:GNOME" };
+        var status = await budgie.RunAsync("thermi-cli", ["status", "--schema", "1"], named, cancel);
+        Assert.DoesNotContain("overlay-cannot-show", Codes(JsonNode.Parse(status.Out)!));
     }
 
     private static async Task CannotShowOnAsync(DesktopKind kind, string? extension, CancellationToken cancel, bool placed = false)

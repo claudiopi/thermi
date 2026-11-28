@@ -34,8 +34,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
     private readonly OverlayLink _overlay;
     private readonly BusObjects? _objects;
 
-    // GNOME as the overlay tells it, by the session's names or its Shell on the bus, so a window started without the
-    // session's variables names the top bar as the overlay sits on it.
+    // GNOME as the overlay tells it, by its Shell on the bus, so a window started without the session's variables names the
+    // top bar as the overlay sits on it, and Budgie's, which names GNOME, none.
     private readonly bool _gnome;
     private WindowEnd? _windowEnd;
     private WindowTheme _theme;

@@ -152,13 +152,13 @@ public sealed record HostDesktop(
         };
 
     /// <summary>
-    /// Reads the bar from <c>XDG_CURRENT_DESKTOP</c>'s names, or GNOME's top bar where its Shell is on the session's bus,
-    /// as a program started without the session's variables names none; with none listed, it is no bar.
+    /// GNOME's top bar where its Shell is on the session's bus, whatever the session names, as Budgie and GNOME Flashback
+    /// name GNOME too and show panels; elsewhere the bar <c>XDG_CURRENT_DESKTOP</c>'s names give, and with none, no bar.
     /// </summary>
     public static DesktopBar BarOf(string? desktops, bool shell = false)
     {
         var names = (desktops ?? "").Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return shell || names.Any(name => name.Equals("GNOME", StringComparison.OrdinalIgnoreCase)) ? DesktopBar.TopBar
+        return shell ? DesktopBar.TopBar
             : names.Length == 0 || names.Any(name => Barless.Contains(name, StringComparer.OrdinalIgnoreCase)) ? DesktopBar.None
             : DesktopBar.Panel;
     }
