@@ -6,28 +6,28 @@
       "covers": ["R5", "R6"],
       "description": "Given the recordings of a Mac mini M4 and of a virtual machine (a table of the M4 at rest and under load, keys that vanish or fail to read mid-read, a chip family with other key names, a Mac with no fan, a virtual machine with no SMC), when the service reads each second and the default overlay is laid out, then every metric reads what the recording holds, mapped by the chip's family; the CPU's temperature is its cores' hottest and its power the CPU energy of the second; a vanished key, the fanless Mac's fans and every metric of the virtual machine are missing, never 0; the virtual adapters are set apart; and the uptime, local IP and clock read as on Windows.",
       "check": "TheServiceReadsWhatTheMacGives",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A2",
       "covers": ["R8"],
       "description": "Given a Mac whose registry and adapters name its host, its user, its serial number and its MAC addresses, when the service records it with --raw and --dump, then the recording replays to the same snapshots and holds none of those names.",
       "check": "AMacRecordingReplaysAndNamesNoMac",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A3",
       "covers": ["R7"],
       "description": "Given the service's socket started by launchd and clients (a table of the person, the person over SSH with no graphical session, another user serving the socket's path, one that writes to it, THERMI_SENSORS_SOCKET naming another), when they connect, then the person reads Core's snapshot lines from the service, from an SSH session too; a server of another user is refused; what a client writes is never read; and the service ends 10 s after the last client leaves.",
       "check": "TheSocketServesOnlyThePersonsService",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A4",
       "covers": ["R1", "R7", "R14"],
       "description": "Given a person with no agents of thermi's, when thermi register runs, then thermi unregister, then register with Open at login off, then the agents in ~/Library/LaunchAgents are the service's, of the background session, started by its socket and every 4 hours, and the overlay's, of the graphical session, kept alive when it fails but not after it exits with 0; launchctl lists both, with no prompt; unregister stops and removes both and keeps the settings; and with Open at login off the overlay's does not start at login.",
       "check": "TheAgentsAreThePersonsAlone",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A5",

@@ -1,6 +1,6 @@
 # 008-macos: Tasks
 
-**Status**: approved; 3 of 27 tasks; current block B2.
+**Status**: approved; 8 of 27 tasks; current block B3.
 
 ## B1. The ground
 
@@ -10,11 +10,11 @@
 
 ## B2. The sensors
 
-- [ ] T4. The recordings of the Mac mini M4 with `--raw`, at rest and under load, and of the CI's virtual machine, and their snapshots. (R8)
-- [ ] T5. `Thermi.Sensors.MacOS`'s readers over a recorded source: the SMC, the HID sensors, IOReport, the GPU, the Mach counters, drives, adapters, the battery, the uptime, local IP and clock. (R5)
-- [ ] T6. Apple silicon's names in Core's `SensorMap`, by chip family, M1 to M4, from Stats' keys and the M4's recording. (R6)
-- [ ] T7. The socket's server and client under launchd, with the peer check. (R7)
-- [ ] T8. `thermi register` and `thermi unregister`, and the agents' plists. (R1, R7, R14)
+- [x] T4. The recordings of the Mac mini M4 with `--raw`, at rest and under load, and of the CI's virtual machine, and their snapshots. (R8)
+- [x] T5. `Thermi.Sensors.MacOS`'s readers over a recorded source: the SMC, the HID sensors, IOReport, the GPU, the Mach counters, drives, adapters, the battery, the uptime, local IP and clock. (R5)
+- [x] T6. Apple silicon's names in Core's `SensorMap`, by chip family, M1 to M4, from Stats' keys and the M4's recording. (R6)
+- [x] T7. The socket's server and client under launchd, with the peer check. (R7)
+- [x] T8. `thermi register` and `thermi unregister`, and the agents' plists. (R1, R7, R14)
 
 ## B3. thermi-cli
 
