@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Thermi.Linux.Agents;
 
 namespace Thermi.Linux.Window;
@@ -42,30 +41,7 @@ internal static class LinuxFixes
     /// <summary>Starts the sensor service's socket behind polkit's prompt: false when the person declined or it failed.</summary>
     public static Task<bool> StartService() => RunAsync(Pkexec, [UserUnit.Systemctl, "start", "thermi-sensors.socket"]);
 
-    // By its full path, never a program found on the PATH; one that is not there fails.
-    private static async Task<bool> RunAsync(string program, IReadOnlyList<string> args)
-    {
-        try
-        {
-            using var process = Process.Start(Info(program, args));
-            if (process is null)
-            {
-                return false;
-            }
-
-            await process.WaitForExitAsync();
-            return process.ExitCode == 0;
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            return false;
-        }
-    }
-
-    private static ProcessStartInfo Info(string program, IReadOnlyList<string> args) => new(program, args)
-    {
-        UseShellExecute = false,
-        RedirectStandardOutput = true,
-        RedirectStandardError = true,
-    };
+    // Unbounded: polkit's prompt waits on the person, as long as they take.
+    private static async Task<bool> RunAsync(string program, IReadOnlyList<string> args) =>
+        await SystemProgram.RunAsync(program, args, CancellationToken.None) == 0;
 }
