@@ -9,26 +9,20 @@ using Thermi.Linux.Desktop;
 namespace Thermi.Linux.Window;
 
 /// <summary>
-/// The window and its page in WebKitGTK: the page's files from the install's folder, under the page's policy, on a scheme
-/// of thermi's own that WebKit counts as secure; no navigation away, no new window, no permission, no browser menu. The
-/// page reaches C# only through <c>window.thermi</c>, which a script set before the page's own answers with the bridge;
-/// the answers and the bridge's events are run in the page as WebKit's host must.
+/// The window and its page in WebKitGTK, as <see cref="PageServer"/> serves it: no navigation away, no new window, no
+/// permission, no browser menu. The page reaches C# only through <c>window.thermi</c>, which a script set before the page's
+/// own answers with the bridge; the answers and the bridge's events are run in the page as WebKit's host must.
 /// </summary>
 internal sealed class SettingsWindow : IDisposable
 {
-    private const string Scheme = "thermi";
-
     /// <summary>Where the page is served from: a navigation anywhere else is refused.</summary>
-    internal const string Origin = Scheme + "://app/";
+    internal const string Origin = PageServer.Scheme + "://app/";
 
     // GNOME maximizes a new window that covers more than 80 % of its work area, which GTK does not know: of the whole
     // monitor, 75 % leaves room for a top bar.
     private const double MostOfTheScreen = 0.75;
 
     private const string Active = "is-active";
-
-    // Beside thermi in the install's folder, as the build copies it.
-    private static readonly string Files = Path.Combine(AppContext.BaseDirectory, "web");
 
     private readonly Gtk.ApplicationWindow _window;
     private readonly WebKit.WebView _view;
@@ -135,13 +129,6 @@ internal sealed class SettingsWindow : IDisposable
         _window.Dispose();
     }
 
-    /// <summary>Serves the page's files on thermi's scheme, which WebKit treats as secure, before any page loads.</summary>
-    public static void Serve(WebKit.WebContext context)
-    {
-        context.GetSecurityManager().RegisterUriSchemeAsSecure(Scheme);
-        context.RegisterUriScheme(Scheme, Served);
-    }
-
     // The first monitor in GTK's own pixels, which a window's size is given in: Windows' window takes its first size from
     // it, and the desktop places it. A session that says none is taken as one full HD monitor.
     private static Screen FirstScreen(IReadOnlyList<Screen> screens) =>
@@ -189,17 +176,6 @@ internal sealed class SettingsWindow : IDisposable
         type == WebKit.PolicyDecisionType.Response
         || (type == WebKit.PolicyDecisionType.NavigationAction && uri?.StartsWith(Origin, StringComparison.Ordinal) == true);
 
-    /// <summary>
-    /// The file of <paramref name="files"/> a request's path asks for, the page itself for none: null for one outside it, as
-    /// a path of <c>..</c> asks, or one it does not hold.
-    /// </summary>
-    internal static string? FileOf(string files, string path)
-    {
-        var asked = path.TrimStart('/');
-        var file = Path.GetFullPath(Path.Combine(files, asked.Length == 0 ? PageFiles.Index : asked));
-        return file.StartsWith(files + Path.DirectorySeparatorChar, StringComparison.Ordinal) && File.Exists(file) ? file : null;
-    }
-
     private static bool Refused(WebKit.PolicyDecision decision, WebKit.PolicyDecisionType type, ILogger log)
     {
         MainLoopRelease.Hold(log, decision);
@@ -210,38 +186,6 @@ internal sealed class SettingsWindow : IDisposable
 
         decision.Ignore();
         return true;
-    }
-
-    private static void Served(WebKit.URISchemeRequest request)
-    {
-        var file = FileOf(Files, request.GetPath());
-        var type = file is null ? null : PageFiles.TypeOf(file);
-        byte[] content = file is not null && type is not null ? File.ReadAllBytes(file) : [];
-        using var bytes = GLib.Bytes.New(content);
-        using var stream = Gio.MemoryInputStream.NewFromBytes(bytes);
-        using var response = WebKit.URISchemeResponse.New(stream, content.Length);
-        using var headers = Soup.MessageHeaders.New(Soup.MessageHeadersType.Response);
-        headers.Append("Content-Security-Policy", PageFiles.Policy);
-        headers.Append("X-Content-Type-Options", "nosniff");
-        headers.Append("Cache-Control", "no-store");
-
-        // nosniff reads the type from the headers, not from the response's own, so a style sheet without it never applies.
-        if (type is not null)
-        {
-            headers.Append("Content-Type", type);
-        }
-
-        response.SetHttpHeaders(headers);
-        if (type is not null)
-        {
-            response.SetContentType(type);
-        }
-        else
-        {
-            response.SetStatus(404, "Not Found");
-        }
-
-        request.FinishWithResponse(response);
     }
 
     // A hidden title bar of GTK's own leaves the page's title row the window's caption, as on Windows, while GTK keeps the

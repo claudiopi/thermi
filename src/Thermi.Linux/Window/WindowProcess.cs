@@ -124,7 +124,7 @@ internal static class WindowProcess
         Gtk.Application app, PageStart start, Settings settings, (IReadOnlyList<string> Args, bool Trace, WindowUpdates Updates) asked, Action read)
     {
         read();
-        SettingsWindow.Serve(WebKit.WebContext.GetDefault());
+        PageServer.Serve(WebKit.WebContext.GetDefault());
         var editor = new WindowEditor(settings, Turn.Post, start.Log, start.Time);
         var chart = new ChartHistory(start.Time);
         using var host = new LinuxHost(start.Log);
