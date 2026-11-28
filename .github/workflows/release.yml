@@ -477,11 +477,12 @@ jobs:
           CHANNEL: ${{ inputs.channel }}
           ROLLOUT: ${{ inputs.rollout }}
         run: |
-          $levers = switch ($env:LEVER) {
+          # A list of levers even when there is one: PowerShell would unroll a lone lever's words into a list of their own.
+          $levers = @(switch ($env:LEVER) {
             'refresh' { if ($env:CHANNEL) { , @('refresh', '--channel', $env:CHANNEL) } else { @('refresh', '--channel', 'stable'), @('refresh', '--channel', 'beta') } }
             'promote' { , @('promote', '--from', 'beta', '--to', 'stable', '--rollout', $env:ROLLOUT) }
             default { , @($env:LEVER, '--channel', $env:CHANNEL) }
-          }
+          })
           foreach ($lever in $levers) {
             pwsh scripts/updates.ps1 @lever --folder channels
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
