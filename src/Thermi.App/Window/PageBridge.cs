@@ -199,7 +199,7 @@ internal class PageBridge : IWindowBridge, IDisposable
 
     public Task<IReadOnlyDictionary<string, string>> Texts() => Task.FromResult(_texts.All);
 
-    public Task<IReadOnlyList<Rect?>> Places() => Task.FromResult(_views.Places(_texts, _host.Screens()));
+    public Task<IReadOnlyList<OverlayPlace?>> Places() => Task.FromResult(_views.Places(_texts, _host.Screens()));
 
     public Task<IReadOnlyList<MonitorView>> Monitors() =>
         Task.FromResult<IReadOnlyList<MonitorView>>([.. _host.Screens().Select(MonitorView.Of)]);

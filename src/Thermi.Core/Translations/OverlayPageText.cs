@@ -132,6 +132,13 @@ public enum OverlayPageText
     BesidePanel,
     VerticalAtBottomEdge,
 
+    /// <summary>Under Position: an overlay snapped to the taskbar that shows beside it, as no room on it holds it.</summary>
+    NoRoomHint,
+
+    /// <summary>Each bar's words for <see cref="NoRoomHint"/>.</summary>
+    NoRoomHintOnTopBar,
+    NoRoomHintOnPanel,
+
     /// <summary>A display on the map and in "Move to display", counted from the main one.</summary>
     DisplayName,
     MainDisplay,

@@ -101,13 +101,15 @@ public sealed record HostDesktop(
         {
             [DesktopBar.TopBar] = BarWords(
                 NameText.TopBar, PlaceText.OnTopBar, OverlayPageText.TopBarHint, OverlayPageText.MatchTopBar, OverlayPageText.SizeOnTopBar,
-                OverlayPageText.NoRoomOnTopBar, OverlayPageText.BelowTopBar),
+                (OverlayPageText.NoRoomOnTopBar, OverlayPageText.NoRoomHintOnTopBar), OverlayPageText.BelowTopBar),
             [DesktopBar.Panel] = BarWords(
                 NameText.Panel, PlaceText.OnPanel, OverlayPageText.PanelHint, OverlayPageText.MatchPanel, OverlayPageText.SizeOnPanel,
-                OverlayPageText.NoRoomOnPanel, OverlayPageText.BesidePanel),
+                (OverlayPageText.NoRoomOnPanel, OverlayPageText.NoRoomHintOnPanel), OverlayPageText.BesidePanel),
+
+            // The screen's edge has no parts to keep clear, so an overlay there is on it, as its hint says.
             [DesktopBar.None] = BarWords(
                 NameText.BottomEdge, PlaceText.AtBottomEdge, OverlayPageText.BottomEdgeHint, OverlayPageText.MatchDesktop,
-                OverlayPageText.SizeAtBottomEdge, OverlayPageText.NoRoomAtBottomEdge, OverlayPageText.VerticalAtBottomEdge),
+                OverlayPageText.SizeAtBottomEdge, (OverlayPageText.NoRoomAtBottomEdge, OverlayPageText.BottomEdgeHint), OverlayPageText.VerticalAtBottomEdge),
         };
 
     /// <summary>
@@ -166,8 +168,15 @@ public sealed record HostDesktop(
 
     private static readonly IReadOnlyDictionary<string, string> Empty = new Dictionary<string, string>();
 
+    // No room: the refusal of a move onto the bar, and the hint for one shown beside it.
     private static Dictionary<string, string> BarWords(
-        NameText name, PlaceText spot, OverlayPageText hint, OverlayPageText match, OverlayPageText size, OverlayPageText noRoom, OverlayPageText vertical) =>
+        NameText name,
+        PlaceText spot,
+        OverlayPageText hint,
+        OverlayPageText match,
+        OverlayPageText size,
+        (OverlayPageText Refused, OverlayPageText Beside) noRoom,
+        OverlayPageText vertical) =>
         new(StringComparer.Ordinal)
         {
             [Texts.Key(NameText.Taskbar)] = Texts.Key(name),
@@ -175,7 +184,8 @@ public sealed record HostDesktop(
             [Texts.Key(OverlayPageText.TaskbarHint)] = Texts.Key(hint),
             [Texts.Key(PillTheme.System)] = Texts.Key(match),
             [Texts.Key(UiText.SizeOnTaskbar)] = Texts.Key(size),
-            [Texts.Key(Refusal.NoRoomOnTaskbar)] = Texts.Key(noRoom),
+            [Texts.Key(Refusal.NoRoomOnTaskbar)] = Texts.Key(noRoom.Refused),
+            [Texts.Key(OverlayPageText.NoRoomHint)] = Texts.Key(noRoom.Beside),
             [Texts.Key(OverlayPageText.AboveTaskbar)] = Texts.Key(vertical),
         };
 }

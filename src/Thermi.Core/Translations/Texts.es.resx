@@ -717,6 +717,15 @@
   <data name="OverlayPageText.VerticalAtBottomEdge" xml:space="preserve">
     <value>En el borde inferior</value>
   </data>
+  <data name="OverlayPageText.NoRoomHint" xml:space="preserve">
+    <value>Junto a la barra de tareas (no hay espacio en ella a este tamaño)</value>
+  </data>
+  <data name="OverlayPageText.NoRoomHintOnTopBar" xml:space="preserve">
+    <value>Bajo la barra superior (no hay espacio en ella a este tamaño)</value>
+  </data>
+  <data name="OverlayPageText.NoRoomHintOnPanel" xml:space="preserve">
+    <value>Junto al panel (no hay espacio en él)</value>
+  </data>
   <data name="OverlayPageText.AboveTaskbar" xml:space="preserve">
     <value>Sobre la barra de tareas (en vertical no cabe en ella)</value>
   </data>

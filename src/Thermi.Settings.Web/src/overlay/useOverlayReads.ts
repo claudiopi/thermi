@@ -1,10 +1,10 @@
-import type { Bridge, LookSamples, Monitor, OverlayPicture, Rect, Style, WornLook } from '../bridge/bridge.g';
+import type { Bridge, LookSamples, Monitor, OverlayPicture, OverlayPlace, Style, WornLook } from '../bridge/bridge.g';
 import { useBridgeRead } from '../bridge/useWindow';
 
 const readMonitors = (from: Bridge): Promise<Monitor[]> => from.monitors();
 const readLooks = (from: Bridge): Promise<Record<string, Style>> => from.looks();
 const readWorn = (from: Bridge): Promise<(WornLook | null)[]> => from.worn();
-const readPlaces = (from: Bridge): Promise<(Rect | null)[]> => from.places();
+const readPlaces = (from: Bridge): Promise<(OverlayPlace | null)[]> => from.places();
 // An overlay and the room for its picture in device pixels, as one key, so a new room reads it again.
 const readPreview = (from: Bridge, overlayInRoom: string): Promise<OverlayPicture | null> => {
   const [overlay = 0, room = 0] = overlayInRoom.split(' ').map(Number);
@@ -14,7 +14,7 @@ const readSamples = (from: Bridge, scale: number): Promise<LookSamples> => from.
 
 const noMonitors: Monitor[] = [];
 const noLooks: Record<string, Style> = {};
-const noPlaces: (Rect | null)[] = [];
+const noPlaces: (OverlayPlace | null)[] = [];
 const noneWorn: (WornLook | null)[] = [];
 
 /** The monitors Windows has now. */
@@ -22,8 +22,8 @@ export function useMonitors(version: number): Monitor[] {
   return useBridgeRead(readMonitors, '', version) ?? noMonitors;
 }
 
-/** Where each overlay shows on the desktop, as C# works it out from the settings now. */
-export function usePlaces(version: number): (Rect | null)[] {
+/** Where each overlay shows on the desktop, and whether beside its taskbar, as C# works it out from the settings now. */
+export function usePlaces(version: number): (OverlayPlace | null)[] {
   return useBridgeRead(readPlaces, '', version) ?? noPlaces;
 }
 

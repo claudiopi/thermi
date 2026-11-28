@@ -205,7 +205,7 @@ internal sealed class BridgeEnums : JsonConverterFactory
 [JsonSerializable(typeof(IReadOnlyList<SnapConfig>))]
 [JsonSerializable(typeof(IReadOnlyDictionary<string, string>))]
 [JsonSerializable(typeof(IReadOnlyList<MonitorView>))]
-[JsonSerializable(typeof(IReadOnlyList<Rect?>))]
+[JsonSerializable(typeof(IReadOnlyList<OverlayPlace?>))]
 [JsonSerializable(typeof(IReadOnlyList<string>))]
 [JsonSerializable(typeof(IReadOnlyDictionary<string, StyleConfig>))]
 [JsonSerializable(typeof(IReadOnlyList<WornLook?>))]

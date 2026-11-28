@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import type { Monitor, Overlay, Rect } from '../bridge/bridge.g';
+import type { Monitor, Overlay, OverlayPlace, Rect } from '../bridge/bridge.g';
 import type { TextKey } from '../texts/Texts';
 import { alongOf, displayName, displays, moveToDisplay, placeText, placedOf, positionHint, snapAt, spotKey, type Placed } from './placeModel';
 
@@ -60,7 +60,7 @@ describe('where an overlay sits', () => {
     expect(placeText({ name: 'A', items: [], ...overlay }, shown, lower)).toBe(text);
   });
 
-  // Rows: each taskbar's state, read from the overlay's own display, is an operand of its condition.
+  // Rows: each taskbar's state, read from the overlay's own display, and whether C# says it shows beside it, is an operand of its condition.
   test.each([
     { placed: null, vertical: false, floats: undefined, hint: 'OverlayPageText.FreeHint' },
     { placed: { spot: 'top-right', display: 0, gone: false }, vertical: true, floats: 'side', hint: null },
@@ -69,10 +69,17 @@ describe('where an overlay sits', () => {
     { placed: { spot: 'taskbar', display: 1, gone: false, offset: 8 }, vertical: false, floats: 'hides', hint: 'OverlayPageText.TaskbarHint' },
     { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: true, floats: undefined, hint: 'OverlayPageText.AboveTaskbar' },
     { placed: { spot: 'taskbar', display: 0, gone: false }, vertical: false, floats: undefined, hint: 'OverlayPageText.TaskbarHint' },
-  ] satisfies { placed: Placed | null; vertical: boolean; floats: Monitor['floats']; hint: TextKey | null }[])(
+    {
+      placed: { spot: 'taskbar', display: 0, gone: false },
+      vertical: false,
+      floats: undefined,
+      place: { x: 900, y: 40, width: 300, height: 24, beside: true },
+      hint: 'OverlayPageText.NoRoomHint',
+    },
+  ] satisfies { placed: Placed | null; vertical: boolean; floats: Monitor['floats']; place?: OverlayPlace; hint: TextKey | null }[])(
     'hints $hint at $placed.spot with a main taskbar that floats $floats',
-    ({ placed, vertical, floats, hint }) => {
-      expect(positionHint(placed, vertical, [{ ...main, ...(floats === undefined ? {} : { floats }) }, second])).toBe(hint);
+    ({ placed, vertical, floats, place, hint }) => {
+      expect(positionHint(placed, vertical, [{ ...main, ...(floats === undefined ? {} : { floats }) }, second], place ?? null)).toBe(hint);
     },
   );
 

@@ -96,7 +96,8 @@ internal sealed class WindowViews(WindowEditor editor, ISensorFeed sensors, Read
     }
 
     /// <summary>Where each overlay shows on <paramref name="screens"/>, as its own window places it while the window is open.</summary>
-    public IReadOnlyList<Rect?> Places(Texts texts, IReadOnlyList<Screen> screens) => OverlayPlaces.Of(editor.Config, Input(texts), screens, host.Painter);
+    public IReadOnlyList<OverlayPlace?> Places(Texts texts, IReadOnlyList<Screen> screens) =>
+        OverlayPlaces.Of(editor.Config, Input(texts), screens, host.Painter);
 
     /// <summary>
     /// An edit's settings with each overlay it pushed along a taskbar keeping the place it was pushed to, as the overlays show

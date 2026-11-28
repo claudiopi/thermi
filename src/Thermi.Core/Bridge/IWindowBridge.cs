@@ -103,10 +103,10 @@ public interface IWindowBridge
     Task<IReadOnlyList<MonitorView>> Monitors();
 
     /// <summary>
-    /// Where each overlay shows on the desktop, in Windows' pixels, as its own window places it with its settings now:
-    /// null for one with no monitor to show on.
+    /// Where each overlay shows on the desktop, in Windows' pixels, as its own window places it with its settings now, and
+    /// whether beside its taskbar for want of room on it: null for one with no monitor to show on.
     /// </summary>
-    Task<IReadOnlyList<Rect?>> Places();
+    Task<IReadOnlyList<OverlayPlace?>> Places();
 
     /// <summary>An error the page threw and did not handle, with its stack, which goes to thermi's log.</summary>
     Task Report(string error);

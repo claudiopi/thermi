@@ -294,6 +294,14 @@ export interface OverlayPicture {
   taskbar: string | null;
 }
 
+export interface OverlayPlace {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  beside?: boolean;
+}
+
 export type PillLayout = 'pills' | 'each' | 'one';
 
 export type PillTheme = 'system' | 'dark' | 'light';
@@ -507,7 +515,7 @@ export interface Bridge {
   history(id: string): Promise<(number | null)[]>;
   texts(): Promise<Record<string, string>>;
   monitors(): Promise<Monitor[]>;
-  places(): Promise<(Rect | null)[]>;
+  places(): Promise<(OverlayPlace | null)[]>;
   report(error: string): Promise<void>;
   looks(): Promise<Record<string, Style>>;
   worn(): Promise<(WornLook | null)[]>;

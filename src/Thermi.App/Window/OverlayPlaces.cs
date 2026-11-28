@@ -16,12 +16,18 @@ namespace Thermi.App.Window;
 /// </summary>
 internal static class OverlayPlaces
 {
-    public static IReadOnlyList<Rect?> Of(ThermiConfig config, TrayInput input, IReadOnlyList<Screen> screens, Func<IOverlayPainter> painter)
+    /// <summary>
+    /// Where each overlay shows while the window is open, which <paramref name="input"/> says, kept to its room on a taskbar
+    /// with parts by its size with the window closed, as <see cref="TaskbarRow.RoomOf"/> keeps it.
+    /// </summary>
+    public static IReadOnlyList<OverlayPlace?> Of(ThermiConfig config, TrayInput input, IReadOnlyList<Screen> screens, Func<IOverlayPainter> painter)
     {
         using var measure = painter();
-        var shown = TaskbarRow.Fitted(config.Overlays, screens, [], Fit(measure, config, input, screens)).Fitted;
+        var closed = input.WindowOpen ? Fit(measure, config, input with { WindowOpen = false }, screens) : null;
+        var shown = TaskbarRow.Fitted(config.Overlays, screens, [], Fit(measure, config, input, screens), closed).Fitted;
         return [.. shown.Select((size, at) => size is { } box && TaskbarRow.Locate(config.Overlays, at, screens, (box.Width, box.Height), shown) is { } corner
-            ? new Rect(corner.X, corner.Y, box.Width, box.Height)
+            ? new OverlayPlace(corner.X, corner.Y, box.Width, box.Height, TaskbarRow.Beside(
+                config.Overlays[at], screens, new PixelRect(corner.X, corner.Y, corner.X + box.Width, corner.Y + box.Height)))
             : null)];
     }
 

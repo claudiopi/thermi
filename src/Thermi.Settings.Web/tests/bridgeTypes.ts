@@ -11,8 +11,8 @@ import type {
   Mark,
   Monitor,
   Overlay,
+  OverlayPlace,
   Problem,
-  Rect,
   Sensor,
   Service,
   Settings,
@@ -38,8 +38,11 @@ export interface FakeState {
   /** Refused is a Start that started no overlay, as C# answers where neither the unit nor a run of its own started. */
   overlayAnswer: 'accepted' | 'refused';
   monitors: Monitor[];
-  /** Where each overlay shows, as C# works it out; with none, as before C# answers, the map's taskbar spot sits at the offset. */
-  places: (Rect | null)[];
+  /**
+   * Where each overlay shows, and whether beside its taskbar, as C# works it out; with none, as before C# answers, the map's
+   * taskbar spot sits at the offset.
+   */
+  places: (OverlayPlace | null)[];
   looks: Record<string, Style>;
   /** The look each overlay wears, as C# decides it from the settings and the saved looks. */
   worn: (WornLook | null)[];

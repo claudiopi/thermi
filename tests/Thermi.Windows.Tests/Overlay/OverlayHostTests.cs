@@ -210,14 +210,14 @@ public sealed class OverlayHostTests : IDisposable
     {
         var two = OverlayEdits.Snap(OverlayEdits.Add(new ThermiConfig()).Config, 1, new SnapConfig(SnapSpot.TopLeft)).Config;
         var settings = await _folder.LoadedAsync(two);
-        var (shown, placed) = (new List<Core.Bridge.Rect?>(), new List<Core.Bridge.Rect?>());
+        var (shown, placed) = (new List<Core.Bridge.OverlayPlace?>(), new List<Core.Bridge.OverlayPlace?>());
 
         Run(settings, host =>
         {
-            List<Core.Bridge.Rect?> Shown()
+            List<Core.Bridge.OverlayPlace?> Shown()
             {
                 return [.. host.Overlays.Select(overlay => PInvoke.GetWindowRect(overlay.Hwnd, out var rect)
-                    ? new Core.Bridge.Rect(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+                    ? new Core.Bridge.OverlayPlace(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
                     : null)];
             }
 

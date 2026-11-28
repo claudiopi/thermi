@@ -708,6 +708,15 @@
   <data name="OverlayPageText.VerticalAtBottomEdge" xml:space="preserve">
     <value>At the bottom edge</value>
   </data>
+  <data name="OverlayPageText.NoRoomHint" xml:space="preserve">
+    <value>Beside the taskbar (no room on it at this size)</value>
+  </data>
+  <data name="OverlayPageText.NoRoomHintOnTopBar" xml:space="preserve">
+    <value>Below the top bar (no room on it at this size)</value>
+  </data>
+  <data name="OverlayPageText.NoRoomHintOnPanel" xml:space="preserve">
+    <value>Beside the panel (no room on it)</value>
+  </data>
   <data name="OverlayPageText.AboveTaskbar" xml:space="preserve">
     <value>Above the taskbar (vertical doesn't fit in it)</value>
   </data>

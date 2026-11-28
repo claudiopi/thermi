@@ -125,6 +125,12 @@ public sealed record SensorView(ServiceState Service, IReadOnlyList<RawSensor> S
 public sealed record Rect(int X, int Y, int Width, int Height);
 
 /// <summary>
+/// Where an overlay shows, and whether beside the taskbar it is snapped to, as where no room on it holds it, so the page
+/// says where it really is.
+/// </summary>
+public sealed record OverlayPlace(int X, int Y, int Width, int Height, bool Beside = false);
+
+/// <summary>
 /// A monitor by its EDID id, its whole area and the part windows take, whether a taskbar sits on it,
 /// and why its taskbar spots float, if they do.
 /// </summary>
