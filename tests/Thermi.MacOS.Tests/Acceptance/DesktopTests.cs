@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Thermi.Core.Settings;
@@ -31,26 +32,28 @@ public sealed partial class DesktopTests
         var pill = (X: main.X + 208, Y: main.Y + 208);
         await mac.WriteSettingsAsync(ThermiConfig.New with { Overlays = [OverlayConfig.First with { Position = new(main.X + 200, main.Y + 200) }] }, cancel);
         var thermi = await mac.ShowThermiAsync([], cancel);
-        var other = await Screen.ShowWindowAsync(mac.Session, (main.X + 400, main.Y + 100, 600, 400), fullScreen: false, cancel);
+        var other = (main.X + 400, main.Y + 100, 600, 400);
 
-        // Every way a person opens it, first with it closed and then behind another window: it comes to the front, focused.
+        // Every way a person opens it, first with it closed and then behind another app's window: one window, in front and
+        // focused, which once closed leaves no process.
         foreach (var way in WaysToOpen(mac, thermi, pill, cancel))
         {
             await OpensInFrontAsync(mac, thermi, other, way, cancel);
         }
 
-        // With the window open, an edit reaches the overlay and its file as on Windows; closed, no process of it is left.
+        // With the window open, an edit reaches the overlay and its file as on Windows.
+        var shown = Traced.NextAsync(thermi.Error, Traced.WindowShown, cancel);
+        await mac.Session.RunAsync(Built.Thermi, ["settings"], cancel: cancel);
+        await shown;
+        var window = await WindowAsync(mac, thermi, cancel);
         var before = (await mac.ReadSettingsAsync(cancel)).Overlays[0].Size;
         var applied = Traced.NextAsync(thermi.Error, Traced.EditApplied, cancel);
         await Input.CommandWheelAsync(mac.Session, pill.X, pill.Y, 1, cancel);
         await applied;
-        var processes = await ThermisAsync(mac, cancel);
-        await Input.KeyAsync(mac.Session, Input.Escape, cancel);
-        await TestMac.PaintedAsync(thermi, cancel);
+        await ClosedAsync(mac, window, cancel);
 
         Assert.NotEqual(before, (await mac.ReadSettingsAsync(cancel)).Overlays[0].Size);
         Assert.Equal(new[] { thermi.Id }, await ThermisAsync(mac, cancel));
-        Assert.Contains(thermi.Id, processes);
     }
 
     [Theory(Timeout = Bound.Test)]
@@ -66,13 +69,13 @@ public sealed partial class DesktopTests
         await Launchd.LoadServiceAsync(mac.Session, SensorFeed.MacMini, cancel);
         var theme = row == Look.ThemeChosen ? WindowTheme.Light : WindowTheme.System;
         await mac.WriteSettingsAsync(ThermiConfig.New with { WindowTheme = theme }, cancel);
-        await AppearanceAsync(mac.Session, Look.Light, cancel);
-        var (plain, _) = await OpenWindowAsync(mac, cancel);
 
-        // The service stopped, as the person may stop it: the window offers to start it again, which needs no prompt.
-        var (_, user) = await mac.Session.DomainsAsync(cancel);
-        await mac.Session.RunAsync("launchctl", ["kill", "SIGTERM", $"{user}/{Launchd.ServiceLabel}"], cancel: cancel);
-        await AppearanceAsync(mac.Session, row, cancel);
+        // The service stopped, as the person may stop it, in both pictures: the window offers to start it again, which needs
+        // no prompt, and the row's look alone tells them apart.
+        await Launchd.StopServiceAsync(mac.Session, cancel);
+        await AppearanceAsync(mac, Look.Light, cancel);
+        var (plain, _) = await OpenWindowAsync(mac, cancel);
+        await AppearanceAsync(mac, row, cancel);
         var (page, window) = await OpenWindowAsync(mac, cancel);
         await WindowPage.PressAsync(mac.Session, window, Texts.English.Of(WindowText.StartIt), cancel);
         var status = JsonNode.Parse((await mac.Session.RunAsync("thermi-cli", ["status", "--schema", "1"], cancel: cancel)).Out)!;
@@ -116,23 +119,37 @@ public sealed partial class DesktopTests
         return (await Screen.CaptureAsync(mac.Session, bounds, cancel), window.Id);
     }
 
-    // The way opens the window, which comes in front of the other app's and has the focus; a second way shows the same one.
-    private static async Task OpensInFrontAsync(TestMac mac, SessionProcess thermi, SessionProcess other, Func<Task> way, CancellationToken cancel)
+    // The way opens the window in front of another app's, with the focus; again, with the window behind another app's, it
+    // brings the same one to the front; and closed, its process ends.
+    private static async Task OpensInFrontAsync(
+        TestMac mac, SessionProcess thermi, (int X, int Y, int Width, int Height) other, Func<Task> way, CancellationToken cancel)
     {
-        foreach (var behind in new[] { false, true })
+        var opened = new List<int>();
+        for (var time = 0; time < 2; time++)
         {
             var shown = Traced.NextAsync(thermi.Error, Traced.WindowShown, cancel);
-            if (behind)
-            {
-                await mac.Session.RunAsync("open", ["-a", "Terminal"], cancel: cancel);
-            }
-
+            var front = await Screen.ShowWindowAsync(mac.Session, other, fullScreen: false, cancel);
             await way();
             await shown;
-            var front = await Screen.FrontAsync(mac.Session, cancel);
-            Assert.Contains(front, await ThermisAsync(mac, cancel));
-            Assert.NotEqual(other.Id, front);
+            opened.Add(await WindowAsync(mac, thermi, cancel));
+            Assert.Equal(opened[^1], await Screen.FrontAsync(mac.Session, cancel));
+            front.Kill();
         }
+
+        Assert.Equal(opened[0], opened[1]);
+        await ClosedAsync(mac, opened[0], cancel);
+    }
+
+    // The window's process, the one thermi's of the session that is not the overlay's: there is one window, or none.
+    private static async Task<int> WindowAsync(TestMac mac, SessionProcess thermi, CancellationToken cancel) =>
+        Assert.Single((await ThermisAsync(mac, cancel)).Where(pid => pid != thermi.Id));
+
+    // Esc closes the window in front, whose process ends.
+    private static async Task ClosedAsync(TestMac mac, int window, CancellationToken cancel)
+    {
+        using var process = Process.GetProcessById(window);
+        await Input.KeyAsync(mac.Session, Input.Escape, cancel);
+        await process.WaitForExitAsync(cancel).WaitAsync(Bound.End, TimeProvider.System, cancel);
     }
 
     // thermi's processes in the session, by their pids: the overlay's, and the window's while it is open.
@@ -143,26 +160,28 @@ public sealed partial class DesktopTests
     }
 
     // The Mac's appearance as the row sets it in System Settings: Dark or Light, the purple accent, Increase contrast.
-    private static async Task AppearanceAsync(OwnSession session, Look row, CancellationToken cancel)
+    private static async Task AppearanceAsync(TestMac mac, Look row, CancellationToken cancel)
     {
-        string[][] settings = row switch
+        const string Global = "NSGlobalDomain";
+        const string Access = "com.apple.universalaccess";
+        (string Verb, string Domain, string[] Setting)[] settings = row switch
         {
-            Look.Dark or Look.ThemeChosen => [["write", "-g", "AppleInterfaceStyle", "Dark"]],
-            Look.OtherAccent => [["delete", "-g", "AppleInterfaceStyle"], ["write", "-g", "AppleAccentColor", "-int", "5"]],
-            Look.IncreaseContrast => [["delete", "-g", "AppleInterfaceStyle"], ["write", "com.apple.universalaccess", "increaseContrast", "-bool", "true"]],
+            Look.Dark or Look.ThemeChosen => [("write", Global, ["AppleInterfaceStyle", "Dark"])],
+            Look.OtherAccent => [("delete", Global, ["AppleInterfaceStyle"]), ("write", Global, ["AppleAccentColor", "-int", "5"])],
+            Look.IncreaseContrast => [("delete", Global, ["AppleInterfaceStyle"]), ("write", Access, ["increaseContrast", "-bool", "true"])],
             Look.Light =>
             [
-                ["delete", "-g", "AppleInterfaceStyle"], ["delete", "-g", "AppleAccentColor"],
-                ["write", "com.apple.universalaccess", "increaseContrast", "-bool", "false"],
+                ("delete", Global, ["AppleInterfaceStyle"]), ("delete", Global, ["AppleAccentColor"]),
+                ("write", Access, ["increaseContrast", "-bool", "false"]),
             ],
             _ => throw new ArgumentOutOfRangeException(nameof(row), row, "Unknown look."),
         };
-        foreach (var setting in settings)
+        foreach (var (verb, domain, setting) in settings)
         {
-            await session.RunAsync("defaults", setting, cancel: cancel);
+            await mac.PreferAsync(verb, domain, setting, cancel);
         }
 
         // Apps read the appearance when the Mac says it changed, as System Settings does.
-        await session.RunAsync("notifyutil", ["-p", "AppleInterfaceThemeChangedNotification"], cancel: cancel);
+        await mac.Session.RunAsync("notifyutil", ["-p", "AppleInterfaceThemeChangedNotification"], cancel: cancel);
     }
 }

@@ -48,7 +48,7 @@ internal static class Launchd
     public static async Task<int> PidAsync(OwnSession session, string label, int other, CancellationToken cancel)
     {
         var (gui, _) = await session.DomainsAsync(cancel).ConfigureAwait(false);
-        // A look every tenth of a second, as many as the bound's seconds have tenths.
+        // launchd tells no one when it starts an agent's process, so the shell looks every tenth of a second, for a line's bound.
         var look = $"p=$(launchctl print {gui}/{label} 2>/dev/null | sed -n 's/^[[:space:]]*pid = //p'); [ -n \"$p\" ] && [ \"$p\" != {other} ]";
         string[] wait = ["-c", $"for i in $(seq {Bound.LineSeconds}0); do {look} && echo $p && exit 0; sleep 0.1; done; exit 1"];
         var ran = await session.RunAsync("/bin/sh", wait, cancel: cancel).ConfigureAwait(false);
@@ -72,6 +72,20 @@ internal static class Launchd
         if (loaded.Exit != 0)
         {
             throw new InvalidOperationException($"launchd did not load the service: {loaded.Error}");
+        }
+    }
+
+    /// <summary>
+    /// The service taken out of launchd, as the person stops a LaunchAgent: a signal would end its process alone, which
+    /// launchd starts again at its socket's next client.
+    /// </summary>
+    public static async Task StopServiceAsync(OwnSession session, CancellationToken cancel)
+    {
+        var (_, user) = await session.DomainsAsync(cancel).ConfigureAwait(false);
+        var stopped = await session.RunAsync("launchctl", ["bootout", $"{user}/{ServiceLabel}"], cancel: cancel).ConfigureAwait(false);
+        if (stopped.Exit != 0)
+        {
+            throw new InvalidOperationException($"launchd did not stop the service: {stopped.Error}");
         }
     }
 }
