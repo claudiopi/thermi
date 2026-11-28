@@ -100,6 +100,15 @@ public enum HostText
     /// <summary>The button of the notice of the extension of another version, which asks GNOME for its update.</summary>
     GnomeExtensionUpdate,
 
+    /// <summary>
+    /// The title of the notice that the GNOME Shell extension that runs is of an earlier version of thermi, whose update the
+    /// Shell reads at the next sign-in: the overlays show through it meanwhile.
+    /// </summary>
+    GnomeExtensionEarlierTitle,
+
+    /// <summary>That notice's text, which asks to sign out and back in, with no button.</summary>
+    GnomeExtensionEarlier,
+
     /// <summary>That notice on a Wayland desktop with neither GNOME Shell nor layer surfaces, where nothing can show the overlays.</summary>
     NoOverlaySurfaces,
     /// <summary>A button of the notice of hidden overlays where a desktop's notices have buttons: the one overlay shows again.</summary>

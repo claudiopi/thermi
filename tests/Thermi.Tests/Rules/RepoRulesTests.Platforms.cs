@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -37,6 +38,7 @@ public sealed partial class RepoRulesTests
         ["Thermi.Linux/Commands/Preview.cs"] = "thermi preview on Linux: the shared preview painted by Linux's Cairo painter, as Windows' paints it with GDI+",
         ["Thermi.Linux/Gnome/ShellSurfaces.cs"] = "GNOME's surfaces, thermi's Shell extension, spoken to through the link to it on the session's bus",
         ["Thermi.Linux/Gnome/ShellIcons.cs"] = "thermi's icons in GNOME's top bar, which only its Shell extension shows",
+        ["Thermi.Linux/Gnome/ShellFace.cs"] = "what thermi's GNOME Shell extension declares on the session's bus, read from its introspection",
         ["Thermi.Linux/Hotkeys/KeyNames.cs"] = "a hotkey by the names GTK, the GlobalShortcuts portal and X11's keysyms give its keys",
         ["Thermi.Linux/Tray/DesktopTray.cs"] = "Core's tray icons on a Linux desktop, through the Shell's extension or StatusNotifierItem",
         ["Thermi.Linux/Tray/TrayClicks.cs"] = "a click or a double-click on a tray icon, as Windows tells them and no Linux tray does",
@@ -194,6 +196,59 @@ public sealed partial class RepoRulesTests
             .Select(name => $"src/{name} uses no {os}-only API: move it to a shared project, or list it here with why it stays")
             .Concat(listed.Keys.Where(name => !names.Contains(name) || tied.Contains(name))
                 .Select(name => $"src/{name} is listed as needing no {os}-only API, but it is gone or uses one: drop it from the list"));
+    }
+
+    // The Shell runs the extension it read at sign-in until the next, so thermi, once a package updated it, may talk to the
+    // earlier one: each protocol keeps every call, signal and property of the last in its shape, recorded with its number,
+    // which thermi's ShellLink.Protocol says too.
+    [Fact]
+    public void TheGnomeProtocolOnlyGrows()
+    {
+        var gnome = Path.Combine(Root, "src", "Thermi.Gnome");
+        var protocol = (int)JsonNode.Parse(File.ReadAllText(Path.Combine(gnome, "metadata.json")))!["thermi-protocol"]!;
+        var link = Path.Combine(Root, "src", "Thermi.Linux", "Gnome", "ShellLink.cs");
+        var linked = Regex.Match(File.ReadAllText(link), @"const uint Protocol = (?<n>\d+);", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1))
+            .Groups["n"].Value;
+        var calls = new[] { "extension.js", "desktop.js" }
+            .SelectMany(file => GnomeFace(File.ReadAllText(Path.Combine(gnome, file)))).ToHashSet(StringComparer.Ordinal);
+        var file = Path.Combine(Root, "tests", "Thermi.Tests", "Rules", "gnome-protocol.json");
+        var recorded = JsonNode.Parse(File.ReadAllText(file))!["protocols"]!.AsArray()
+            .Select(each => (Protocol: (int)each!["protocol"]!, Calls: each["calls"]!.AsArray().Select(call => (string)call!).ToList())).ToList();
+        var pairs = recorded.Zip(recorded.Skip(1)).ToList();
+
+        AssertNone(pairs.Where(pair => pair.Second.Protocol <= pair.First.Protocol)
+            .Select(pair => $"{Relative(file)}: protocol {pair.Second.Protocol} follows {pair.First.Protocol}")
+            .Concat(pairs.SelectMany(pair => pair.First.Calls.Except(pair.Second.Calls, StringComparer.Ordinal)
+                .Select(call => $"{Relative(file)}: protocol {pair.Second.Protocol} drops or reshapes {call}: add one under a new name instead")))
+            .Concat(linked == $"{protocol}" ? [] : [$"{Relative(link)} says protocol {linked}, and the extension's metadata.json {protocol}"])
+            .Concat(recorded[^1].Protocol == protocol && calls.SetEquals(recorded[^1].Calls) ? [] : [
+                $"The extension's protocol {protocol} declares {string.Join(", ", calls.Order(StringComparer.Ordinal))}: once a version shipped,"
+                + $" a change is a protocol of its own, recorded last in {Relative(file)}",
+            ]));
+    }
+
+    // Each member of the interfaces a file of the extension declares in its XML: a method by what it takes and answers,
+    // as Shell.Monitors() a(dd), a signal by what it sends, as Shell.Ready!(u), a property by its type.
+    private static IEnumerable<string> GnomeFace(string code)
+    {
+        var face = Regex.Match(code, @"= 'io\.github\.claudiopi\.thermi\.(?<face>\w+)';", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1))
+            .Groups["face"].Value;
+        var xml = Regex.Match(code, "const XML = `(?<xml>[^`]*)`", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Groups["xml"].Value;
+        var root = XElement.Parse(xml.Replace("${", "", StringComparison.Ordinal).Replace("}\"", "\"", StringComparison.Ordinal));
+        static string Types(XElement member, bool? answer)
+        {
+            return string.Concat(member.Elements("arg")
+                .Where(arg => answer is not { } wanted || (string?)arg.Attribute("direction") == "out" == wanted)
+                .Select(arg => (string?)arg.Attribute("type")));
+        }
+
+        return root.Descendants().Select(member => member.Name.LocalName switch
+        {
+            "method" => $"{face}.{member.Attribute("name")?.Value}({Types(member, false)}) {Types(member, true)}".TrimEnd(),
+            "signal" => $"{face}.{member.Attribute("name")?.Value}!({Types(member, null)})",
+            "property" => $"{face}.{member.Attribute("name")?.Value}: {member.Attribute("type")?.Value}",
+            _ => null,
+        }).OfType<string>();
     }
 
     [GeneratedRegex(

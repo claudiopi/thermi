@@ -34,6 +34,12 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Warning, Message = "The GNOME Shell extension is {State}: the overlays show once it runs thermi's protocol {Protocol}")]
     public static partial void ExtensionNotReady(this ILogger logger, ExtensionState state, uint protocol);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The GNOME Shell extension is of a protocol before {Protocol}: the overlays show with what it has")]
+    public static partial void ExtensionEarlier(this ILogger logger, uint protocol);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The GNOME Shell extension that runs has no {Call}: thermi does without it")]
+    public static partial void ShellCallMissing(this ILogger logger, string call);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "GNOME Shell did not take a call of the extension's")]
     public static partial void ShellCallFailed(this ILogger logger, Exception error);
 

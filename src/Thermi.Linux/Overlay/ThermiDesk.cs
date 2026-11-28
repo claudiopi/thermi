@@ -38,7 +38,7 @@ internal sealed class ThermiDesk : IDisposable
 #pragma warning disable CA2000 // The tray and the hotkeys own what they show through, and dispose it with themselves.
         if (start.Kind == SurfaceKind.Shell)
         {
-            _desktop = new ShellDesktop(bus, parts.Log);
+            _desktop = new ShellDesktop(bus, parts.Link, parts.Log);
             Tray = new DesktopTray(new ShellIcons(_desktop, parts.Pointer, parts.Call), tray);
             Hotkeys = new DesktopHotkeys(new ShellHotkeys(_desktop), keys);
         }

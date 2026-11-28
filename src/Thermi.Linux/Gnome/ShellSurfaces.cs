@@ -6,7 +6,7 @@ using Thermi.Linux.Overlay;
 namespace Thermi.Linux.Gnome;
 
 /// <summary>
-/// GNOME's surfaces: the Shell's extension, once it runs thermi's protocol, as <see cref="ExtensionArrival"/> says. The
+/// GNOME's surfaces: the Shell's extension, once it runs with the overlay's own calls, as <see cref="ExtensionArrival"/> says. The
 /// extension grabs the pointer and Esc itself on a press, tells a press another grab took as a <see cref="ShellPointer"/>
 /// of kind <c>cancel</c>, so <see cref="IOverlaySurfaces.Lost"/> stays unheard, and tells the pointer anywhere while
 /// thermi watches it.
@@ -45,9 +45,9 @@ internal sealed class ShellSurfaces(ShellLink link, ExtensionArrival arrival) : 
 
     public void Start()
     {
-        link.Ready += protocol =>
+        link.Ready += _ =>
         {
-            if (arrival.Arrived(protocol))
+            if (arrival.Arrived())
             {
                 Arrived();
             }

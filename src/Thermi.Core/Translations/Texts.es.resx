@@ -42,6 +42,12 @@
   <data name="HostText.GnomeExtensionUpdate" xml:space="preserve">
     <value>Actualizar</value>
   </data>
+  <data name="HostText.GnomeExtensionEarlierTitle" xml:space="preserve">
+    <value>Cierra la sesión y vuelve a entrar para terminar de actualizar thermi</value>
+  </data>
+  <data name="HostText.GnomeExtensionEarlier" xml:space="preserve">
+    <value>Hasta entonces, GNOME usa la versión anterior de la extensión de thermi: las superposiciones se ven, pero parte de lo nuevo puede no funcionar todavía.</value>
+  </data>
   <data name="HostText.NoOverlaySurfaces" xml:space="preserve">
     <value>Este escritorio no ofrece GNOME Shell ni superficies de capa, donde thermi muestra sus superposiciones. thermi-cli sigue leyendo los sensores.</value>
   </data>

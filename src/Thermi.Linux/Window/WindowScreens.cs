@@ -4,10 +4,10 @@ using Thermi.Linux.Gnome;
 namespace Thermi.Linux.Window;
 
 /// <summary>
-/// The monitors the window's map draws, as the overlay has them: on GNOME the Shell's, through thermi's extension of this
-/// protocol, with the top bar as their taskbar and the names a snap keeps, so a spot picked on the map is the overlay's
-/// own; elsewhere, with an extension of another version, or before the Shell answers, GDK's, with no bar. Used on GTK's
-/// loop alone.
+/// The monitors the window's map draws, as the overlay has them: on GNOME the Shell's, through thermi's extension where
+/// the overlays show through it, with the top bar as their taskbar and the names a snap keeps, so a spot picked on the map
+/// is the overlay's own; elsewhere, with an extension they do not show through, or before the Shell answers, GDK's, with
+/// no bar. Used on GTK's loop alone.
 /// </summary>
 internal sealed class WindowScreens
 {
@@ -16,7 +16,7 @@ internal sealed class WindowScreens
     private readonly Action<Action> _post;
     private ShellScreens? _shell;
 
-    // Whether the extension is of this protocol, whose monitors its signal sends too.
+    // Whether the overlays show through the extension, whose monitors its signal sends too.
     private bool _ours;
 
     public WindowScreens(Gio.DBusConnection? bus, ShellLink? link, Action<Action> post, Action changed)
@@ -71,8 +71,8 @@ internal sealed class WindowScreens
         return screens;
     }
 
-    // Without the extension the Shell has no such object, and with one of another version none of this protocol's
-    // monitors: the window keeps GDK's.
+    // Without the extension the Shell has no such object, and one the overlays do not show through is asked no monitors:
+    // the window keeps GDK's.
     private async Task ReadAsync(Action changed)
     {
         try

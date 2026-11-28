@@ -8,9 +8,11 @@ namespace Thermi.Linux.Gnome;
 /// <summary>
 /// Whether the overlays may show through the Shell's extension, and what thermi does while not: missing, or installed but
 /// not read yet by the Shell, it asks GNOME to install it from extensions.gnome.org, which GNOME asks the person and which
-/// shows the overlays at once; missing, off or of another protocol, nothing shows, and one notice of the desktop's says
-/// why, once a run, with a button that asks GNOME again; not read yet, only when GNOME did not install it does the notice
-/// say to sign in again, with no button. Once the extension runs thermi's protocol, as its Ready says, the overlays show.
+/// shows the overlays at once; missing, off or without the overlay's own calls, nothing shows, and one notice of the
+/// desktop's says why, once a run, with a button that asks GNOME again; not read yet, only when GNOME did not install it
+/// does the notice say to sign in again, with no button. Once the extension runs, as its Ready says, the overlays show
+/// through it: through an earlier protocol's too, as runs from an update until the next sign-in, whose notice says to sign
+/// in again, so no update leaves the overlays blank.
 /// </summary>
 internal sealed class ExtensionArrival
 {
@@ -40,7 +42,7 @@ internal sealed class ExtensionArrival
     public void Start()
     {
         var state = _link.State();
-        Ready = state == ExtensionState.Ours;
+        Ready = state is ExtensionState.Ours or ExtensionState.Earlier;
         if (state == ExtensionState.Missing)
         {
             _link.Install();
@@ -56,13 +58,17 @@ internal sealed class ExtensionArrival
         }
     }
 
-    /// <summary>The extension came up, as the Shell started or the person installed it: true when it speaks thermi's protocol.</summary>
-    public bool Arrived(uint protocol)
+    /// <summary>
+    /// The extension came up, as the Shell started or the person installed it: true when the overlays show through it. Its
+    /// Ready tells a protocol in thermi's shape alone, so what it offers is asked again.
+    /// </summary>
+    public bool Arrived()
     {
-        Ready = protocol == ShellLink.Protocol;
-        if (!Ready)
+        var state = _link.State();
+        Ready = state is ExtensionState.Ours or ExtensionState.Earlier;
+        if (state is ExtensionState.Earlier or ExtensionState.OtherVersion)
         {
-            Tell(ExtensionState.OtherVersion);
+            Tell(state);
         }
 
         return Ready;
@@ -103,7 +109,15 @@ internal sealed class ExtensionArrival
 
     private void Tell(ExtensionState state)
     {
-        _log.ExtensionNotReady(state, ShellLink.Protocol);
+        if (state == ExtensionState.Earlier)
+        {
+            _log.ExtensionEarlier(ShellLink.Protocol);
+        }
+        else
+        {
+            _log.ExtensionNotReady(state, ShellLink.Protocol);
+        }
+
         if (_told)
         {
             return;
@@ -116,10 +130,12 @@ internal sealed class ExtensionArrival
             ExtensionState.Missing => (HostText.GnomeExtensionMissing, ((string, HostText)?)(InstallAction, HostText.GnomeExtensionInstall)),
             ExtensionState.OtherVersion => (HostText.GnomeExtensionOtherVersion, (UpdateAction, HostText.GnomeExtensionUpdate)),
             ExtensionState.Unread => (HostText.GnomeExtensionNextSignIn, null),
+            ExtensionState.Earlier => (HostText.GnomeExtensionEarlier, null),
             ExtensionState.Off or ExtensionState.Ours or ExtensionState.Starting => (HostText.GnomeExtensionOff, null),
             _ => (HostText.GnomeExtensionOff, null),
         };
         (string, string)[] actions = button is var (id, label) ? [(id, said.Of(label))] : [];
-        _ = _notices.Say(said.Of(HostText.GnomeExtensionTitle), said.Of(text), actions);
+        var title = state == ExtensionState.Earlier ? HostText.GnomeExtensionEarlierTitle : HostText.GnomeExtensionTitle;
+        _ = _notices.Say(said.Of(title), said.Of(text), actions);
     }
 }

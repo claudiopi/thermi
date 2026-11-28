@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Thermi.App.Gestures;
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
+using Thermi.Linux.Desktop;
 using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Gnome;
@@ -30,7 +31,10 @@ internal sealed class ShellLink : IDisposable
     /// <summary>The extension's uuid, as extensions.gnome.org knows it.</summary>
     public const string Uuid = "thermi@claudiopi.github.io";
 
-    /// <summary>The protocol's version, which the extension's metadata.json says as <c>thermi-protocol</c>.</summary>
+    /// <summary>
+    /// The protocol's version, which the extension's metadata.json says as <c>thermi-protocol</c>: each one keeps every call
+    /// and signal of the last in its shape, and may add others (<see cref="ShellFace"/>).
+    /// </summary>
     public const uint Protocol = 4;
 
     public const string Shell = "org.gnome.Shell";
@@ -39,13 +43,12 @@ internal sealed class ShellLink : IDisposable
     private const string ExtensionsFace = "org.gnome.Shell.Extensions";
     private const int Timeout = 5000;
 
-    // Each signal's shape in this protocol, as extension.js declares it.
+    // Each signal's shape in this protocol, as extension.js declares it; MonitorsChanged's is any ShellFace.PartsOf reads.
     private static readonly Dictionary<string, string> Shapes = new(StringComparer.Ordinal)
     {
         ["Ready"] = "(u)",
         ["Pointer"] = "(usdduuudd)",
         ["Key"] = "(us)",
-        ["MonitorsChanged"] = "(a(ddddddbbdddddd))",
         ["Chosen"] = "(ui)",
     };
 
@@ -53,6 +56,7 @@ internal sealed class ShellLink : IDisposable
     private readonly Gio.DBusProxy _signals;
     private readonly Gio.DBusProxy _extensions;
     private readonly ILogger _log;
+    private readonly HashSet<string> _missing = new(StringComparer.Ordinal);
 
     public ShellLink(Gio.DBusConnection bus, ILogger log)
     {
@@ -67,6 +71,9 @@ internal sealed class ShellLink : IDisposable
     }
 
     public Action<uint> Ready { get; set; } = _ => { };
+
+    /// <summary>What the running extension offers, as <see cref="State"/> last read it.</summary>
+    public ShellFace Face { get; private set; } = ShellFace.None;
 
     /// <summary>The extension stopped running, as GNOME stops every extension while the screen is locked; its Ready says when it is back.</summary>
     public Action Gone { get; set; } = () => { };
@@ -103,8 +110,8 @@ internal sealed class ShellLink : IDisposable
     }
 
     /// <summary>
-    /// Where the extension stands: its running object's protocol, or else what the Shell says of it. The Shell's states
-    /// are its own numbers: 1 is on, 6 installed and waiting to start, 7 and 8 turning off and on.
+    /// Where the extension stands: its running object's protocol and <see cref="Face"/>, or else what the Shell says of it.
+    /// The Shell's states are its own numbers: 1 is on, 6 installed and waiting to start, 7 and 8 turning off and on.
     /// </summary>
     public ExtensionState State()
     {
@@ -114,12 +121,18 @@ internal sealed class ShellLink : IDisposable
                 Shell, ObjectPath, "org.freedesktop.DBus.Properties", "Get",
                 GLib.Variant.NewTuple([GLib.Variant.NewString(Interface), GLib.Variant.NewString("Protocol")]),
                 null, Gio.DBusCallFlags.None, Timeout, null);
-            return answer.GetChildValue(0).GetVariant().GetUint32() == Protocol ? ExtensionState.Ours : ExtensionState.OtherVersion;
+            var protocol = answer.GetChildValue(0).GetVariant().GetUint32();
+            var xml = _bus.CallSync(
+                Shell, ObjectPath, "org.freedesktop.DBus.Introspectable", "Introspect", GLib.Variant.NewTuple([]), null, Gio.DBusCallFlags.None, Timeout, null);
+            Face = ShellFace.Of(xml.GetChildValue(0).GetString(out _));
+            return !Face.Shows ? ExtensionState.OtherVersion : protocol < Protocol ? ExtensionState.Earlier : ExtensionState.Ours;
         }
         catch (GLib.GException)
         {
             // No object there: the extension is not running.
         }
+
+        Face = ShellFace.None;
 
         GLib.Variant info;
         try
@@ -203,21 +216,7 @@ internal sealed class ShellLink : IDisposable
             GLib.Variant.NewDouble(anchor.Width),
             GLib.Variant.NewDouble(anchor.Height),
             GLib.Variant.NewString(side == MenuSide.Above ? "above" : "below"),
-            RowsOf(rows));
-
-    /// <summary>A menu's rows as the protocol carries them.</summary>
-    public static GLib.Variant RowsOf(IReadOnlyList<ShellRow> rows) =>
-        GLib.Variant.NewArray(GLib.VariantType.New("(issbbbbb)"), [.. rows.Select(row => GLib.Variant.NewTuple(
-        [
-            GLib.Variant.NewInt32(row.Parent),
-            GLib.Variant.NewString(row.Text),
-            GLib.Variant.NewString(row.Note ?? ""),
-            GLib.Variant.NewBoolean(row.Checked),
-            GLib.Variant.NewBoolean(row.Grayed),
-            GLib.Variant.NewBoolean(row.Starts),
-            GLib.Variant.NewBoolean(row.Default),
-            GLib.Variant.NewBoolean(row.Radio),
-        ]))]);
+            ShellWire.RowsOf(rows));
 
     /// <summary>Shows the pointer as <paramref name="shape"/> over the overlay's boxes, by its CSS name.</summary>
     public Task Cursor(uint overlay, PointerShape shape) =>
@@ -239,17 +238,18 @@ internal sealed class ShellLink : IDisposable
     /// <summary>Has the extension tell the pointer anywhere while <paramref name="on"/>, as a Pointer of kind <c>near</c>.</summary>
     public Task Watch(bool on) => Own("Watch", GLib.Variant.NewBoolean(on));
 
-    public async Task<string> ActivationAsync(uint time) => (await Own("Activation", GLib.Variant.NewUint32(time))).GetChildValue(0).GetString(out _);
+    /// <summary>The token that lets the window it opens take the focus; GDK's where the extension has no such call, which may be empty.</summary>
+    public async Task<string> ActivationAsync(uint time) =>
+        Lacks("Activation", "(u)") ? await LaunchTokens.Of(time) : (await Own("Activation", GLib.Variant.NewUint32(time))).GetChildValue(0).GetString(out _);
 
     /// <summary>
-    /// The Shell's monitors, from an extension of this protocol alone, as the overlay shows only through one: another's may
-    /// answer in another shape, so it gives none.
+    /// The Shell's monitors, from an extension the overlays show through alone: another's may answer in another shape, so
+    /// it gives none. The window asks it of its own link, which no <see cref="State"/> may have read yet.
     /// </summary>
     public async Task<IReadOnlyList<ShellMonitor>> MonitorsAsync()
     {
-        var protocol = await Call(
-            Shell, ObjectPath, "org.freedesktop.DBus.Properties", "Get", GLib.Variant.NewString(Interface), GLib.Variant.NewString("Protocol"));
-        return protocol.GetChildValue(0).GetVariant().GetUint32() == Protocol ? MonitorsOf((await Own("Monitors")).GetChildValue(0)) : [];
+        var xml = await Call(Shell, ObjectPath, "org.freedesktop.DBus.Introspectable", "Introspect");
+        return ShellFace.Of(xml.GetChildValue(0).GetString(out _)).Shows ? ShellWire.MonitorsOf((await Own("Monitors")).GetChildValue(0)) : [];
     }
 
     public void Dispose()
@@ -258,24 +258,33 @@ internal sealed class ShellLink : IDisposable
         _extensions.Dispose();
     }
 
-    /// <summary>The monitors in the extension's <c>a(ddddddbbdddddd)</c>, as its <c>Monitors</c> answers and its signal sends them.</summary>
-    public static List<ShellMonitor> MonitorsOf(GLib.Variant monitors) =>
-        [.. Enumerable.Range(0, (int)monitors.NChildren()).Select(at => monitors.GetChildValue((nuint)at)).Select(each => new ShellMonitor(
-            each.GetChildValue(0).GetDouble(),
-            each.GetChildValue(1).GetDouble(),
-            each.GetChildValue(2).GetDouble(),
-            each.GetChildValue(3).GetDouble(),
-            each.GetChildValue(4).GetDouble(),
-            each.GetChildValue(5).GetDouble(),
-            each.GetChildValue(6).GetBoolean(),
-            each.GetChildValue(7).GetBoolean())
-        {
-            Centre = (each.GetChildValue(8).GetDouble(), each.GetChildValue(9).GetDouble()),
-            End = (each.GetChildValue(10).GetDouble(), each.GetChildValue(11).GetDouble()),
-            Start = (each.GetChildValue(12).GetDouble(), each.GetChildValue(13).GetDouble()),
-        })];
+    /// <summary>Whether the running extension lacks <paramref name="method"/> in the <paramref name="shape"/> thermi sends it, once logged.</summary>
+    public bool Lacks(string method, string shape) => Lacks("Shell", method, shape);
 
-    private Task<GLib.Variant> Own(string method, params GLib.Variant[] args) => Call(Shell, ObjectPath, Interface, method, args);
+    public bool Lacks(string face, string method, string shape)
+    {
+        if (!Face.Lacks(face, method, shape))
+        {
+            return false;
+        }
+
+        lock (_missing)
+        {
+            if (_missing.Add($"{face}.{method}{shape}"))
+            {
+                _log.ShellCallMissing($"{face}.{method}{shape}");
+            }
+        }
+
+        return true;
+    }
+
+    // A call the running extension lacks, as an earlier protocol's, is done without: it answers nothing.
+    private Task<GLib.Variant> Own(string method, params GLib.Variant[] args)
+    {
+        var call = GLib.Variant.NewTuple(args);
+        return Lacks(method, call.GetTypeString()) ? Task.FromResult(GLib.Variant.NewTuple([])) : _bus.CallAsync(Shell, ObjectPath, Interface, method, call);
+    }
 
     private Task<GLib.Variant> Call(string destination, string path, string face, string method, params GLib.Variant[] args) =>
         _bus.CallAsync(destination, path, face, method, GLib.Variant.NewTuple(args));
@@ -295,7 +304,9 @@ internal sealed class ShellLink : IDisposable
     {
         try
         {
-            if (Shapes.TryGetValue(signal, out var shape) && args.GetTypeString() == shape)
+            var type = args.GetTypeString();
+            if (Shapes.TryGetValue(signal, out var shape) ? type == shape
+                : signal == "MonitorsChanged" && ShellFace.PartsOf(type[1..^1]) >= ShellFace.FewestMonitorParts)
             {
                 Read(signal, args);
             }
@@ -305,7 +316,7 @@ internal sealed class ShellLink : IDisposable
             }
             else
             {
-                _log.ShellSignalRefused(signal, args.GetTypeString());
+                _log.ShellSignalRefused(signal, type);
             }
         }
 #pragma warning disable CA1031 // GLib calls it from native code, where an exception that escapes ends the process.
@@ -371,7 +382,7 @@ internal sealed class ShellLink : IDisposable
                 Key(Overlay(), Text(1));
                 break;
             case "MonitorsChanged":
-                MonitorsChanged(MonitorsOf(args.GetChildValue(0)));
+                MonitorsChanged(ShellWire.MonitorsOf(args.GetChildValue(0)));
                 break;
             case "Chosen":
                 Chosen(Overlay(), args.GetChildValue(1).GetInt32());

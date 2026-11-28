@@ -50,5 +50,5 @@
 
 - [x] T27. One build packed by nfpm as `.deb` and `.rpm`, and the AUR's `thermi-bin`, for both architectures, installed in clean containers of each distribution. (R1)
 - [x] T28. thermi's signed apt and dnf repositories, the levers on them and the release workflow's publishing, with the AUR's. (R25, R26)
-- [ ] T29. The hand-over to a new version and About on Linux. (R25)
+- [ ] T29. The hand-over to a new version and About on Linux, and no blank overlay through the extension GNOME runs until the next sign-in: the protocol only grows, and thermi calls what the running one declares. (R9, R25)
 - [ ] T30. The Linux release checks run on the test machines and the physical Ubuntu PC. (R1, R9, R11, R13, R14, R18, R19, R25)

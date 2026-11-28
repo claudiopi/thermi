@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Thermi.Core.Settings;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Tests.Desktops;
@@ -12,33 +13,27 @@ public sealed partial class OverlayTests
     public async Task AnExtensionOfAnotherVersionShowsNothing()
     {
         var cancel = TestContext.Current.CancellationToken;
-        var other = Directory.CreateTempSubdirectory("thermi-extension-").FullName;
+        // An extension without the overlay's own calls in thermi's shapes, as one before them: it declares no Show, sends
+        // Ready and Pointer with nothing in them once thermi takes its name, and counts who asks its monitors over the bus,
+        // apart from its own signal.
+        var other = await ExtensionBeforeAsync(
+            code =>
+            {
+                const string Appeared = "this._owner = owner;";
+                const string Monitors = "    Monitors() {";
+                const string Signal = "[this.Monitors()]";
+                const string Show = "<method name=\"Show\">";
+                Assert.All([Appeared, Monitors, Signal, Show], part => Assert.Contains(part, code, StringComparison.Ordinal));
+                var sends = "['Ready', 'Pointer'].forEach(signal => this._emit(signal, '()', []));";
+                var counts = "    Monitors(own) { if (!own) global.thermiMonitorsAsked = (global.thermiMonitorsAsked ?? 0) + 1;";
+                return code.Replace(Appeared, $"{Appeared} {sends}", StringComparison.Ordinal)
+                    .Replace(Signal, "[this.Monitors(true)]", StringComparison.Ordinal)
+                    .Replace(Monitors, counts, StringComparison.Ordinal)
+                    .Replace(Show, "<method name=\"Paint\">", StringComparison.Ordinal);
+            },
+            cancel);
         try
         {
-            foreach (var file in Directory.EnumerateFiles(TestShell.Thermi))
-            {
-                File.Copy(file, Path.Combine(other, Path.GetFileName(file)));
-            }
-
-            var metadata = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(other, "metadata.json"), cancel))!;
-            metadata["thermi-protocol"] = (int)metadata["thermi-protocol"]! - 1;
-            await File.WriteAllTextAsync(Path.Combine(other, "metadata.json"), metadata.ToJsonString(), cancel);
-            // Another protocol's signals and answers may have other shapes: this one sends Ready and Pointer with nothing in
-            // them once thermi takes its name, and counts who asks its monitors over the bus, apart from its own signal.
-            var code = await File.ReadAllTextAsync(Path.Combine(other, "extension.js"), cancel);
-            const string Appeared = "this._owner = owner;";
-            const string Monitors = "    Monitors() {";
-            const string Signal = "[this.Monitors()]";
-            Assert.Contains(Appeared, code, StringComparison.Ordinal);
-            Assert.Contains(Monitors, code, StringComparison.Ordinal);
-            Assert.Contains(Signal, code, StringComparison.Ordinal);
-            var sends = "['Ready', 'Pointer'].forEach(signal => this._emit(signal, '()', []));";
-            var counts = "    Monitors(own) { if (!own) global.thermiMonitorsAsked = (global.thermiMonitorsAsked ?? 0) + 1;";
-            code = code.Replace(Appeared, $"{Appeared} {sends}", StringComparison.Ordinal)
-                .Replace(Signal, "[this.Monitors(true)]", StringComparison.Ordinal)
-                .Replace(Monitors, counts, StringComparison.Ordinal);
-            await File.WriteAllTextAsync(Path.Combine(other, "extension.js"), code, cancel);
-
             await AnotherVersionShowsNothingAsync(other, cancel);
             await NoneIsInstalledFromTheStoreAsync(cancel);
         }
@@ -47,6 +42,66 @@ public sealed partial class OverlayTests
             Directory.Delete(other, recursive: true);
         }
     }
+
+    // After a package updates thermi, the Shell runs the extension it read at sign-in until the next. One of the protocol
+    // before thermi's, with no more than the overlay's own calls, as monitors of the parts every protocol had, still shows
+    // the overlays, on the top bar and on a window, and its notice asks to sign in again, with no button.
+    [Fact(Timeout = Bound.Test)]
+    public async Task AnEarlierExtensionStillShowsTheOverlays()
+    {
+        var cancel = TestContext.Current.CancellationToken;
+        var earlier = await ExtensionBeforeAsync(
+            code =>
+            {
+                const string Kept = "const keptBoxes = () => [Main.panel._centerBox, Main.panel._rightBox, Main.panel._leftBox];";
+                const string Parts = "ddddddbbdddddd";
+                Assert.All([Kept, Parts], part => Assert.Contains(part, code, StringComparison.Ordinal));
+                var floor = FloorOnly().Replace(code, "");
+                Assert.DoesNotContain("<method name=\"Menu\">", floor, StringComparison.Ordinal);
+                return floor.Replace(Kept, "const keptBoxes = () => [Main.panel._centerBox, Main.panel._rightBox];", StringComparison.Ordinal)
+                    .Replace(Parts, "ddddddbbdddd", StringComparison.Ordinal);
+            },
+            cancel);
+        try
+        {
+            await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [Monitor], earlier, cancel);
+            var notices = await NoticeWatch.StartAsync(desktop, cancel);
+            var told = notices.NextAsync(notice => notice.Actions.Count == 0, cancel);
+            var scene = await Scene.ShowAsync(desktop, 1, fullScreen: false, stopped: false, cancel);
+
+            Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnWindow, cancel));
+            Assert.Equal(0, await scene.DifferingAtAsync(Scene.OnPanel, cancel));
+            await told;
+        }
+        finally
+        {
+            Directory.Delete(earlier, recursive: true);
+        }
+    }
+
+    // A copy of thermi's extension that says the protocol before its own, with its code changed as the test says.
+    private static async Task<string> ExtensionBeforeAsync(Func<string, string> change, CancellationToken cancel)
+    {
+        var copy = Directory.CreateTempSubdirectory("thermi-extension-").FullName;
+        foreach (var file in Directory.EnumerateFiles(TestShell.Thermi))
+        {
+            File.Copy(file, Path.Combine(copy, Path.GetFileName(file)));
+        }
+
+        var metadata = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(copy, "metadata.json"), cancel))!;
+        metadata["thermi-protocol"] = (int)metadata["thermi-protocol"]! - 1;
+        await File.WriteAllTextAsync(Path.Combine(copy, "metadata.json"), metadata.ToJsonString(), cancel);
+        var code = Path.Combine(copy, "extension.js");
+        await File.WriteAllTextAsync(code, change(await File.ReadAllTextAsync(code, cancel)), cancel);
+        return copy;
+    }
+
+    // What the Shell's interface declares past the overlay's own calls, which an extension before them lacks.
+    [GeneratedRegex(
+        @"<method name=""(Fade|Menu|Cursor|Copy|Watch|Activation)"">.*?</method>|<signal name=""(Key|Chosen)"">.*?</signal>",
+        RegexOptions.Singleline | RegexOptions.ExplicitCapture,
+        matchTimeoutMilliseconds: 1000)]
+    private static partial Regex FloorOnly();
 
     private static async Task AnotherVersionShowsNothingAsync(string other, CancellationToken cancel)
     {

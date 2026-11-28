@@ -9,12 +9,14 @@ namespace Thermi.Linux.Gnome;
 /// <summary>
 /// thermi's side of its extension's icons in the top bar and its hotkeys (src/Thermi.Gnome/desktop.js), on the same object
 /// as <see cref="ShellLink"/>'s, through an interface of their own: thermi sends each icon's picture, its menu and the
-/// hotkeys' accelerators, and hears an icon's press, a menu's choice and a hotkey's press.
+/// hotkeys' accelerators, and hears an icon's press, a menu's choice and a hotkey's press. A call the running extension
+/// lacks, as an earlier protocol's, is done without (<see cref="ShellFace"/>).
 /// </summary>
 internal sealed class ShellDesktop : IDisposable
 {
     private const string Shell = "org.gnome.Shell";
-    private const string Interface = "io.github.claudiopi.thermi.Desktop";
+    private const string Face = "Desktop";
+    private const string Interface = "io.github.claudiopi.thermi." + Face;
 
     // Each signal's shape in this protocol, as desktop.js declares it.
     private static readonly Dictionary<string, string> Shapes = new(StringComparer.Ordinal)
@@ -26,12 +28,14 @@ internal sealed class ShellDesktop : IDisposable
     };
 
     private readonly Gio.DBusConnection _bus;
+    private readonly ShellLink _link;
     private readonly Gio.DBusProxy _signals;
     private readonly ILogger _log;
 
-    public ShellDesktop(Gio.DBusConnection bus, ILogger log)
+    public ShellDesktop(Gio.DBusConnection bus, ShellLink link, ILogger log)
     {
         _bus = bus;
+        _link = link;
         _log = log;
         const Gio.DBusProxyFlags Flags = Gio.DBusProxyFlags.DoNotLoadProperties | Gio.DBusProxyFlags.DoNotAutoStart;
         _signals = Gio.DBusProxy.NewSync(bus, Flags, null, Shell, ShellLink.ObjectPath, Interface, null);
@@ -56,11 +60,16 @@ internal sealed class ShellDesktop : IDisposable
 
     /// <summary>Shows the menu of <paramref name="rows"/> under the icon of <paramref name="key"/>.</summary>
     public Task IconMenu(string key, IReadOnlyList<ShellRow> rows) =>
-        Own("IconMenu", GLib.Variant.NewString(key), ShellLink.RowsOf(rows));
+        Own("IconMenu", GLib.Variant.NewString(key), ShellWire.RowsOf(rows));
 
-    /// <summary>Takes the accelerators, an empty one for none, and says which are thermi's now.</summary>
+    /// <summary>Takes the accelerators, an empty one for none, and says which are thermi's now: none, where the extension cannot.</summary>
     public async Task<IReadOnlyList<bool>> Hotkeys(IReadOnlyList<string> accelerators)
     {
+        if (_link.Lacks(Face, "Hotkeys", "(as)"))
+        {
+            return [.. accelerators.Select(_ => false)];
+        }
+
         var taken = (await Own("Hotkeys", GLib.Variant.NewStrv([.. accelerators]))).GetChildValue(0);
         return [.. Enumerable.Range(0, (int)taken.NChildren()).Select(at => taken.GetChildValue((nuint)at).GetBoolean())];
     }
@@ -91,8 +100,13 @@ internal sealed class ShellDesktop : IDisposable
         return GLib.Variant.NewFromBytes(GLib.VariantType.New("ay"), pixels, true);
     }
 
-    private Task<GLib.Variant> Own(string method, params GLib.Variant[] args) =>
-        _bus.CallAsync(Shell, ShellLink.ObjectPath, Interface, method, GLib.Variant.NewTuple(args));
+    private Task<GLib.Variant> Own(string method, params GLib.Variant[] args)
+    {
+        var call = GLib.Variant.NewTuple(args);
+        return _link.Lacks(Face, method, call.GetTypeString())
+            ? Task.FromResult(GLib.Variant.NewTuple([]))
+            : _bus.CallAsync(Shell, ShellLink.ObjectPath, Interface, method, call);
+    }
 
     private void Heard(string signal, GLib.Variant args) => Callbacks.Safely(() => Take(signal, args), ex => _log.ShellSignalFailed(signal, ex));
 

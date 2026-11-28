@@ -12,8 +12,8 @@ import {OVERLAY, PATH, answer, finite, place, refusePicture, refuseUnless, setPi
 
 // thermi's surface on GNOME Shell (docs/adr/0019-linux.md): it shows what thermi paints, where thermi says, and passes
 // the pointer, the monitors and the menu's choice back; its icons in the top bar and its hotkeys are desktop.js'. It
-// decides nothing. The protocol's version is metadata.json's thermi-protocol, which thermi checks before it shows
-// anything through it.
+// decides nothing. The protocol's version is metadata.json's thermi-protocol; it only grows, as thermi calls only what
+// the running extension declares, which after an update is the earlier one until the next sign-in.
 const SHELL = 'io.github.claudiopi.thermi.Shell';
 const XML = `<node><interface name="${SHELL}">
   <property name="Protocol" type="u" access="read"/>

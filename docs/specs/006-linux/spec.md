@@ -2,7 +2,7 @@
 
 **Status**: approved
 
-**Budget**: 57 .NET and 4 page cases
+**Budget**: 58 .NET and 4 page cases
 
 thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel exposes, the overlay stays above every window on GNOME, KDE Plasma, Hyprland, Sway, Cinnamon, Xfce and MATE, the settings window is the same page as on Windows, `thermi-cli` and its MCP server answer agents as they do there, and updates come through the system's own updater. Many of the developers thermi is for run their agents on Linux, often on a box with no screen, so the sensors and `thermi-cli` install alone too. How it is built, and why each desktop gets its own surface, is in `docs/adr/0019-linux.md`.
 
@@ -33,7 +33,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 - R17. On KDE Plasma 6, Hyprland and Sway, on Wayland, each overlay shows above every window and the panels, where it was placed, and a full-screen window covers it. Clicks pass through it as on GNOME. On a Wayland desktop with neither GNOME Shell nor layer surfaces, `thermi` shows no overlay and says why once.
   Exception: No layer-shell protocol tells a program which monitor shows a window full screen, so covering the overlay is left to the compositor.
 - R24. On X11 desktops, as Cinnamon, Xfce, MATE and KDE Plasma's X11 session, each overlay shows above every window and the panels, off the taskbar and the window switcher, and a full-screen window in front covers it. Clicks pass through it as on GNOME.
-- R9. When `thermi` starts in a GNOME session that lacks its extension, it asks the Shell to install it from extensions.gnome.org, which GNOME confirms with its own prompt, so the overlay shows without signing out; declined or offline, the copy the package installed shows it from the next sign-in, and a notice says so. With the package's copy in place, that notice, and the window, offer no button. An extension of another protocol version than `thermi`'s shows nothing, and the notice says to update.
+- R9. When `thermi` starts in a GNOME session that lacks its extension, it asks the Shell to install it from extensions.gnome.org, which GNOME confirms with its own prompt, so the overlay shows without signing out; declined or offline, the copy the package installed shows it from the next sign-in, and a notice says so. With the package's copy in place, that notice, and the window, offer no button. No update leaves the overlay blank: through the extension of an earlier protocol version, which GNOME runs until the next sign-in after a package updated `thermi`, the overlay still shows, without what is newer, and a notice says to sign in again, with no button. An extension without the overlay's own calls shows nothing, and the notice says to update.
   Release check: Install on Linux.
 - R10. The overlay shows what it shows on Windows, by Core's layout and looks: every style, level, missing value and "Sensors stopped", sharp at each monitor's scale, fractional ones too. `thermi preview` writes the same picture.
   Exception: With no driver to install on Linux, a value never reads "Driver" in place of "–".

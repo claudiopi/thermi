@@ -52,8 +52,9 @@ Notices are the desktop's own freedesktop `Notify`, also on GNOME, where the She
 | Overlays hidden | `show-it` or `show-them`, and `got-it` |
 | Click-through on | `undo` and `got-it` |
 | GNOME's extension missing | `install-extension`, which asks the Shell to install it again |
-| GNOME's extension of another protocol | `update-extension`, which asks the Shell for its updates |
+| GNOME's extension without the overlay's own calls | `update-extension`, which asks the Shell for its updates |
+| GNOME's extension of an earlier protocol, which still shows the overlays | none: it asks to sign in again |
 | The settings window ended with an error, which names its log | `open-again`, which opens it again |
 | No surface to show the overlays on, once ever | `no-overlay`, which only closes it |
 
-The extension's `metadata.json` says its protocol's version as `thermi-protocol`, which thermi checks against its own before it shows anything through it. `thermi-sensors --console --root <tree>` serves a recorded tree in the session, on a socket of the test's own, which `THERMI_SENSORS_SOCKET` names for thermi to read alone; a tree of one second, served every second the same, holds a whole screen still.
+The extension's `metadata.json` says its protocol's version as `thermi-protocol`, and thermi calls only what the running one declares (`src/Thermi.Gnome/README.md`). `thermi-sensors --console --root <tree>` serves a recorded tree in the session, on a socket of the test's own, which `THERMI_SENSORS_SOCKET` names for thermi to read alone; a tree of one second, served every second the same, holds a whole screen still.

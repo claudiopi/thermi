@@ -63,6 +63,14 @@ internal sealed record ShellRow(int Parent, string Text, string? Note, bool Chec
 internal enum ExtensionState
 {
     Ours,
+
+    /// <summary>
+    /// Running with an earlier protocol, as the Shell runs the one it read at sign-in after a package updated thermi: the
+    /// overlays show through what it has, and the Shell reads the update at the next sign-in.
+    /// </summary>
+    Earlier,
+
+    /// <summary>Running without the overlay's own calls in thermi's shapes: nothing shows through it.</summary>
     OtherVersion,
     Missing,
 

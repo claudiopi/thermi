@@ -366,7 +366,8 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
             Gnome.ExtensionState.Unread => _installRefused ? ExtensionState.NextSignIn : ExtensionState.Missing,
             Gnome.ExtensionState.Off => ExtensionState.Disabled,
             Gnome.ExtensionState.OtherVersion => ExtensionState.OtherVersion,
-            Gnome.ExtensionState.Ours or Gnome.ExtensionState.Starting => ExtensionState.Enabled,
+            // An earlier protocol's shows the overlays until the next sign-in, which the overlay's notice asks for.
+            Gnome.ExtensionState.Ours or Gnome.ExtensionState.Earlier or Gnome.ExtensionState.Starting => ExtensionState.Enabled,
             _ => null,
         };
 

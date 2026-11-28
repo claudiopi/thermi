@@ -81,7 +81,7 @@
       "covers": [
         "R9"
       ],
-      "description": "Given the headless Shell with an extension of another protocol version, and then with none, when thermi starts, then it shows nothing through the other version and its notice says to update; with none, it asks the Shell to install thermi's from extensions.gnome.org and its notice offers the install; with its files in place that the running Shell has not read, it asks the same, and when the Shell does not install it, its notice says to sign in again, with no button.",
+      "description": "Given the headless Shell with an extension of another protocol version that lacks the overlay's own calls, and then with none, when thermi starts, then it shows nothing through the other version and its notice says to update; with none, it asks the Shell to install thermi's from extensions.gnome.org and its notice offers the install; with its files in place that the running Shell has not read, it asks the same, and when the Shell does not install it, its notice says to sign in again, with no button.",
       "check": "AnExtensionOfAnotherVersionShowsNothing",
       "passes": true
     },
@@ -203,6 +203,15 @@
       "description": "Given an overlay and its window running when the package changed thermi's files, when the session turns quiet, then each hands over to the new version, one overlay runs, and About says the version, the channel and that updates come from the system.",
       "check": "TheOverlayHandsOverAfterAnUpdateOnLinux",
       "passes": false
+    },
+    {
+      "id": "A23",
+      "covers": [
+        "R9"
+      ],
+      "description": "Given the headless Shell running thermi's extension as the protocol before thermi's, with no more than the overlay's own calls and monitors of the parts every protocol had, as GNOME runs it from a package's update until the next sign-in, when thermi starts, then both overlays show as painted, on the top bar and on a window, and a notice says to sign in again, with no button.",
+      "check": "AnEarlierExtensionStillShowsTheOverlays",
+      "passes": true
     }
   ]
 }
