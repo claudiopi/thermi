@@ -72,7 +72,8 @@ public sealed class ReaderTests
     }
 
     // A Super I/O chip whose driver takes 96 ms of CPU to read it, as an ASUS board's NCT6798D, is read again only once
-    // that is 1 % of a core, ten seconds on, sending its last values between, while the board's EC, cheap, is read each second.
+    // that is 1 % of a core, ten seconds on, its pwm files, which skip the driver's cache, with it, and its last values are
+    // in each second's snapshot between, while the board's EC, cheap, is read each second.
     [Fact]
     public void AChipCostlyToReadIsReadLessOften()
     {
@@ -85,19 +86,22 @@ public sealed class ReaderTests
             {
                 tree.Cpu(second);
                 var rpm = string.Create(CultureInfo.InvariantCulture, $"{1000 + second}");
-                tree.Files(second, "/sys/class/hwmon/hwmon0", ("name", "nct6798"), ("fan1_input", rpm));
+                var duty = string.Create(CultureInfo.InvariantCulture, $"{51 + second}");
+                tree.Files(second, "/sys/class/hwmon/hwmon0", ("name", "nct6798"), ("fan1_input", rpm), ("pwm1", duty));
                 tree.Link(second, "/sys/class/hwmon/hwmon0/device", "/sys/devices/platform/nct6775.656");
                 tree.Files(second, "/sys/class/hwmon/hwmon1", ("name", "asusec"), ("fan1_input", rpm));
                 tree.Link(second, "/sys/class/hwmon/hwmon1/device", "/sys/devices/platform/asus-ec-sensors");
                 tree.Flush(second);
             }
 
-            var sensors = new LinuxSensors(new Costing(new RecordedKernel(root), "/sys/class/hwmon/hwmon0/", TimeSpan.FromMilliseconds(96)));
-            var fans = seconds.Select(_ => sensors.Read().Sensors.Where(sensor => sensor.Type == "Fan")
-                .ToDictionary(sensor => sensor.Hardware, sensor => sensor.Value, StringComparer.Ordinal)).ToList();
+            var sensors = new LinuxSensors(new Costing(new RecordedKernel(root), "/sys/class/hwmon/hwmon0/", TimeSpan.FromMilliseconds(48)));
+            var read = seconds.Select(_ => sensors.Read().Sensors.Where(sensor => sensor.Type is "Fan" or "Control")
+                .ToDictionary(sensor => $"{sensor.Hardware} {sensor.Type}", sensor => sensor.Value, StringComparer.Ordinal)).ToList();
 
-            Assert.Equal(seconds.Select(second => (double?)(1000 + (second < 10 ? 0 : 10))), fans.Select(fan => fan["Nuvoton NCT6798"]));
-            Assert.Equal(seconds.Select(second => (double?)(1000 + second)), fans.Select(fan => fan["ASUS EC"]));
+            var last = seconds.Select(second => second < 10 ? 0 : 10).ToList();
+            Assert.Equal(last.Select(at => (double?)(1000 + at)), read.Select(values => values["Nuvoton NCT6798 Fan"]));
+            Assert.Equal(last.Select(at => (double?)((51 + at) * (100d / 255))), read.Select(values => values["Nuvoton NCT6798 Control"]));
+            Assert.Equal(seconds.Select(second => (double?)(1000 + second)), read.Select(values => values["ASUS EC Fan"]));
         }
         finally
         {
