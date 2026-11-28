@@ -37,7 +37,7 @@ const useStyles = makeStyles({
     // Its size is the window's, so what is inside can ask how short it is, as the catalog's chips do.
     containerType: 'size',
     containerName: 'panel',
-    '@media (forced-colors: active)': { backgroundColor: 'Canvas', border: '1px solid CanvasText' },
+    ':global(.t-contrast) &': { backgroundColor: 'Canvas', border: '1px solid CanvasText' },
   },
   smoke: { zIndex: 30, top: below, backgroundColor: 'rgba(0, 0, 0, 0.18)' },
   host: { display: 'contents' },

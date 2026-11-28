@@ -60,11 +60,17 @@ public sealed class HotkeyTests
             Hotkeys.Status(new HotkeysConfig { Toggle = "Ctrl+Alt+T" }, HotkeyFailures.None),
             new HotkeysConfig { NextStyle = "Ctrl+Alt+T" }));
         Assert.Equal(
-            HotkeyFailures.Toggle | HotkeyFailures.NextStyle | HotkeyFailures.ClickThrough | HotkeyFailures.ResetMinMax,
+            HotkeyFailures.Toggle | HotkeyFailures.NextStyle | HotkeyFailures.ClickThrough | HotkeyFailures.ResetMinMax | HotkeyFailures.DesktopRefused,
             Hotkeys.Trusted(Hotkeys.Status(tried, (HotkeyFailures)0xFF), tried));
 
-        // The window says a hotkey failed only on a status it trusts, and that the overlay runs only on one it got.
+        // The window says a hotkey failed only on a status it trusts, and that the overlay runs only on one it got. A desktop
+        // that took none of them, as one without the GlobalShortcuts portal, fails every hotkey set, and says so, not that
+        // another app holds each.
         Assert.Equal([HotkeyRole.NextStyle], Shown(tried, status).Failed);
+        Assert.False(Shown(tried, status).HotkeysRefused);
+        var refused = Shown(tried, Hotkeys.Status(tried, HotkeyFailures.DesktopRefused));
+        Assert.Equal([HotkeyRole.Toggle, HotkeyRole.NextStyle], refused.Failed);
+        Assert.True(refused.HotkeysRefused);
         Assert.Empty(Shown(tried with { NextStyle = "Ctrl+Alt+N" }, status).Failed);
         Assert.Empty(Shown(tried, null).Failed);
         Assert.False(Shown(tried, null).Overlay);

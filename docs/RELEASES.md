@@ -1,10 +1,10 @@
 # Releases and updates
 
-How a version of thermi reaches PCs, the levers on it, and the checks a person runs before each release. Why it works this way is in `docs/adr/0008-updates.md`; what it must do is in `docs/specs/004-updates/spec.md`.
+How a version of thermi reaches PCs, the levers on it, and the checks a person runs before each release. Why it works this way is in `docs/adr/0008-updates.md`, and on Linux in `docs/adr/0019-linux.md`; what it must do is in `docs/specs/004-updates/spec.md` and `docs/specs/006-linux/spec.md`.
 
 ## The channels
 
-The update server is static files: each channel's signed envelope, `stable.json` and `beta.json`, with a 60-second cache, and the zips under `zips/<version>/`, which never change once written. Each installed service checks its channel a minute after it starts and every 4 hours, takes a higher version its rollout reaches, unpacks it beside the running one, and switches at a quiet moment. Nothing about the PC is sent.
+The update server is static files: each channel's signed envelope, `stable.json` and `beta.json`, with a 60-second cache, and the zips under `zips/<version>/`, which never change once written. On Windows, each installed service checks its channel a minute after it starts and every 4 hours, takes a higher version its rollout reaches, unpacks it beside the running one, and switches at a quiet moment. Nothing about the PC is sent.
 
 ## The levers
 
@@ -20,7 +20,32 @@ The update server is static files: each channel's signed envelope, `stable.json`
 | `revoke --channel stable --release-key <release.pub.pem> --backup-key <backup.key.pem>` | The release key is revoked: PCs trust the backup key alone until a build with another release key runs. Signed with the backup key, or refused. |
 | `status` | What each channel offers. |
 
-A version that fails on a PC is never taken there again: its service served nothing within 120 polls, or its second run ended without stopping within 10 minutes.
+A version that fails on a Windows PC is never taken there again: its service served nothing within 120 polls, or its second run ended without stopping within 10 minutes.
+
+### On Linux
+
+On Linux the system's own updater updates thermi, from thermi's apt and dnf repositories, static files under the server's `linux/` (`docs/adr/0019-linux.md`). The `.deb` and the `.rpm` add the stable one with the key it is signed with, and a person who wants beta changes `Suites:` in `/etc/apt/sources.list.d/thermi.sources` or the end of `baseurl=` in `/etc/yum.repos.d/thermi.repo`. `scripts/linux-packages.ps1` packs a version. Given `--repository <folder>`, the levers of `scripts/updates.ps1` act on the repositories instead, through `scripts/repository.ps1`: each writes the channel's indexes with apt-ftparchive and createrepo_c, from a Debian container where the PC has neither, and signs them with the OpenPGP key in `--key` or `THERMI_REPOSITORY_KEY`. The release workflow pulls them between `scripts/channel-sync.ps1 down -Linux` and `up -Linux`:
+
+| Lever | What PCs do |
+| --- | --- |
+| `publish <v> --channel beta --packages <folder>` | Take the version with their next update. A version not above every one the channel published is refused. |
+| `promote [--from beta --to stable]` | Stable takes beta's version, every PC at once: the repositories have no rollout. |
+| `rollback --channel stable` | Take the version before, packed again from its tarball as `<highest>.really<version>`, which sorts above every version published, so the system's updater installs it. The AUR keeps the release it has: there, a rollback is a release of the version before by hand. |
+| `disable --channel stable` | Find nothing to take until the next publish. |
+| `sign --channel stable` | Nothing new: the same offer signed again, as apt refuses a `Release` 45 days after it is signed. The workflow's `refresh` and its monthly signing pull it. |
+| `restore --before-last --channel stable` | Take the offer before the last again, indexed and signed anew, as apt takes no `Release` older than the one it holds. Only by hand, on a Linux PC, between `scripts/channel-sync.ps1 down -Linux` and `up -Linux`: the workflow has no such lever. |
+| `status` | What the channel offers. |
+
+## Trying it on Linux
+
+```sh
+pwsh scripts/linux-packages.ps1                  # artifacts/linux, with a key of the build's own in key/
+pwsh scripts/updates.ps1 publish 0.9.0 --channel stable --packages artifacts/linux --repository <repositories>
+sudo apt install ./artifacts/linux/thermi-sensors_0.9.0_amd64.deb ./artifacts/linux/thermi_0.9.0_amd64.deb
+pwsh scripts/updates.ps1 serve --folder <a folder holding <repositories> as linux>
+```
+
+Given a build's packages, the levers sign with its own key, which those packages trust. Removing the `.rpm` leaves its key in rpm's own database, as every repository's does; `rpm -e gpg-pubkey-<id>` takes it out.
 
 ## Trying it on this PC
 
@@ -42,22 +67,26 @@ A release needs accounts and keys only the owner can hold. Do each step once, in
 
 | Step | What | Where it ends up |
 | --- | --- | --- |
-| 1. The channel's address | A domain for the update server, such as `updates.<your domain>`. Every release build carries `https://<it>/v1/`, so it never changes once a release is out. | The repository's variable `THERMI_UPDATES_FROM`, in step 6. |
+| 1. The channel's address | A domain for the update server, such as `updates.<your domain>`. Every release build carries `https://<it>/v1/`, so it never changes once a release is out. | The repository's variable `THERMI_UPDATES_FROM`, in step 8. |
 | 2. The update server | A Cloudflare R2 bucket, `thermi-updates`, public for reading under that domain, with a 60 s cache rule for `/v1/*.json`, and an API token that writes only that bucket. | The `release` environment's `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`. |
-| 3. The manifest keys | `pwsh scripts/updates.ps1 keys --out <folder>` on your own PC. `release.key.pem` goes online, then off the PC. `backup.key.pem` never goes online: keep two offline copies; it is only for `revoke`. | The secret `THERMI_UPDATES_KEY`; the public keys' text as the variables `THERMI_UPDATES_RELEASE_PUB` and `THERMI_UPDATES_BACKUP_PUB`, in step 6. |
-| 4. Authenticode | SignPath Foundation's free signing for open source: a project `thermi` linked to the repo, three artifact configurations (`binaries`: every `.exe` and `.dll` of a version's zip; `catalog`: `thermi.cat`; `msi`: both MSIs), and a signing policy `release` that signs only for this repo's `release` environment. | The secret `SIGNPATH_API_TOKEN` and the variable `SIGNPATH_ORGANIZATION_ID`; the certificate's SHA-256 thumbprint as the variable `THERMI_UPDATES_SIGNERS`, in step 6. |
-| 5. The GitHub environment | `release`, with you as its required reviewer and only `main` allowed to deploy to it. | Holds the secrets above. Every publish, promotion and monthly signing waits for your approval. |
-| 6. The repository's variables | All four at once: `THERMI_UPDATES_FROM`, `THERMI_UPDATES_RELEASE_PUB`, `THERMI_UPDATES_BACKUP_PUB`, `THERMI_UPDATES_SIGNERS`. | From then on every merge runs the release workflow. |
-| 7. Branch protection | A ruleset on `main`: changes only through a pull request, squash-merged, with the one required status check `CI gate`, and no one may bypass it. `CI gate` passes only when every job of `.github/workflows/ci.yml` passed: Core's tests and the build's checks, the Windows tests, the Windows tests that run alone, the page, the MSIs, the PR's title, and `.github/workflows/security.yml`'s: no secret in the history, no package with a known vulnerability, and none added by the PR. Branches need not be up to date before merging, or Renovate's auto-merges wait forever. | The repository's settings, under Rules. Jobs can change without touching it. |
-| 8. Renovate | The free Mend Renovate app, installed on this repository alone, and Allow auto-merge on, with squash merging the only method allowed. | `renovate.json` drives it: it opens the dependency PRs and auto-merges build tools' and actions' once `CI gate` passes. |
+| 3. The manifest keys | `pwsh scripts/updates.ps1 keys --out <folder>` on your own PC. `release.key.pem` goes online, then off the PC. `backup.key.pem` never goes online: keep two offline copies; it is only for `revoke`. | The secret `THERMI_UPDATES_KEY`; the public keys' text as the variables `THERMI_UPDATES_RELEASE_PUB` and `THERMI_UPDATES_BACKUP_PUB`, in step 8. |
+| 4. Authenticode | SignPath Foundation's free signing for open source: a project `thermi` linked to the repo, three artifact configurations (`binaries`: every `.exe` and `.dll` of a version's zip; `catalog`: `thermi.cat`; `msi`: both MSIs), and a signing policy `release` that signs only for this repo's `release` environment. | The secret `SIGNPATH_API_TOKEN` and the variable `SIGNPATH_ORGANIZATION_ID`; the certificate's SHA-256 thumbprint as the variable `THERMI_UPDATES_SIGNERS`, in step 8. |
+| 5. The Linux repositories' key | On a Linux PC: `gpg --quick-generate-key 'thermi <you@example.org>' rsa3072 sign never`, with no passphrase, then `gpg --armor --export-secret-keys` and `gpg --armor --export`. Every `.deb` and `.rpm` installs the public key and its repository trusts nothing else, so it never changes once a release is out; keep two offline copies. | The secret `THERMI_REPOSITORY_KEY`; the public key's text as the variable `THERMI_REPOSITORY_PUB`, in step 8. |
+| 6. The AUR | An AUR account with an SSH key of its own, and the package `thermi-bin` made by pushing a first `PKGBUILD`, from the `aur` folder `scripts/linux-packages.ps1` writes. The AUR's host key, ssh-ed25519 and its key, from the Arch wiki's page on the AUR, checked against `ssh-keyscan aur.archlinux.org`. | The secret `AUR_SSH_KEY`; the host key as the variable `AUR_HOST_KEY`, in step 8. |
+| 7. The GitHub environment | `release`, with you as its required reviewer and only `main` allowed to deploy to it. | Holds the secrets above. Every publish, promotion and monthly signing waits for your approval. |
+| 8. The repository's variables | All four at once: `THERMI_UPDATES_FROM`, `THERMI_UPDATES_RELEASE_PUB`, `THERMI_UPDATES_BACKUP_PUB`, `THERMI_UPDATES_SIGNERS`. Linux's, `THERMI_REPOSITORY_PUB` and `AUR_HOST_KEY`, together once steps 5 and 6 are both done. | From then on every merge runs the release workflow. |
+| 9. Branch protection | A ruleset on `main`: changes only through a pull request, squash-merged, with the one required status check `CI gate`, and no one may bypass it. `CI gate` passes only when every job of `.github/workflows/ci.yml` passed: Core's tests and the build's checks, the Windows tests, the Windows tests that run alone, Core's tests on Linux, the Linux tests, the page, the page on Linux, the MSIs, the PR's title, and `.github/workflows/security.yml`'s: no secret in the history, no package with a known vulnerability, and none added by the PR. Branches need not be up to date before merging, or Renovate's auto-merges wait forever. | The repository's settings, under Rules. Jobs can change without touching it. |
+| 10. Renovate | The free Mend Renovate app, installed on this repository alone, and Allow auto-merge on, with squash merging the only method allowed. | `renovate.json` drives it: it opens the dependency PRs and auto-merges build tools' and actions' once `CI gate` passes. |
+| 11. The GNOME extension | An account on extensions.gnome.org. Upload `src/Thermi.Gnome` zipped, its files at the zip's root, under the uuid `thermi@claudiopi.github.io` that `metadata.json` names, and wait for GNOME's review, which takes days. Upload it again for each release that changes a file of `src/Thermi.Gnome` or the Shell versions, before the release goes out. | The site serves it to `thermi`, which asks GNOME to install it on first start. A release whose extension adds to the protocol still shows the overlays through the site's earlier one, without what is new, with a notice; only an extension without the overlay's own calls shows nothing, with a notice that says to update it. |
 
 Why some of it is this way:
 
-- Until step 6, a merge skips the release workflow with a notice. With only some variables set, every run fails, rather than build a release that never updates.
+- Until step 8, a merge skips the release workflow with a notice. Without steps 5 and 6 the Windows release goes on, and the Linux jobs publish nothing, with a notice in the run's summary (`scripts/linux-ready.ps1`). Set none of step 5's and 6's four values until both steps are done: with some of them set, every run fails. With only some variables set, Windows' or Linux's, every run fails, rather than build a release that never updates or let a channel expire behind green runs. A release run again after its Linux job published but failed to push to the AUR only pushes to the AUR.
 - Every lever opens the channels' signed histories with the public keys, so whoever can write the bucket cannot have a lever sign what they planted. On your PC, the levers take the keys' folder as `--trust <folder>`.
 - The thumbprint is what `(Get-AuthenticodeSignature <signed file>).SignerCertificate.GetCertHashString('SHA256')` shows. It is a thumbprint, not a name, because SignPath Foundation's certificate carries the same name for every project it signs. Ask SignPath whether the certificate is thermi's own: a shared one means the catalog proves only that SignPath signed the files.
 - When the certificate is renewed, list both thumbprints, separated by a semicolon, in a release made before the old one's last day. A PC that skips that release refuses every later one until a later MSI is installed on it.
 - The MSI is built with WiX 5, which needs no account or fee.
+- GNOME lets no program draw above its top bar, so the overlay on GNOME needs the extension, which GNOME installs only from extensions.gnome.org and after its own review. The site keeps each version it approved, so a person on an older GNOME gets the newest that names their Shell.
 
 ## The release workflow
 
@@ -66,9 +95,10 @@ Why some of it is this way:
 - Each merge to main goes to beta as `<version>-beta.<run>`.
 - Run by hand with `release`, it puts `Directory.Build.props`' version on stable at the rollout given, with its MSIs on a GitHub release. With `promote`, `rollback`, `disable` or `refresh` it pulls that lever.
 - On the first of each month it signs both channels again, before their manifests expire.
-- Each job that signs waits for your approval: a beta asks twice, a release three times.
+- Each job that signs waits for your approval: a beta asks twice, a release three times, a lever by hand and the monthly signing once. Each Linux job waits at the same moment as one of Windows', and one approval of the environment releases both.
 - `scripts/channel-sync.ps1` moves the channels between the run and the bucket, the zips before the manifests, and writes a manifest only if the bucket still holds what the run fetched. Of two runs at once, the second fails and is run again.
 - Right after a stable release, raise `Directory.Build.props`' version: a beta of the version released is older than it, and the channel refuses it.
+- The Linux packages of the same version go to the same channel of the repositories, and a release's `PKGBUILD` to the AUR once its tarballs are served; each lever by hand acts on the repositories too, `refresh` as `sign`, and the monthly signing signs them again. `scripts/channel-sync.ps1 -Linux` moves them, the packages first and the indexes after the histories.
 - `revoke` never runs there, since it needs the backup key: on your PC run `scripts/channel-sync.ps1 down`, then `revoke`, then `scripts/channel-sync.ps1 up`.
 
 ## Before each release
@@ -135,6 +165,31 @@ Run them on the release's build, installed; its Release run lists them in its su
 | Check | Steps | Passes when |
 | --- | --- | --- |
 | **thermi-cli in Claude Code and Claude Desktop** | Add `thermi-cli` with the README's one command. Ask a new session how hot the CPU is, then to set its warning at 70 °C. Then the same in Claude Desktop. | The answer matches the overlay, and the overlay shows the new warning. |
+
+### Linux
+
+Run them with the release's packages on the physical Ubuntu 26.04 PC with GNOME, which has real sensors, and on the test machines it runs on libvirt, each reset first with `virsh -c qemu:///system snapshot-revert <machine> clean`, a snapshot with nothing of thermi's:
+
+| Machine | What it tries |
+| --- | --- |
+| `thermi-fedora` | Fedora 45 with GNOME 51, the newest Shell, Wayland: the `.rpm`, and a second account, `thermi2`, for the prompt declined. |
+| `thermi-ubuntu2404` | Ubuntu 24.04 with GNOME 46, the oldest Shell the extension takes: the `.deb`. |
+| `thermi-debian` | Debian 13 with GNOME 48: the `.deb`. |
+| `thermi-kubuntu` | Kubuntu 26.04 with KDE Plasma 6.6, Wayland: the `.deb` and the layer surface. |
+| `thermi-arch` | Arch with Hyprland: `thermi-bin` from the AUR and the layer surface. |
+| `thermi-server` | Ubuntu Server 24.04 with no screen: `thermi-sensors` alone and `thermi-cli`. |
+
+Each desktop has two monitors. A virtual machine reads no sensors, so there its values show as missing. `virsh -c qemu:///system screenshot <machine> <png> --screen 0` captures a screen.
+
+| Check | Steps | Passes when |
+| --- | --- | --- |
+| **Install on Linux** | On each, install `thermi-sensors` alone with the distribution's tool and run `thermi-cli read`; on `thermi-server`, nothing more. Install `thermi` while signed in; on GNOME, accept GNOME's prompt for the extension, and on another account decline it and sign out and in. Remove both. | On the physical PC, `thermi-cli read` gives a CPU temperature and power. The overlay shows at once, on GNOME after the prompt, and after the sign-in where it was declined, with a notice until then. The removal stops the service and the overlay and leaves `~/.config/thermi`. |
+| **Restart and sign-in on Linux** | On each, drag an overlay into a corner, on GNOME another onto the top bar, and on the physical PC snap one to the second monitor. Restart and sign in. Kill `thermi` with `systemctl --user kill --signal=KILL thermi`, as a crash ends it, then choose Exit thermi. Turn the start at sign-in off with `thermi-cli start-with-windows off`, sign out and in. | Each overlay is where it was, above every window, and covered by a full-screen video. Killed, one overlay comes back; after Exit, none. With the start off, none starts. |
+| **Costs at rest on Linux** | On the physical PC, with the overlay showing for 10 minutes, read the overlay's and the service's memory and CPU, and GNOME Shell's CPU with thermi running and without. Open the window on an overlay, whose preview it paints each second, and leave it idle for a minute. | The overlay holds 48 MB and 0.5 % of one core, the service 80 MB and 3 %, the idle window with WebKit's processes 1 %, or 3.5 % where WebKit paints in software, as on NVIDIA, and GNOME Shell takes at most 0.5 % of one core more with thermi. |
+| **An update on Linux** | On `thermi-fedora` and `thermi-kubuntu`, installed from the previous release, publish the release to a test repository with the levers, run the system's updater and leave the session idle. Roll the channel back and update again. | The system's updater offers thermi beside the system's own updates. After it, the service runs the new version, each overlay hands over at the quiet moment without blinking, and About says the version, the channel and that updates come from the system. The rollback brings the version before. |
+| **The window's speed on Linux** | On the physical PC, after sign-in, stop the overlay with `systemctl --user stop thermi` and run `thermi --trace`. Open the window with `thermi settings --trace` the first time, and again. Move a slider once, then drag a knob for a minute. Close it. | The first frame shows within 2 s the first time and 1 s after. Each paint lands within 300 ms of its input, the first edit's too, from each `input` line of `~/.local/state/thermi/thermi-window.log` to the `edit-applied` line `thermi --trace` prints after it, on the same clock, at most 10 times a second. Once closed, no process of the window is left. |
+| **Open the window every way on Linux** | On each desktop, with the window closed and then behind others, open it from the overlay's menu, thermi's icon, a double-click on a value, `thermi settings` and the app launcher. Close it. | One window opens on the right item or overlay, or comes to the front focused. Once closed, no process of it is left. |
+| **Orca, themes and the window's frame on Linux** | On GNOME and KDE Plasma, with Orca, and in light, dark, another accent and high contrast, move through the window; resize, maximize and restore it. | Everything is read with its name, role and value, the window follows each scheme, accent and contrast, and its frame is the desktop's. |
 
 ## If the release key is stolen
 

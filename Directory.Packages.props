@@ -13,6 +13,11 @@
   </ItemGroup>
 
   <ItemGroup Label="App">
+    <!-- GObject's libraries for .NET, generated from their introspection data: Linux's Cairo, Pango and Gio (docs/adr/0019-linux.md). -->
+    <PackageVersion Include="GirCore.Gdk-4.0" Version="0.8.1" />
+    <PackageVersion Include="GirCore.Gtk-4.0" Version="0.8.1" />
+    <PackageVersion Include="GirCore.PangoCairo-1.0" Version="0.8.1" />
+    <PackageVersion Include="GirCore.WebKit-6.0" Version="0.8.1" />
     <PackageVersion Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
     <!-- Pinned exactly: it has not reached 1.0, and a new version may generate other signatures. Build time only. -->
@@ -22,6 +27,8 @@
     <PackageVersion Include="Serilog.Extensions.Logging" Version="11.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.4.0" />
+    <!-- GObject's libraries for .NET, generated from their introspection data (docs/adr/0019-linux.md). -->
+    <PackageVersion Include="GirCore.Gio-2.0" Version="0.8.1" />
     <PackageVersion Include="System.CommandLine" Version="3.0.0" />
     <PackageVersion Include="System.ServiceProcess.ServiceController" Version="10.0.15" />
   </ItemGroup>

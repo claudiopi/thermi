@@ -24,6 +24,10 @@ export interface AgentsView {
   changes: AgentChangeView[];
 }
 
+export type BarEdge = 'bottom' | 'top';
+
+export type CaptionAction = 'move' | 'title-double-click' | 'minimize' | 'maximize' | 'close';
+
 export interface CatalogGroup {
   id: string;
   name: string;
@@ -53,6 +57,7 @@ export interface CatalogView {
   count: number;
   hidden: number;
   suggestion: string | null;
+  stopped: boolean;
 }
 
 export type ChartEmpty = 'stopped' | 'driver' | 'none';
@@ -90,6 +95,8 @@ export type Combine = 'max' | 'average' | 'sum';
 
 export type CornerStyle = 'round' | 'soft' | 'square';
 
+export type DesktopBar = 'taskbar' | 'top-bar' | 'panel' | 'none';
+
 export interface DesktopPick {
   overlay: number;
   item: string | null;
@@ -125,6 +132,8 @@ export type Edit =
   | { kind: 'resetLines'; item: string }
   | { kind: 'sensorName'; sensor: string; name: string };
 
+export type ExtensionState = 'missing' | 'disabled' | 'other-version' | 'next-sign-in' | 'enabled';
+
 export type FanFinderRefusal = 'no-board-fans' | 'driver-may-be-missing';
 
 export interface Findable {
@@ -154,6 +163,8 @@ export interface Found {
 }
 
 export type GraphStyle = 'auto' | 'none' | 'bars' | 'line';
+
+export type HostOs = 'windows' | 'linux';
 
 export type HotkeyRole = 'toggle' | 'nextStyle' | 'clickThrough' | 'resetMinMax';
 
@@ -244,6 +255,7 @@ export interface Monitor {
   scale: number;
   taskbar: boolean;
   floats?: TaskbarFloat;
+  edge?: BarEdge;
 }
 
 export type NameFrom = 'library' | 'likely' | 'own';
@@ -280,6 +292,14 @@ export interface OverlayPicture {
   width: number;
   height: number;
   taskbar: string | null;
+}
+
+export interface OverlayPlace {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  beside?: boolean;
 }
 
 export type PillLayout = 'pills' | 'each' | 'one';
@@ -425,6 +445,10 @@ export interface WarnByChoice {
   name: string;
 }
 
+export interface WindowCaption {
+  maximized: boolean;
+}
+
 export interface WindowChange {
   sensors: boolean;
 }
@@ -440,8 +464,15 @@ export interface WindowStatus {
   hotkeys: HotkeyRole[];
   failed: HotkeyRole[];
   problem: string | null;
+  hotkeysRefused: boolean;
   lightTaskbar: boolean;
   forEveryone: boolean;
+  os: HostOs;
+  accent: string | null;
+  extension: ExtensionState | null;
+  contrast: boolean;
+  bar: DesktopBar;
+  caption: WindowCaption | null;
 }
 
 export type WindowTheme = 'system' | 'light' | 'dark';
@@ -484,7 +515,7 @@ export interface Bridge {
   history(id: string): Promise<(number | null)[]>;
   texts(): Promise<Record<string, string>>;
   monitors(): Promise<Monitor[]>;
-  places(): Promise<(Rect | null)[]>;
+  places(): Promise<(OverlayPlace | null)[]>;
   report(error: string): Promise<void>;
   looks(): Promise<Record<string, Style>>;
   worn(): Promise<(WornLook | null)[]>;
@@ -501,7 +532,9 @@ export interface Bridge {
   finder(): Promise<FinderView>;
   installDriver(): Promise<DriverInstall>;
   startService(): Promise<boolean>;
-  startOverlay(): Promise<void>;
+  installExtension(): Promise<boolean>;
+  startOverlay(): Promise<boolean>;
+  caption(action: CaptionAction): Promise<void>;
   restore(): Promise<void>;
   startWithWindows(): Promise<boolean>;
   setStartWithWindows(on: boolean): Promise<void>;

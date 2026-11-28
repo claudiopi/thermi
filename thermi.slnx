@@ -9,6 +9,20 @@
     <Project Path="src/Thermi.Settings.Types/Thermi.Settings.Types.csproj" />
     <Project Path="src/Thermi.Client/Thermi.Client.csproj" />
     <Project Path="src/Thermi.Trust/Thermi.Trust.csproj" />
+    <Project Path="src/Thermi.Linux/Thermi.Linux.csproj" />
+    <Project Path="src/Thermi.Sensors.Linux/Thermi.Sensors.Linux.csproj" />
+  </Folder>
+  <!-- The GNOME Shell extension is JavaScript the Shell loads as it is, so it is here as its files. -->
+  <Folder Name="/src/Thermi.Gnome/">
+    <File Path="src/Thermi.Gnome/eslint.config.js" />
+    <File Path="src/Thermi.Gnome/cursor.js" />
+    <File Path="src/Thermi.Gnome/desktop.js" />
+    <File Path="src/Thermi.Gnome/extension.js" />
+    <File Path="src/Thermi.Gnome/metadata.json" />
+    <File Path="src/Thermi.Gnome/overlayMenu.js" />
+    <File Path="src/Thermi.Gnome/pointerWatch.js" />
+    <File Path="src/Thermi.Gnome/protocol.js" />
+    <File Path="src/Thermi.Gnome/README.md" />
   </Folder>
   <!-- The MSI needs a published version first and WiX's Visual Studio extension to load, so it is here as its files;
        scripts/updates.ps1 builds it. -->
@@ -35,5 +49,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Thermi.Tests/Thermi.Tests.csproj" />
     <Project Path="tests/Thermi.Windows.Tests/Thermi.Windows.Tests.csproj" />
+    <Project Path="tests/Thermi.Linux.Tests/Thermi.Linux.Tests.csproj" />
   </Folder>
 </Solution>

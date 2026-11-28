@@ -51,8 +51,8 @@ public sealed class MoreControlTests
                 Temperatures.Kept(62, TemperatureUnit.Celsius)));
     }
 
-    // The window is light or dark as chosen in Settings, or as Windows' apps are for "Windows", the default the file leaves
-    // out; under high contrast Windows' colors win over any choice.
+    // The window is light or dark as chosen in Settings, or as the desktop's apps are for "Windows", the default the file leaves
+    // out; under high contrast the desktop's colors win over any choice. Linux's window takes it with the portal's scheme.
     [Theory] // Rows: each a case A319 states.
     [InlineData(WindowTheme.System, false, false, true)]
     [InlineData(WindowTheme.Light, false, false, false)]

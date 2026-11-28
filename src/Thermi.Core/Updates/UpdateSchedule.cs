@@ -79,6 +79,19 @@ public static class UpdateSchedule
     /// </summary>
     public static bool Quiet(SessionFacts session, bool urgent) =>
         !session.WindowOpen && !session.Dragging && (urgent || session.SinceInput >= Idle || session.Locked || session.AllHidden);
+
+    /// <summary>
+    /// How long the program's files must have stayed as they are before a process starts them: a package manager replaces
+    /// them one by one, and a start in between would load two versions at once.
+    /// </summary>
+    public static readonly TimeSpan Settle = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Whether a process whose program's files a package changed, <paramref name="sinceChange"/> ago, hands over to them
+    /// now, on Linux, where the system's updater changes them (docs/adr/0019-linux.md): once they settled, at the session's
+    /// quiet moment, as a version ready switches on Windows. None changed, none hands over.
+    /// </summary>
+    public static bool HandsOver(TimeSpan? sinceChange, SessionFacts session) => sinceChange >= Settle && Quiet(session, urgent: false);
 }
 
 public sealed record SessionFacts(bool WindowOpen, bool Dragging, TimeSpan SinceInput, bool Locked, bool AllHidden);

@@ -14,4 +14,7 @@ public enum HotkeyText
     HotkeyHeld,
 
     HotkeysNeedOverlay,
+
+    /// <summary>A hotkey that failed as the desktop took none of thermi's, as one without a way to give them or whose dialog was declined.</summary>
+    HotkeysRefused,
 }

@@ -18,8 +18,8 @@ public sealed class WebPageTests
         Assert.NotEmpty(files);
         Assert.All(files, file => Assert.Equal(
             file.EndsWith(".html", StringComparison.Ordinal),
-            WebPage.TypeOf(file)?.StartsWith("text/html", StringComparison.Ordinal)));
-        Assert.Null(WebPage.TypeOf("web/assets/unknown.xyz"));
+            Core.Bridge.PageFiles.TypeOf(file)?.StartsWith("text/html", StringComparison.Ordinal)));
+        Assert.Null(Core.Bridge.PageFiles.TypeOf("web/assets/unknown.xyz"));
     }
 
     // A renderer that ended or hangs leaves the window blank for good unless the page loads again; a browser that ended

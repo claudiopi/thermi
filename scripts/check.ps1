@@ -7,6 +7,7 @@
     Here it runs only what the change can affect (scripts/check-scope.ps1), with the .NET half and the page's side by side
     and the steps that need nothing of each other at once; -Full runs every step. The CI runs every step of this same
     script, each part in a job of its own, so nothing merges red.
+    On Linux it builds and runs Thermi.Tests and the Linux tests.
     Prints one line per step; on failure, only the errors and how to fix them.
 #>
 param(
@@ -17,8 +18,10 @@ param(
     # (scripts/redundant.ps1).
     [switch]$Mutation,
     # One part alone. DotNet is Core, Windows and WindowsAlone: Core's tests with the build's own checks, the Windows tests
-    # that run in parallel, and those that run alone. The CI runs each part in a job of its own.
-    [ValidateSet('All', 'DotNet', 'Core', 'Windows', 'WindowsAlone', 'Web')]
+    # that run in parallel, and those that run alone. On Linux it is LinuxCore and Linux: Thermi.Tests and the Linux tests;
+    # the page's half runs there only as Web, its tests in Chromium and in WebKit, where on Windows they run in the Edge
+    # that Windows ships. The CI runs each part in a job of its own.
+    [ValidateSet('All', 'DotNet', 'Core', 'Windows', 'WindowsAlone', 'Web', 'LinuxCore', 'Linux')]
     [string]$Part = 'All',
     # Every step, as the CI runs them, whatever the change.
     [switch]$Full,
@@ -37,10 +40,11 @@ $web = Join-Path $root 'src' 'Thermi.Settings.Web'
 # Core, so its own branches are what it adds: the console, the MCP session and the environment's answers.
 $coverageFloors = [ordered]@{ 'Thermi.Core' = 90; 'Thermi.Cli' = 85 }
 $appResults = Join-Path $results 'app'
-# Each test project's reports, named for it, and what they must have measured.
-$appReports = [ordered]@{ 'Thermi.Windows.Tests' = 'thermi', 'thermi-sensors', 'Thermi.App' }
 $everything = $Ci -or $Full
 $half = if ($Part -eq 'Web') { 'web' } else { 'dotnet' }
+# Each OS builds its own projects: the Windows ones target Windows, and the Linux tests start what only Linux has.
+if ($IsWindows -and $Part -in 'LinuxCore', 'Linux') { throw "-Part $Part runs on Linux." }
+if (-not $IsWindows -and $Part -in 'Core', 'Windows', 'WindowsAlone') { throw "-Part $Part runs on Windows." }
 Set-Location $root
 
 . (Join-Path $PSScriptRoot 'check-lock.ps1')
@@ -51,7 +55,7 @@ Set-Location $root
 # An installed thermi (the one you use every day) runs from elsewhere and is left alone.
 function Stop-RepoThermi {
     Get-Process thermi -ErrorAction SilentlyContinue |
-        Where-Object { $_.Path -and $_.Path.StartsWith("$root\", [StringComparison]::OrdinalIgnoreCase) } |
+        Where-Object { $_.Path -and $_.Path.StartsWith("$root$([IO.Path]::DirectorySeparatorChar)", [StringComparison]::OrdinalIgnoreCase) } |
         ForEach-Object {
             Write-Host "stop thermi.exe $($_.Id), built from this repo"
             Stop-Process -Id $_.Id -Force
@@ -67,8 +71,11 @@ function Invoke-DotNet($Scope) {
     $core = $Part -in 'All', 'DotNet', 'Core'
     $windows = $Scope.WindowsTests -and $Part -in 'All', 'DotNet', 'Windows'
     $alone = $Scope.WindowsTests -and $Part -in 'All', 'DotNet', 'WindowsAlone'
-    # Core's job builds all, for the count lists both test projects; the Windows jobs build what their tests run.
-    $built = if (-not $core) { 'tests/Thermi.Windows.Tests' } elseif ($Scope.WindowsTests -or $Scope.TestCount) { 'thermi.slnx' } else { 'tests/Thermi.Tests' }
+    # Core's job builds all, for the count lists every test project and the Linux projects build here too; the Windows jobs
+    # build what their tests run.
+    $built = if (-not $core) { 'tests/Thermi.Windows.Tests' }
+        elseif ($Scope.WindowsTests -or $Scope.LinuxTests -or $Scope.TestCount) { 'thermi.slnx' }
+        else { 'tests/Thermi.Tests' }
     # Thermi.Windows' build writes what the page builds from and builds it, so the page's half waits for it.
     $script:buildsPage = $built -ne 'tests/Thermi.Tests'
     if ($Part -eq 'All' -and -not $buildsPage) { Start-WebHalf }
@@ -109,7 +116,7 @@ function Invoke-DotNet($Scope) {
         }
         # Coverage counts only Thermi.Tests: the Windows tests would inflate Core's and the CLI's numbers by counting code
         # they run only in passing. Each project's floor is gated once the tests passed.
-        $measured = @($coverageFloors.Keys | ForEach-Object { '--coverlet-include', "[$_]*" })
+        $measured = @($coverageMeasured['Thermi.Tests'].Keys | ForEach-Object { '--coverlet-include', "[$_]*" })
         $together += New-Step 'tests and coverage' (@('dotnet', 'test', '--project', 'tests/Thermi.Tests', '-c', 'Release', '--no-build',
                 '--results-directory', $results, '--', '--coverlet') + $measured + @('--coverlet-output-format', 'cobertura') + $share)
     }
@@ -130,6 +137,46 @@ function Invoke-DotNet($Scope) {
     }
 }
 
+# The .NET half on Linux: Thermi.Tests, whose Core and rules hold on every OS, and the Linux tests, each project restored
+# and built alone, as the Windows projects build on Windows only.
+function Invoke-Linux($Scope) {
+    $projects = @(if ($Part -in 'All', 'DotNet', 'LinuxCore') { 'tests/Thermi.Tests' }) +
+        @(if ($Scope.LinuxTests -and $Part -in 'All', 'DotNet', 'Linux') { 'tests/Thermi.Linux.Tests' })
+    $locked = @(if ($Ci) { '--locked-mode' })
+    Invoke-Step 'restore' { foreach ($project in $projects) { dotnet restore $project @locked; if ($LASTEXITCODE -ne 0) { break } } }
+    Invoke-Step 'build Release' { foreach ($project in $projects) { dotnet build $project -c Release --no-restore; if ($LASTEXITCODE -ne 0) { break } } }
+    # The Linux tests install the packages, as a person does, in containers of each distribution, and update them to a
+    # build of a newer version, which says so, packed with the same key, as the next release would be.
+    if ($projects -contains 'tests/Thermi.Linux.Tests') {
+        $packages = Join-Path $root 'artifacts' 'linux'
+        $props = [xml](Get-Content (Join-Path $root 'Directory.Build.props') -Raw)
+        $version = [System.Management.Automation.SemanticVersion]@($props.Project.PropertyGroup.Version | Where-Object { $_ })[0]
+        Invoke-Step 'Linux packages' { pwsh -NoProfile -File (Join-Path $PSScriptRoot 'linux-packages.ps1') -Output $packages }
+        Invoke-Step 'Linux packages, newer' {
+            pwsh -NoProfile -File (Join-Path $PSScriptRoot 'linux-packages.ps1') -Version "$($version.Major).$($version.Minor).$($version.Patch + 1)" `
+                -Output (Join-Path $packages 'newer') -Key (Join-Path $packages 'key' 'thermi.key.asc')
+        }
+        # The levers given the newer packages sign with the build's own key, as they do given the build's.
+        Copy-Item (Join-Path $packages 'key') (Join-Path $packages 'newer') -Recurse -Force
+        $packed = Get-ChildItem $packages -File | Where-Object { $_.Name -match '\.(deb|rpm|tar\.gz)$' }
+        Save-Stats 'packages' @{ files = @($packed | ForEach-Object { @{ name = $_.Name; megabytes = $_.Length / 1MB } }) }
+    }
+    # The Linux tests measure what they run of thermi, thermi-sensors and Thermi.App in their own process, as the Windows
+    # tests do on Windows: shown, not gated. Each filter is one argument with its option: PowerShell on Linux expands a
+    # program's argument that matches files, as [thermi]* matches tests and thermi.slnx.
+    $linuxCoverage = @('--coverlet') + @($coverageMeasured['Thermi.Linux.Tests'].Keys | ForEach-Object { "--coverlet-include=[$_]*" }) +
+        @('--coverlet-single-hit', '--coverlet-output-format', 'json', '--coverlet-file-prefix', 'Thermi.Linux.Tests')
+    Invoke-Together @(foreach ($project in $projects) {
+            if ($project -eq 'tests/Thermi.Tests') {
+                New-Step 'tests on Linux' 'dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $results
+            }
+            else {
+                New-Step 'Linux tests' (@('dotnet', 'test', '--project', $project, '-c', 'Release', '--no-build', '--results-directory', $appResults, '--') +
+                    $linuxCoverage)
+            }
+        })
+}
+
 # The page's half, of the same check, in a process of its own beside this one, once the .NET build wrote what the page
 # builds from; its lines print as they come.
 function Start-WebHalf {
@@ -145,8 +192,11 @@ function Start-WebHalf {
 # cores and time out when others take them.
 # Its build type-checks it, so nothing else does; installs never run a package's scripts.
 function Invoke-Web {
-    if ($Ci -or -not (Test-Path (Join-Path $web 'node_modules' '.package-lock.json')) -or
-        (Get-Item (Join-Path $web 'package-lock.json')).LastWriteTimeUtc -gt (Get-Item (Join-Path $web 'node_modules' '.package-lock.json')).LastWriteTimeUtc) {
+    # npm's record of what it installed starts with a dot, which hides it from Get-Item on Linux without -Force, here and
+    # in Test-PageBuilt.
+    $installed = Join-Path $web 'node_modules' '.package-lock.json'
+    if ($Ci -or -not (Test-Path $installed) -or
+        (Get-Item (Join-Path $web 'package-lock.json')).LastWriteTimeUtc -gt (Get-Item -Force $installed).LastWriteTimeUtc) {
         Invoke-Step 'web install' { npm ci --prefix $web --ignore-scripts --no-audit --no-fund }
     }
     if (-not $PageBuilt -and ($Ci -or -not (Test-PageBuilt))) { Invoke-Step 'web typecheck and build' { npm run build --prefix $web } }
@@ -154,11 +204,14 @@ function Invoke-Web {
     $steps = @(
         New-Step 'web test count' 'pwsh', '-NoProfile', '-File', 'scripts/test-count.ps1', '-Part', 'Web'
         New-Step 'web lint' ($npm + 'lint')
+        # The GNOME Shell extension, by its own config, which needs no packages of its own.
+        New-Step 'gnome extension lint' 'node', (Join-Path $web 'node_modules' 'eslint' 'bin' 'eslint.js'), '--max-warnings', '0', 'src/Thermi.Gnome'
         New-Step 'web doctor' ($npm + 'doctor')
-        New-Step 'web unit tests' ($npm + 'test:unit')
+        New-Step 'web unit tests' ($npm + 'test:unit', '--', '--coverage')
         New-Step 'web dead code' ($npm + 'deadcode') -Explain { Write-Host '  Delete what nothing uses, or say in knip.jsonc why it stays.' }
     )
     Invoke-Together $steps
+    Show-WebCoverage
     # Playwright with axe, against the built page in the Edge that Windows ships.
     Invoke-Step 'web page tests' { npm run test:e2e --prefix $web }
     if ($Mutation) {
@@ -172,7 +225,7 @@ function Test-PageBuilt {
     $index = Join-Path $web 'dist' 'index.html'
     if (-not (Test-Path $index)) { return $false }
     $inputs = @(Get-ChildItem (Join-Path $web 'src'), (Join-Path $web 'tests') -Recurse -File) + @(Get-ChildItem $web -File) +
-        @(Get-Item (Join-Path $web 'node_modules' '.package-lock.json') -ErrorAction SilentlyContinue)
+        @(Get-Item -Force (Join-Path $web 'node_modules' '.package-lock.json') -ErrorAction SilentlyContinue)
     -not ($inputs | Where-Object { $_.LastWriteTimeUtc -gt (Get-Item $index).LastWriteTimeUtc })
 }
 
@@ -187,6 +240,9 @@ try {
     if (-not $everything) { Write-Host (Format-Scope $scope $half) }
     if ($half -eq 'web') {
         if ($scope.Web) { Invoke-Web }
+    }
+    elseif (-not $IsWindows) {
+        if ($scope.CoreTests) { Invoke-Linux $scope }
     }
     elseif ($scope.CoreTests) {
         Invoke-DotNet $scope
@@ -206,6 +262,7 @@ finally {
     if (-not $Ci) { Exit-Check }
     $titles = @{
         All = 'Check'; DotNet = '.NET'; Core = 'Build and Thermi.Tests'; Windows = 'Windows tests'; WindowsAlone = 'Windows tests alone'; Web = 'Settings page'
+        LinuxCore = 'Thermi.Tests on Linux'; Linux = 'Linux tests'
     }
     Write-Summary $titles[$Part] $Part
 }

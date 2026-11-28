@@ -36,6 +36,7 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     problem: null,
     driverAnswer: 'accepted',
     serviceAnswer: 'accepted',
+    overlayAnswer: 'accepted',
     monitors: [
       {
         id: 'SAM-7F0A-H4ZR900123',
@@ -44,6 +45,7 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
         workArea: { x: 0, y: 0, width: 2560, height: 1392 },
         scale: 1.5,
         taskbar: true,
+        edge: 'bottom',
       },
       {
         id: secondMonitor,
@@ -52,6 +54,7 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
         workArea: { x: 2560, y: 0, width: 1920, height: 1032 },
         scale: 1,
         taskbar: true,
+        edge: 'bottom',
       },
     ],
     places: [],
@@ -78,6 +81,14 @@ export function fakeState(change: Partial<FakeState> = {}): FakeState {
     start: null,
     editing: null,
     lateReplies: false,
+    os: 'windows',
+    accent: null,
+    contrast: false,
+    maximized: false,
+    moves: 0,
+    bar: 'taskbar',
+    extension: null,
+    extensionAnswer: 'accepted',
     ...change,
   };
 }

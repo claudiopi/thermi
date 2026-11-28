@@ -1,6 +1,6 @@
 # thermi for AI agents and other programs
 
-`thermi-cli` reads the PC's sensors and changes thermi's settings, from any shell, with or without an overlay on screen. It is installed with thermi, or with its sensors alone (`scripts/install.ps1 -SensorsOnly`), and is on the machine's `PATH`. It never runs elevated, never asks for administrator rights and never installs or starts anything: when the sensors cannot be read, `status` says why and what a person does about it. Why it is built this way: `docs/adr/0013-agents-cli-and-mcp.md`.
+`thermi-cli` reads the PC's sensors and changes thermi's settings, from any shell, with or without an overlay on screen. It is installed with thermi, or with its sensors alone (`scripts/install.ps1 -SensorsOnly` on Windows, the `thermi-sensors` package on Linux), and is on the machine's `PATH`. It never runs elevated, never asks for administrator rights and never installs or starts anything itself: when the sensors cannot be read, `status` says why and what a person does about it. On Linux, systemd starts the sensor service when any client connects to its socket, `thermi-cli` too, and ends it 10 s after the last leaves. Why it is built this way: `docs/adr/0013-agents-cli-and-mcp.md`.
 
 ## As an MCP server
 
@@ -30,7 +30,7 @@ The tools are the commands below, with `find_cpu_fan` and `start_with_windows` s
 | `watch [ids]` | `read`'s document, one line a second, until its stdin closes, or until the service goes quiet, which ends it with exit 3. |
 | `sensors [--search text] [--type t]` | Every sensor the service reads, by device, found as the settings window's search finds; an address's text only with `--type address`. |
 | `config` | The settings as thermi reads them. |
-| `monitors` | The monitors, their bounds and taskbars, in Windows' pixels. |
+| `monitors` | The monitors, their bounds and taskbars, in Windows' pixels. On Linux, as the running overlay places its overlays on them; with none running, or none that can show, no monitor and a `problem`, as status says one, `overlay-not-running` or `overlay-cannot-show`. |
 | `looks`, `look wear/save/rename/delete/export/import` | The saved looks, with the settings window's rules; a look file goes in and out as text. |
 | `edit <json>` | One change of the settings, by the settings window's rules. |
 | `find-cpu-fan [--use]` | Loads every core for up to 30 s, at idle priority, and says which fan answered; it runs one at a time with the other changes, and a run starts at most once in 2 minutes, from any process, a run sooner or at once refused with `runsAgainIn` seconds; with `--use`, it becomes the first overlay's CPU fan, or the answer says which fan it found and the refusal's key. |
@@ -50,7 +50,7 @@ An edit is a JSON object with its `kind`; its fields are in `src/Thermi.Core/Bri
 | `threshold` | `{"kind": "threshold", "item", "warning", "critical"}` sets an item's lines at once; null takes one out, and one left out stays. |
 | `place` | `{"kind": "place", "overlay", "x", "y"}` leaves an overlay where a drag let go at that point would. |
 
-An edit made while the overlay or the window writes the file keeps both changes. Each change an agent makes goes to `%LOCALAPPDATA%\thermi\thermi-agents.log`, and the settings as they were before its last change stay beside them, in `config.before-agent.json`.
+An edit made while the overlay or the window writes the file keeps both changes. Each change an agent makes goes to `%LOCALAPPDATA%\thermi\thermi-agents.log`, on Linux `~/.local/state/thermi/thermi-agents.log`, and the settings as they were before its last change stay beside them, in `config.before-agent.json`.
 
 ## The contract
 
@@ -62,7 +62,7 @@ A command that ends with 0 or 1 prints one JSON document on stdout, with `"schem
 | 1 | Refused by thermi's rules, or by the person, who lets agents only read: nothing was written; the document on stdout holds the refusal's key, and stderr its English text. A command that writes, run from an elevated terminal, is refused with nothing on stdout. |
 | 2 | Bad arguments. |
 | 3 | The sensor service is not installed, stopped, stale or held by another program, or a per-user install's thermi is not running. |
-| 4 | The settings file is broken, newer than this thermi or locked, or Windows refused to write it or a saved look's file; nothing was written, and stderr says why. |
+| 4 | The settings file is broken, newer than this thermi or locked, or the system refused to write it or a saved look's file; nothing was written, and stderr says why. |
 
 Each value is in its type's fixed unit, whatever the overlay shows it in: °C, % (load and fan duty), MHz, W, RPM, GB, B/s, `s`, `fps`, `ms` for a frame's time, `V`, and `ipv4` for an address, whose `text` holds it. A value that cannot be read is null, with `why`, never 0; a 0 that is read, as a fan at rest, stays 0 and says why. An item's `shown` is its reading of this moment as the overlay writes it, in its unit and decimals; an overlay item that shows a minimum, maximum, average or smoothed value shows one over its own history, which `read --seconds` gives as `min`, `max` and `average`. A choice, as a type or a problem's code, is a word in kebab-case; a reader should take a word it does not know as unknown, not as an error.
 

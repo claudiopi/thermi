@@ -1,0 +1,32 @@
+{
+  "protocols": [
+    {
+      "protocol": 4,
+      "calls": [
+        "Desktop.Hotkey!(u)",
+        "Desktop.Hotkeys(as) ab",
+        "Desktop.IconChosen!(si)",
+        "Desktop.IconKey!(ss)",
+        "Desktop.IconMenu(sa(issbbbbb))",
+        "Desktop.IconPressed!(suu)",
+        "Desktop.Icons(a(ssayiiid))",
+        "Shell.Activation(u) s",
+        "Shell.Chosen!(ui)",
+        "Shell.Copy(ay)",
+        "Shell.Cursor(us)",
+        "Shell.Fade(ud)",
+        "Shell.Hide(u)",
+        "Shell.Key!(us)",
+        "Shell.Menu(uddddsa(issbbbbb))",
+        "Shell.Monitors() a(ddddddbbdddddd)",
+        "Shell.MonitorsChanged!(a(ddddddbbdddddd))",
+        "Shell.Move(udd)",
+        "Shell.Pointer!(usdduuudd)",
+        "Shell.Protocol: u",
+        "Shell.Ready!(u)",
+        "Shell.Show(uayiiiddda(dddd))",
+        "Shell.Watch(b)"
+      ]
+    }
+  ]
+}

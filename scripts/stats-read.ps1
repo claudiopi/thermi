@@ -14,12 +14,16 @@ function Read-Run([string]$Results) {
             if ($read) { $read.half = $half; $read }
         })
     $bugHunt = @('dotnet', 'web' | ForEach-Object { Read-Json (Join-Path $stats "bughunt-$_.json") } | Where-Object { $_ })
+    $app = @{}
+    foreach ($each in @($coverageMeasured.Keys) -ne 'Thermi.Tests') { $app[$each] = (Read-AppCoverage (Join-Path $Results 'app') @($each)).Modules }
     @{
         Coverage = Read-Json (Join-Path $stats 'coverage.json')
-        App = (Read-AppCoverage (Join-Path $Results 'app') @('Thermi.Windows.Tests')).Modules
+        App = $app
+        Web = Read-Json (Join-Path $stats 'coverage-web.json')
         Tests = $tests
         Steps = @(Get-ChildItem $stats -Filter 'steps-*.json' -ErrorAction SilentlyContinue | ForEach-Object { Read-Json $_.FullName })
         Msi = Read-Json (Join-Path $stats 'msi.json')
+        Packages = Read-Json (Join-Path $stats 'packages.json')
         BugHunt = $bugHunt
         GitHub = Read-Json (Join-Path $stats 'github.json')
     }

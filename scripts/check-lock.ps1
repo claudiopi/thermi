@@ -7,21 +7,22 @@
 # that is the same in every worktree, so a check of both runs its halves side by side. The CI's machine runs nothing else.
 function Enter-Check([ValidateSet('dotnet', 'web')][string]$Half) {
     $self = [Diagnostics.Process]::GetCurrentProcess()
-    $script:priority = $self.PriorityClass
-    $self.PriorityClass = 'Idle'
+    # Linux lets no one but root raise a priority again: a check run in a shell's own process would leave that shell at
+    # idle, so it lowers only a process started for a script, which ends with it.
+    if ($IsWindows -or ([Environment]::GetCommandLineArgs() -like '*.ps1')) {
+        $script:priority = if ($IsWindows) { $self.PriorityClass }
+        $self.PriorityClass = 'Idle'
+    }
     $script:lock = [Threading.Mutex]::new($false, "Global\thermi-check-$Half")
-    $script:holder = [IO.MemoryMappedFiles.MemoryMappedFile]::CreateOrOpen("Local\thermi-check-holder-$Half", 1024)
+    # Who holds the half, for the one who waits: a file of the user's, as Linux has no named shared memory.
+    $script:holder = Join-Path ([IO.Path]::GetTempPath()) "thermi-check-holder-$Half"
     if (-not (Wait-Check 0)) {
-        $reader = [IO.BinaryReader]::new($holder.CreateViewStream())
-        Write-Host "waiting for another check's $Half half ($($reader.ReadString()))"
-        $reader.Dispose()
+        Write-Host "waiting for another check's $Half half ($(Get-Content $holder -Raw -ErrorAction SilentlyContinue))"
         # Short waits, so Ctrl+C still stops it.
         while (-not (Wait-Check 500)) { }
     }
     $script:held = $true
-    $writer = [IO.BinaryWriter]::new($holder.CreateViewStream())
-    $writer.Write("pid $PID, folder $(Split-Path $PSScriptRoot -Parent)")
-    $writer.Dispose()
+    Set-Content $holder "pid $PID, folder $(Split-Path $PSScriptRoot -Parent)" -NoNewline
     Limit-BuildServers
 }
 
@@ -29,8 +30,9 @@ function Enter-Check([ValidateSet('dotnet', 'web')][string]$Half) {
 # priority: one a build at normal priority left running would compile this check's code at normal priority. They are
 # lowered as the check starts; those the check starts are idle already. Lowering keeps them, and builds fast. Only the
 # servers of the SDK in global.json serve the check, so Visual Studio's and other SDKs' keep the priority of the builds
-# they serve.
+# they serve. On Linux, which never raises them again, one lowered here would serve every later build at idle.
 function Limit-BuildServers {
+    if (-not $IsWindows) { return }
     Push-Location (Split-Path $PSScriptRoot -Parent)
     $sdk = [regex]::Escape("\sdk\$(dotnet --version)\")
     Pop-Location
@@ -53,6 +55,5 @@ function Wait-Check([int]$Milliseconds) {
 function Exit-Check {
     if ($held) { $lock.ReleaseMutex() }
     if ($lock) { $lock.Dispose() }
-    if ($holder) { $holder.Dispose() }
     if ($priority) { [Diagnostics.Process]::GetCurrentProcess().PriorityClass = $priority }
 }

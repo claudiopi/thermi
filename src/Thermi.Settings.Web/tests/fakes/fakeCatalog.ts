@@ -177,7 +177,7 @@ export function installFakeCatalog(): void {
       group.sensors.push(row);
     }
     const count = groups.reduce((sum, group) => sum + group.sensors.length, 0);
-    return { groups, count, hidden, suggestion: count + hidden === 0 && search.trim() !== '' ? 'gpu' : null };
+    return { groups, count, hidden, suggestion: count + hidden === 0 && search.trim() !== '' ? 'gpu' : null, stopped: state.service === 'stopped' };
   };
 
   // The finder runs until a test moves it on, as the C# side would after up to 30 s of load.

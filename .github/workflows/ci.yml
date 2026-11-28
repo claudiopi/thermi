@@ -119,6 +119,83 @@ jobs:
           path: TestResults/app/*.json
           if-no-files-found: ignore
 
+  # Thermi.Tests on Linux: Core, the CLI and the repo rules hold on every OS that thermi runs on, as Linux's .NET reads
+  # paths, cultures and files its own way.
+  linux-core:
+    name: 🐧 Thermi.Tests on Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part LinuxCore
+      # What the job measured, for the 📊 Stats dashboard.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stats-linux-core
+          path: TestResults/stats
+          if-no-files-found: ignore
+
+  # The tests that need Linux: the sensor service, its socket, thermi against compositors of the tests' own, and the
+  # packages installed and updated in containers of each distribution, which take the most of its time.
+  linux:
+    name: 🐧 Linux tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      # thermi's build builds the settings window's page, with the Node the page's own jobs use.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Thermi.Settings.Web/package-lock.json
+      # GNOME Shell headless, on Wayland and on Xvfb, with gjs, which runs the Shell's notifications service; the GTK and
+      # Pango thermi paints with, the WebKitGTK its settings window shows its page in, AT-SPI for its menus, ImageMagick for
+      # the screenshots, and the system monitor its menu opens.
+      - run: >-
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends gnome-shell gjs mutter dbus-x11 dbus-user-session
+          at-spi2-core gir1.2-atspi-2.0 python3-gi libgtk-4-1 libwebkitgtk-6.0-4 imagemagick xvfb xwayland xdotool x11-utils
+          gnome-system-monitor fonts-dejavu-core
+      # KWin, with kscreen-doctor and Qt on Wayland, which moves its monitors, and Sway, both nested in Xvfb; Weston, which
+      # offers neither the extension nor layer surfaces; Xfwm4 and its panel for X11, on Xorg's dummy driver for its
+      # monitors, with xrandr; gtk4-layer-shell, and GTK and Cairo from Python for the tests' own windows and panel; KDE's
+      # portal, which takes hotkeys on KWin, with the controls its dialog is made of.
+      - run: >-
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends kwin-wayland kscreen qt6-wayland sway
+          weston xfwm4 xfce4-panel xfconf xserver-xorg-core xserver-xorg-video-dummy x11-xserver-utils libgtk4-layer-shell0
+          gir1.2-gtk4layershell-1.0 gir1.2-gtk-4.0 python3-gi-cairo mesa-vulkan-drivers xdg-desktop-portal
+          xdg-desktop-portal-kde qml6-module-org-kde-kquickcontrols
+      # The shells thermi-cli is run from in the tests, beside bash, and the tools the repositories' indexes are written with.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends zsh fish apt-utils createrepo-c rpm-common
+      # The tests' own user manager runs in a scope the runner's own delegates, which only a lingering user has.
+      - run: sudo loginctl enable-linger "$(id -un)"
+      - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part Linux
+      # What the job measured, for the 📊 Stats dashboard.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stats-linux
+          path: TestResults/stats
+          if-no-files-found: ignore
+      # The app's coverage of the Linux tests' process, which the dashboard shows apart from the Windows tests'.
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-linux
+          path: TestResults/app/*.json
+          if-no-files-found: ignore
+
   # The settings window's page: its build with its type check, the test count, lint, react-doctor, unit tests, dead code
   # and the page's tests with axe in the Edge that Windows ships, so no browser is downloaded.
   web:
@@ -146,6 +223,29 @@ jobs:
           name: stats-web
           path: TestResults/stats
           if-no-files-found: ignore
+
+  # The page's tests on Linux, in WebKit and Chromium, as Linux's window runs the page in WebKitGTK: in Playwright's own
+  # image, whose browsers and the libraries they need match the version the page pins.
+  web-linux:
+    name: 🎨 Settings page on Linux · WebKit + Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
+      options: --ipc=host
+    env:
+      CI: 'true'
+      HOME: /root
+    defaults:
+      run:
+        working-directory: src/Thermi.Settings.Web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright test
 
   # The MSIs of this build for both processors, unsigned and with updates off, so a change that breaks one fails here and
   # not at a release: each carries the custom actions' DLL of its own processor.
@@ -214,7 +314,7 @@ jobs:
   stats:
     name: 📊 Stats dashboard
     if: ${{ !cancelled() }}
-    needs: [core, windows, windows-alone, web, msi, pr-title, security]
+    needs: [core, windows, windows-alone, linux-core, linux, web, web-linux, msi, pr-title, security]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -260,15 +360,16 @@ jobs:
   ci-gate:
     name: CI gate
     if: always()
-    needs: [core, windows, windows-alone, web, msi, pr-title, security, stats]
+    needs: [core, windows, windows-alone, linux-core, linux, web, web-linux, msi, pr-title, security, stats]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       # Only when it fails, its own table of each job's result, as the dashboard may be the job that failed.
       - if: >-
           needs.core.result != 'success' || needs.windows.result != 'success' || needs.windows-alone.result != 'success' ||
-          needs.web.result != 'success' || needs.msi.result != 'success' || needs.security.result != 'success' ||
-          needs.stats.result != 'success' ||
+          needs.linux-core.result != 'success' || needs.linux.result != 'success' || needs.web.result != 'success' ||
+          needs.web-linux.result != 'success' ||
+          needs.msi.result != 'success' || needs.security.result != 'success' || needs.stats.result != 'success' ||
           (github.event_name == 'pull_request' && needs.pr-title.result != 'success')
         shell: pwsh
         env:

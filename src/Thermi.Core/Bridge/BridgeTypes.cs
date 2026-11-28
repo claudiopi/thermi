@@ -125,16 +125,33 @@ public sealed record SensorView(ServiceState Service, IReadOnlyList<RawSensor> S
 public sealed record Rect(int X, int Y, int Width, int Height);
 
 /// <summary>
+/// Where an overlay shows, and whether beside the taskbar it is snapped to, as where no room on it holds it, so the page
+/// says where it really is.
+/// </summary>
+public sealed record OverlayPlace(int X, int Y, int Width, int Height, bool Beside = false);
+
+/// <summary>
 /// A monitor by its EDID id, its whole area and the part windows take, whether a taskbar sits on it,
 /// and why its taskbar spots float, if they do.
 /// </summary>
-public sealed record MonitorView(string Id, bool Primary, Rect Bounds, Rect WorkArea, double Scale, bool Taskbar, TaskbarFloat? Floats = null)
+public sealed record MonitorView(
+    string Id, bool Primary, Rect Bounds, Rect WorkArea, double Scale, bool Taskbar, TaskbarFloat? Floats = null, BarEdge Edge = BarEdge.Bottom)
 {
     /// <summary>A monitor as Windows has it now, in Windows' pixels.</summary>
     public static MonitorView Of(Screen screen) =>
-        new(screen.Id, screen.Primary, RectOf(screen.Bounds), RectOf(screen.Work), screen.Scale, screen.Taskbar is not null, Snaps.Floats(screen));
+        new(screen.Id, screen.Primary, RectOf(screen.Bounds), RectOf(screen.Work), screen.Scale, screen.Taskbar is not null, Snaps.Floats(screen))
+        {
+            Edge = screen.Taskbar is { } bar && bar.Top <= screen.Bounds.Top && bar.Bottom < screen.Bounds.Bottom ? BarEdge.Top : BarEdge.Bottom,
+        };
 
     private static Rect RectOf(PixelRect rect) => new(rect.Left, rect.Top, rect.Width, rect.Height);
+}
+
+/// <summary>The edge of its monitor a taskbar lies along: Windows' at the bottom, GNOME's top bar at the top.</summary>
+public enum BarEdge
+{
+    Bottom,
+    Top,
 }
 
 public enum FinderPhase

@@ -2,19 +2,23 @@
 
 import type {
   AgentsView,
+  DesktopBar,
   DesktopPick,
+  ExtensionState,
+  HostOs,
   FinderView,
   Language,
   Mark,
   Monitor,
   Overlay,
+  OverlayPlace,
   Problem,
-  Rect,
   Sensor,
   Service,
   Settings,
   Style,
   UndoSteps,
+  WindowCaption,
   WornLook,
 } from '../src/bridge/bridge.g';
 
@@ -31,9 +35,14 @@ export interface FakeState {
   /** Failed is the call itself failing, as an exception on the C# side rejects it; restart, a driver that loads only once Windows restarts. */
   driverAnswer: 'accepted' | 'refused' | 'failed' | 'restart';
   serviceAnswer: 'accepted' | 'refused';
+  /** Refused is a Start that started no overlay, as C# answers where neither the unit nor a run of its own started. */
+  overlayAnswer: 'accepted' | 'refused';
   monitors: Monitor[];
-  /** Where each overlay shows, as C# works it out; with none, as before C# answers, the map's taskbar spot sits at the offset. */
-  places: (Rect | null)[];
+  /**
+   * Where each overlay shows, and whether beside its taskbar, as C# works it out; with none, as before C# answers, the map's
+   * taskbar spot sits at the offset.
+   */
+  places: (OverlayPlace | null)[];
   looks: Record<string, Style>;
   /** The look each overlay wears, as C# decides it from the settings and the saved looks. */
   worn: (WornLook | null)[];
@@ -60,6 +69,22 @@ export interface FakeState {
   editing: { overlay: number | null; selected: string | null; pointed: string | null } | null;
   /** While true, every read is answered with what C# held when asked, but only once a test lets the answers go. */
   lateReplies: boolean;
+  /** The OS the host runs on, 'windows' or 'linux' as C# names it, which decides the fixes C# offers. */
+  os: string;
+  /** The desktop's accent, as Linux's settings portal gives it, or null. */
+  accent: string | null;
+  /** The bar an overlay snaps onto as onto the taskbar, as C# names it, whose words name it. */
+  bar: string;
+  /** Whether the window is maximized, which the caption the page draws on Linux says. */
+  maximized: boolean;
+  /** How many times the page asked the window to move from its title row. */
+  moves: number;
+  /** Whether the desktop is in high contrast, as Linux's settings portal says. */
+  contrast: boolean;
+  /** Where thermi's GNOME Shell extension is in a GNOME session, as C# names it, or null for none. */
+  extension: string | null;
+  /** What GNOME's prompt for the extension answers. */
+  extensionAnswer: 'accepted' | 'refused';
 }
 
 /** A call of the page that changes what the C# side holds, as the bridge's wire carries it. */
@@ -69,12 +94,28 @@ export interface OracleCall {
 }
 
 /**
- * A call whose answer holds whatever came before it, which the oracle keeps apart from any start: the bridge's search,
- * or the fake catalog's, which Core answers from the sensors, the language and the names it gives.
+ * A call whose answer holds whatever came before it, which the oracle keeps apart from any start: the bridge's search;
+ * the fake catalog's, which Core answers from the sensors, the language and the names it gives; and the fake window's
+ * desktop, which Core answers from what the host says of it and the language.
  */
 export interface PureCall {
-  method: 'search' | 'catalogSearch';
+  method: 'search' | 'catalogSearch' | 'desktop';
   args: unknown[];
+}
+
+/**
+ * What Core decides of a desktop: the fields of the window's status it sets, whether it offers the driver, and the texts
+ * it says in the desktop's own words, by the key of each. The bridge leaves out a field that is null.
+ */
+export interface DesktopAnswer {
+  offersDriver: boolean;
+  os: HostOs;
+  accent?: string;
+  extension?: ExtensionState;
+  contrast: boolean;
+  bar: DesktopBar;
+  caption?: WindowCaption;
+  words: Record<string, string>;
 }
 
 /** What Core's catalog search finds: each device, with what matched of its name, and its sensors in order with theirs. */
@@ -117,8 +158,11 @@ interface FakeControl {
   release?(): void;
   /** The oracle's answer to a call, counted as on its way until it comes. */
   answered<T>(answer: Promise<T> | undefined): Promise<T | undefined>;
-  /** Whether the page has every answer it asked for, and has read the settings since they last changed. */
-  caughtUp(): boolean;
+  /**
+   * Once the page has every answer it asked for, and has read the settings since they last changed: as the fake gets
+   * there, never by polling, whose checks a busy browser runs only as it draws a frame.
+   */
+  caughtUp(): Promise<void>;
 }
 
 interface AxeResults {

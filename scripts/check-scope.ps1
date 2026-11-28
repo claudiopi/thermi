@@ -11,6 +11,12 @@ $wholeCheck = @(
 )
 # Read by the Windows tests as files, beside their projects' own.
 $windowsReads = @('scripts/install.ps1')
+# Read by the Linux tests as files, whichever project holds them: the GNOME Shell extension, which their Shell loads as it
+# is, the levers' script, the script that packs what they install, the recorded trees they replay and the settings files
+# they read.
+$linuxReads = @(
+    'src/Thermi.Gnome/*', 'scripts/updates.ps1', 'scripts/linux-packages.ps1', 'tests/Thermi.Tests/Recordings/Trees/*', 'tests/Thermi.Tests/Configs/*'
+)
 # What only the repo rules of Thermi.Tests read: docs, agent briefs, workflows, tools and the scripts no step runs.
 $rulesOnly = @('*.md', 'docs/*', '.claude/*', '.github/*', '.config/*', 'scripts/*', 'LICENSE', '.gitignore', 'renovate.json')
 $notices = @('THIRD-PARTY-NOTICES.md', 'scripts/notices.ps1', 'scripts/licenses/*', '*packages.lock.json', 'src/Thermi.Settings.Web/package*.json')
@@ -95,11 +101,11 @@ function Test-Like([string]$Path, [string[]]$Patterns) { @($Patterns | Where-Obj
 function Get-Scope([string]$Root, [string[]]$Changed) {
     $scope = [pscustomobject]@{
         All = $true; Files = @($Changed).Count; Restore = $true; Notices = $true; Pack = $true; TestCount = $true
-        CoreTests = $true; WindowsTests = $true; WindowsFilter = $null; Web = $true
+        CoreTests = $true; WindowsTests = $true; WindowsFilter = $null; LinuxTests = $true; Web = $true
     }
     if ($null -eq $Changed) { return $scope }
     $scope.All = $false
-    $scope.Restore = $scope.Notices = $scope.Pack = $scope.TestCount = $scope.CoreTests = $scope.WindowsTests = $scope.Web = $false
+    $scope.Restore = $scope.Notices = $scope.Pack = $scope.TestCount = $scope.CoreTests = $scope.WindowsTests = $scope.LinuxTests = $scope.Web = $false
     if ($scope.Files -eq 0) { return $scope }
 
     $projects = Get-Projects $Root
@@ -114,8 +120,13 @@ function Get-Scope([string]$Root, [string[]]$Changed) {
         $owners = @($projects.Keys | Where-Object {
                 $file.StartsWith($projects[$_].Folder, [StringComparison]::OrdinalIgnoreCase) -or (Test-Like $file $projects[$_].Links)
             })
-        if ($owners) { foreach ($owner in $owners) { [void]$touched.Add($owner) } }
-        elseif ($file.StartsWith($page, [StringComparison]::OrdinalIgnoreCase)) { $scope.Web = $pageChanged = $true }
+        foreach ($owner in $owners) { [void]$touched.Add($owner) }
+        $linuxRead = Test-Like $file $linuxReads
+        if ($linuxRead) { [void]$touched.Add('Thermi.Linux.Tests') }
+        # The extension is linted with the page's ESLint, in the page's half.
+        if ($file -like 'src/Thermi.Gnome/*') { $scope.Web = $true }
+        if ($owners -or $linuxRead) { continue }
+        if ($file.StartsWith($page, [StringComparison]::OrdinalIgnoreCase)) { $scope.Web = $pageChanged = $true }
         elseif (Test-Like $file $windowsReads) { [void]$touched.Add('Thermi.Windows.Tests') }
         elseif ($file -like 'src/Thermi.Installer/*') { $scope.Restore = $scope.Notices = $true }
         elseif ($file -eq 'tests/test-count.json') { $scope.Web = $true }
@@ -135,6 +146,7 @@ function Get-Scope([string]$Root, [string[]]$Changed) {
     # The repo rules read every file, so Thermi.Tests runs for any change.
     $scope.CoreTests = $true
     $scope.WindowsTests = $affected.Contains('Thermi.Windows.Tests') -or $pageChanged
+    $scope.LinuxTests = $affected.Contains('Thermi.Linux.Tests')
     if (-not $affected.Contains('Thermi.Windows.Tests') -and $pageChanged) { $scope.WindowsFilter = $pageTests }
     $scope.Pack = $affected.Contains('Thermi.Client')
     $scope
@@ -155,6 +167,7 @@ function Format-Scope($Scope, [string]$Half) {
     if ($Half -eq 'web') { return "$($name): $(Format-Files $Scope.Files), $(if ($Scope.Web) { 'the page among them' } else { 'none the page reads' })" }
     $parts = @('Thermi.Tests')
     if ($Scope.WindowsTests) { $parts += if ($Scope.WindowsFilter) { "the Windows tests of $($Scope.WindowsFilter)" } else { 'the Windows tests' } }
+    if ($Scope.LinuxTests) { $parts += 'the Linux projects' }
     if ($Scope.Notices) { $parts += 'the notices' }
     "$($name): $(Format-Files $Scope.Files), for $($parts -join ', ')"
 }

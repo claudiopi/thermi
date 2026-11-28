@@ -29,7 +29,10 @@
               "pipe-taken",
               "driver-missing",
               "settings-broken",
-              "not-running"
+              "not-running",
+              "frames-not-read",
+              "overlay-cannot-show",
+              "overlay-not-running"
             ]
           },
           "cause": {
@@ -56,6 +59,24 @@
         "locked",
         "missing",
         null
+      ]
+    },
+    "version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "channel": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updates": {
+      "type": [
+        "string",
+        "null"
       ]
     }
   },

@@ -3,7 +3,7 @@ using Thermi.Core.Sensors;
 namespace Thermi.Core.Frames;
 
 /// <summary>
-/// The sensors of a device of thermi's own, the game, that every reader adds to each snapshot as it adds the PC's
+/// The sensors of a device of thermi's own, the game, that every reader of frames adds to each snapshot as it adds the PC's
 /// (<see cref="SystemSensors"/>): the FPS and frame time of the app in front, found among the frame slots by its process
 /// or as the parent of the one that presents for it, as a browser's. They read nothing while nothing in front presents,
 /// not a number while the service cannot read frames, and minus infinity while its host has no rights to, so the window can
@@ -41,6 +41,12 @@ public static class GameSensors
     }
 
     public static bool Is(RawSensor sensor) => sensor.HardwareType == HardwareType;
+
+    /// <summary>
+    /// Whether a snapshot comes from a reader that reads no frames at all, as Linux's, which adds no game sensors; a reader
+    /// that reads them adds them to every snapshot, read or not.
+    /// </summary>
+    public static bool Unread(Snapshot? snapshot) => snapshot is not null && !snapshot.Sensors.Any(Is);
 
     /// <summary>The frames of a process, its own or else of one it started, as a browser's, or null when neither presents.</summary>
     public static FrameRate? RateOf(IReadOnlyList<FrameRate> rates, int process) =>

@@ -91,11 +91,14 @@ process.on('exit', () => {
 
 const pureAnswers = new Map((golden.pure ?? []).map((one, index) => [canonical({ method: one.method, args: one.args }), { index, answer: one.answer }]));
 
-// The fake catalog's search names the sensors and the language it searches, kept as the starts keep them, by name.
+// The fake catalog's search names the sensors and the language it searches, and the fake window's desktop the language
+// it says it in, kept as the starts keep them, by name.
 const compact = (call: PureCall): PureCall =>
   call.method === 'catalogSearch'
     ? { ...call, args: [call.args[0], call.args[1], sensorsOf(call.args[2] as Sensor[]), languageOf(call.args[3] as Record<string, string>), call.args[4]] }
-    : call;
+    : call.method === 'desktop'
+      ? { ...call, args: [call.args[0], languageOf(call.args[1] as Record<string, string>)] }
+      : call;
 
 /** Answers a call that holds whatever came before it from the table, or records that the table lacks it. */
 function askPure(asked: PureCall, testId: string): { result: unknown } | { missing: string } {

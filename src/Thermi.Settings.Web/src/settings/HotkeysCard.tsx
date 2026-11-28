@@ -142,7 +142,10 @@ export function HotkeysCard({ data, open, onOpen }: HotkeysCardProps) {
       return refused.why;
     }
     const failed = data.status.failed.includes(role) ? hotkeys[role] : undefined;
-    return failed === undefined ? null : t('HotkeyText.HotkeyHeld', failed);
+    if (failed === undefined) {
+      return null;
+    }
+    return data.status.hotkeysRefused ? t('HotkeyText.HotkeysRefused') : t('HotkeyText.HotkeyHeld', failed);
   };
   const hint = !data.status.overlay ? t('HotkeyText.HotkeysNeedOverlay') : set === 0 ? t('WindowText.HotkeysOff') : t('WindowText.HotkeysSet', set);
   return (

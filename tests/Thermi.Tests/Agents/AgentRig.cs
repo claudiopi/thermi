@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Thermi.Cli.Agents;
 using Thermi.Cli.Commands;
+using Thermi.Core.Agents;
+using Thermi.Core.Bridge;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
@@ -118,6 +120,14 @@ internal sealed class AgentRig : IDisposable
 
     public bool Raised { get; set; }
 
+    public HostOs Os { get; set; }
+
+    /// <summary>Why no overlay can show on the desktop, as the host says; null where one can.</summary>
+    public NoOverlayCause? OverlayCannotShow { get; set; }
+
+    /// <summary>Why the monitors read none, as the host says.</summary>
+    public AgentProblem? WhyNoScreens { get; set; }
+
     /// <summary>Where the commands log, the folder's own list when null.</summary>
     public ILogger? Log { get; set; }
 
@@ -170,7 +180,16 @@ internal sealed class AgentRig : IDisposable
     {
         public bool On { get; private set; }
 
-        public void Set(bool on) => On = on;
+        /// <summary>Whether the OS refuses every change, as systemctl --user does with no user manager to reach.</summary>
+        public bool Refuses { get; set; }
+
+        public Task<bool> OnAsync(CancellationToken cancel) => Task.FromResult(On);
+
+        public Task SetAsync(bool on, CancellationToken cancel)
+        {
+            On = Refuses ? throw new IOException("systemctl --user enable thermi.service ended with 1.") : on;
+            return Task.CompletedTask;
+        }
     }
 
     // What the rig says, read at each call, so a test changes it between commands.
@@ -196,9 +215,15 @@ internal sealed class AgentRig : IDisposable
 
         public bool Raised() => rig.Raised;
 
+        public HostOs Os => rig.Os;
+
+        public NoOverlayCause? OverlayCannotShow() => rig.OverlayCannotShow;
+
         public bool RunsInstalled() => true;
 
         public IReadOnlyList<Screen> Screens() => rig.Screens;
+
+        public AgentProblem? WhyNoScreens() => rig.WhyNoScreens;
 
         public IReadOnlySet<int> AltGrKeys() => new HashSet<int>();
 

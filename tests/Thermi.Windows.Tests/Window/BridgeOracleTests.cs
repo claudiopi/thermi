@@ -51,17 +51,15 @@ public sealed class BridgeOracleTests
         }
 
         // A call that holds whatever came before it answers the same from any start, so all of them run from the default one;
-        // the fake catalog's search is Core's, from the sensors, names and language it names.
+        // the fake catalog's search and the desktop's part of the status are Core's, from what they name.
         var pure = table.Pure.OfType<JsonObject>().ToList();
         var asked = pure
-            .Where(call => call["method"]?.GetValue<string>() != OracleReplay.CatalogSearchMethod)
+            .Where(call => !OracleReplay.AnsweredByCore(call))
             .Select(call => new JsonObject { ["method"] = call["method"]?.DeepClone(), ["args"] = call["args"]?.DeepClone() });
         var (_, _, replayed) = await OracleReplay.RunAsync(DefaultStart(), [.. asked]);
         Assert.All(replayed, answer => Assert.Null(answer["error"]));
         var bridged = new Queue<JsonNode?>(replayed.Select(answer => answer["result"]));
-        var results = pure.Select(call => call["method"]?.GetValue<string>() == OracleReplay.CatalogSearchMethod
-            ? OracleReplay.CatalogSearch(call["args"]?.AsArray() ?? [])
-            : bridged.Dequeue()).ToList();
+        var results = pure.Select(call => OracleReplay.AnsweredByCore(call) ? OracleReplay.CoreAnswer(call) : bridged.Dequeue()).ToList();
         var changed = results.Index().Where(each => !JsonNode.DeepEquals(pure[each.Index]["answer"], each.Item));
         foreach (var (at, result) in changed)
         {

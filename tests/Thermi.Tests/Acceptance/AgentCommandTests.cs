@@ -136,6 +136,55 @@ public sealed class AgentCommandTests : IDisposable
         }
     }
 
+    // On Linux no frame is read, a CPU with no temperature lacks the kernel's module for it, as a virtual machine's always
+    // does, and a session the overlay cannot show in says so, in status and in monitors, which no overlay measured; the
+    // missing module's cause and fix are Linux's own, as are GNOME's when its Shell reads thermi's extension only at the next
+    // sign-in. An overlay that ended where gtk4-layer-shell is missing, so none runs to measure the monitors, has a cause
+    // and fix of its own: the desktop could show it once the library is there.
+    [Theory] // Rows: a desktop that shows the overlay, one that shows none, one that lacks the library alone, and one to sign in again.
+    [InlineData(true, null)]
+    [InlineData(false, NoOverlayCause.Desktop)]
+    [InlineData(true, NoOverlayCause.LayerShellMissing)]
+    [InlineData(true, NoOverlayCause.SignInAgain)]
+    public async Task StatusOnLinuxSaysWhatLinuxLacks(bool cpuTemperature, NoOverlayCause? cannotShow)
+    {
+        var admin = TestRecordings.Read(TestRecordings.Admin);
+        var snapshot = cpuTemperature
+            ? admin
+            : admin with { Sensors = [.. admin.Sensors.Where(sensor => sensor is not { HardwareType: "Cpu", Type: nameof(SensorKind.Temperature) })] };
+        _rig.Sensors = () => new RecordedFeed([snapshot]);
+        _rig.Folder.Write(ThermiConfigJson.Write(new ThermiConfig()));
+        _rig.Os = HostOs.Linux;
+        _rig.OverlayCannotShow = cannotShow;
+        _rig.Screens = cannotShow is null ? _rig.Screens : [];
+        _rig.WhyNoScreens = cannotShow switch
+        {
+            null => null,
+            NoOverlayCause.Desktop or NoOverlayCause.SignInAgain => AgentProblem.OverlayCannotShow,
+            NoOverlayCause.LayerShellMissing => AgentProblem.OverlayNotRunning,
+            _ => throw new ArgumentOutOfRangeException(nameof(cannotShow)),
+        };
+
+        var problems = (await _rig.RunAsync("status")).Json["problems"]!.AsArray().Select(problem => problem!.AsObject()).ToList();
+        var monitors = (await _rig.RunAsync("monitors")).Json;
+
+        string[] expected =
+            [.. cpuTemperature ? [] : new[] { "driver-missing" }, "frames-not-read", .. cannotShow is null ? [] : new[] { "overlay-cannot-show" }];
+        Assert.Equal(expected, problems.Select(problem => (string)problem["code"]!));
+        Assert.Equal(
+            _rig.WhyNoScreens is { } why ? System.Text.Json.JsonNamingPolicy.KebabCaseLower.ConvertName(why.ToString()) : null,
+            (string?)monitors["problem"]?["code"]);
+        Assert.Equal(cannotShow is null ? 1 : 0, monitors["monitors"]!.AsArray().Count);
+        var windows = AgentStatus.Said(AgentProblem.DriverMissing);
+        Assert.All(problems.Where(problem => (string)problem["code"]! == "driver-missing"),
+            problem => Assert.Equal((false, false), ((string)problem["cause"]! == windows.Cause, (string)problem["fix"]! == windows.Fix)));
+        var desktop = AgentStatus.Said(AgentProblem.OverlayCannotShow, os: HostOs.Linux);
+        Assert.All(problems.Where(problem => (string)problem["code"]! == "overlay-cannot-show"),
+            problem => Assert.Equal(
+                (cannotShow == NoOverlayCause.Desktop, cannotShow == NoOverlayCause.Desktop),
+                ((string)problem["cause"]! == desktop.Cause, (string)problem["fix"]! == desktop.Fix)));
+    }
+
     [Fact]
     public async Task ReadSamplesGiveMinMaxAverage()
     {
@@ -159,7 +208,10 @@ public sealed class AgentCommandTests : IDisposable
             Assert.Equal(each.Average(), (double)value["average"]!, 6);
         }
 
-        Assert.Equal((2, 2), ((await _rig.RunAsync("read", "--seconds", "0")).Exit, (await _rig.RunAsync("read", "--seconds", "61")).Exit));
+        Assert.Equal(
+            (2, 2, 2),
+            ((await _rig.RunAsync("read", "--seconds", "0")).Exit, (await _rig.RunAsync("read", "--seconds", "61")).Exit,
+                (await _rig.RunAsync("read", "--seconds", "many")).Exit));
     }
 
     // A watch of the same series, with stdin kept open: a line each second, the sensor that dropped out of one read as

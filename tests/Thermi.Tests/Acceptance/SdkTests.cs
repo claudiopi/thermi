@@ -37,7 +37,8 @@ public sealed class SdkTests
         }
     }
 
-    // Spec 003, R22: thermi-cli on PATH first, else where an install for everyone or for one person alone puts it.
+    // Spec 003, R22: thermi-cli on PATH first, else where an install for everyone or for one person alone puts it; and on
+    // Linux, spec 006's R15, where the packages put it.
     [Fact]
     public void TheSdkFindsThermiCliWhereEitherInstallPutsIt()
     {
@@ -48,13 +49,15 @@ public sealed class SdkTests
             var programFiles = Path.Combine(root, "Program Files");
             var local = Path.Combine(root, "Local");
             string[] installs = [onPath, Path.Combine(programFiles, "thermi"), Path.Combine(local, "Programs", "thermi")];
+            // The name each OS gives the program, as its installs write it.
+            var name = OperatingSystem.IsWindows() ? "thermi-cli.exe" : "thermi-cli";
             var found = new List<string?>();
             for (var first = installs.Length; first >= 0; first--)
             {
                 foreach (var (folder, at) in installs.Select((folder, at) => (folder, at)))
                 {
                     Directory.CreateDirectory(folder);
-                    var cli = Path.Combine(folder, "thermi-cli.exe");
+                    var cli = Path.Combine(folder, name);
                     if (at >= first)
                     {
                         File.WriteAllText(cli, "");
@@ -65,10 +68,12 @@ public sealed class SdkTests
                     }
                 }
 
-                found.Add(ThermiClient.Locate(onPath + Path.PathSeparator + Path.Combine(root, "none"), programFiles, local));
+                var path = onPath + Path.PathSeparator + Path.Combine(root, "none");
+                found.Add(ThermiClient.OnPathOr(path, ThermiClient.InstallsOn(windows: true, programFiles, local)));
             }
 
-            Assert.Equal([null, .. installs.Reverse().Select(folder => Path.Combine(folder, "thermi-cli.exe"))], found);
+            Assert.Equal([null, .. installs.Reverse().Select(folder => Path.Combine(folder, name))], found);
+            Assert.Equal([ThermiClient.LinuxInstall], ThermiClient.InstallsOn(windows: false, programFiles, local));
         }
         finally
         {

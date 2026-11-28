@@ -70,8 +70,9 @@ internal sealed class ConfigStore : IDisposable
         Locked,
     }
 
-    public static string DefaultPath { get; } =
-        Path.Combine(Logging.UserFolders.Roaming, "thermi", "config.json");
+    public static string DefaultPath { get; } = PathIn(Logging.UserFolders.Roaming);
+
+    public static string PathIn(string settingsFolder) => Path.Combine(settingsFolder, "thermi", "config.json");
 
     public string FilePath { get; }
 

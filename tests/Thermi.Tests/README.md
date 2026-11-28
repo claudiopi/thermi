@@ -10,6 +10,7 @@ Behavior tests for `src/Thermi.Core` and for `thermi-cli`'s commands and MCP ser
 | `Acceptance` | The tests a spec's acceptance steps name. |
 | `Agents` | The rig that runs `thermi-cli`'s commands, as a host runs them, and an MCP session, on a settings file and a recorded service of the test's own. |
 | `Bridge` | The page's bridge, through its real wire. |
+| `Logging` | What the overlay and the window write on the standard error with `--trace`, where a test reads it. |
 | `Contract` | The agents' contract: every answer against its schema, and schema 1 as it shipped. |
 | `Rules` | The rules of `AGENTS.md` that no compiler checks: sizes, comments, paths, names in docs, specs, undo. |
 

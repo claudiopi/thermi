@@ -103,10 +103,10 @@ public interface IWindowBridge
     Task<IReadOnlyList<MonitorView>> Monitors();
 
     /// <summary>
-    /// Where each overlay shows on the desktop, in Windows' pixels, as its own window places it with its settings now:
-    /// null for one with no monitor to show on.
+    /// Where each overlay shows on the desktop, in Windows' pixels, as its own window places it with its settings now, and
+    /// whether beside its taskbar for want of room on it: null for one with no monitor to show on.
     /// </summary>
-    Task<IReadOnlyList<Rect?>> Places();
+    Task<IReadOnlyList<OverlayPlace?>> Places();
 
     /// <summary>An error the page threw and did not handle, with its stack, which goes to thermi's log.</summary>
     Task Report(string error);
@@ -160,7 +160,17 @@ public interface IWindowBridge
     /// <summary>Starts the sensor service behind Windows' prompt: false when the prompt was refused.</summary>
     Task<bool> StartService();
 
-    Task StartOverlay();
+    /// <summary>
+    /// The GNOME Shell extension's fix the status offers: installed from extensions.gnome.org behind GNOME's own prompt, or
+    /// turned on; false when it was refused or failed, or where no fix is offered.
+    /// </summary>
+    Task<bool> InstallExtension();
+
+    /// <summary>Starts the overlay: false when it did not start, which the page then says.</summary>
+    Task<bool> StartOverlay();
+
+    /// <summary>Moves, maximizes, minimizes or closes the window from the page's own caption, where the OS draws none.</summary>
+    Task Caption(CaptionAction action);
 
     /// <summary>Keeps the broken settings file beside it and writes the last settings read well.</summary>
     Task Restore();

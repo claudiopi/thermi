@@ -110,7 +110,7 @@ public sealed class CatalogTests
 
         // A word matches at the start of a word, so "ip" finds the address and not a chipset; a sensor's own name finds it
         // alone, not every sensor of its device.
-        var windows = SensorCatalog.Build(SystemSensors.With(Desktop, new WindowsFacts(TimeSpan.FromHours(2), 3232235799, DateTimeOffset.UnixEpoch)));
+        var windows = SensorCatalog.Build(SystemSensors.With(Desktop, new SystemFacts(TimeSpan.FromHours(2), 3232235799, DateTimeOffset.UnixEpoch)));
         foreach (var (word, sensor) in new[] { ("uptime", SystemSensors.Uptime), ("ip", SystemSensors.LocalIp) })
         {
             Assert.Equal([sensor], SensorCatalog.Filter(windows, word, []).SelectMany(device => device.Sensors).Select(row => row.Sensor.Name));

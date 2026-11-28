@@ -1,6 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
-using System.Globalization;
+using Thermi.Core;
 using Thermi.Core.Updates;
 
 namespace Thermi.Sensors.Windows.Service;
@@ -178,13 +178,13 @@ internal static class SensorCommands
 
         private static int? SecondsOf(ArgumentResult result)
         {
-            if (result.Tokens is [var token] && int.TryParse(token.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value) && value > 0)
+            var seconds = WholeNumber.Parse(result.Tokens.SingleOrDefault()?.Value, 1, int.MaxValue);
+            if (seconds is null)
             {
-                return value;
+                result.AddError(WholeNumber.Expected("--seconds", 1));
             }
 
-            result.AddError("--seconds needs a whole number above zero.");
-            return null;
+            return seconds;
         }
     }
 }

@@ -16,7 +16,7 @@ public sealed class InstallLayoutTests
     [InlineData(Top + @"\elsewhere", false)]
     [InlineData(@"users\ana\Downloads\setup", false)]
     public void AnInstallRunsOnlyFromAFolderOfThermis(string own, bool installs) =>
-        Assert.Equal(installs, InstallLayout.InstallsFrom(own, Top));
+        Assert.Equal(installs, InstallLayout.InstallsFrom(WindowsPaths.Native(own), WindowsPaths.Native(Top)));
 
     // A removal takes update\, the script's copies, the versions and the launchers, and leaves the MSI's folder to the MSI,
     // and anything else at the top to its owner.
@@ -43,10 +43,11 @@ public sealed class InstallLayoutTests
     [InlineData(null, "0.9.0", null, null)]
     public void AnInstallLeavesOnlyALaterVersionRunning(string? image, string version, string? running, string? later)
     {
-        var path = image?.Replace("TOP", Top, StringComparison.Ordinal);
+        var top = WindowsPaths.Native(Top);
+        var path = image is null ? null : WindowsPaths.Native(image.Replace("TOP", Top, StringComparison.Ordinal));
 
-        Assert.Equal(running, InstallLayout.Running(Top, path)?.ToString());
-        Assert.Equal(later, InstallLayout.Later(Top, path, ReleaseVersion.Parse(version)!)?.ToString());
+        Assert.Equal(running, InstallLayout.Running(top, path)?.ToString());
+        Assert.Equal(later, InstallLayout.Later(top, path, ReleaseVersion.Parse(version)!)?.ToString());
     }
 
     // A version names a folder, so it is read strictly, and ordered as SemVer orders them.

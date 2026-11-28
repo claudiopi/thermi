@@ -21,6 +21,60 @@
   <data name="HostText.ClickThroughOnText" xml:space="preserve">
     <value>To change it, right-click thermi's icon here or open Settings. Click this notice to undo.</value>
   </data>
+  <data name="HostText.GnomeExtensionTitle" xml:space="preserve">
+    <value>thermi cannot show its overlays</value>
+  </data>
+  <data name="HostText.GnomeExtensionMissing" xml:space="preserve">
+    <value>GNOME shows them through thermi&apos;s extension: install it in the window GNOME opened, or from extensions.gnome.org.</value>
+  </data>
+  <data name="HostText.GnomeExtensionOtherVersion" xml:space="preserve">
+    <value>The thermi extension installed is for another version of thermi: update it from extensions.gnome.org.</value>
+  </data>
+  <data name="HostText.GnomeExtensionOff" xml:space="preserve">
+    <value>Turn on the thermi extension in GNOME&apos;s Extensions app.</value>
+  </data>
+  <data name="HostText.GnomeExtensionNextSignIn" xml:space="preserve">
+    <value>GNOME shows them through thermi&apos;s extension, which is installed: sign out and back in, and GNOME turns it on.</value>
+  </data>
+  <data name="HostText.GnomeExtensionInstall" xml:space="preserve">
+    <value>Install</value>
+  </data>
+  <data name="HostText.GnomeExtensionUpdate" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="HostText.GnomeExtensionEarlierTitle" xml:space="preserve">
+    <value>Sign out and back in to finish thermi&apos;s update</value>
+  </data>
+  <data name="HostText.GnomeExtensionEarlier" xml:space="preserve">
+    <value>Until then, GNOME runs the earlier version of thermi&apos;s extension: the overlays show, but some of what is new may not work yet.</value>
+  </data>
+  <data name="HostText.NoOverlaySurfaces" xml:space="preserve">
+    <value>This desktop offers neither GNOME Shell nor layer surfaces, where thermi shows its overlays. thermi-cli still reads the sensors.</value>
+  </data>
+  <data name="HostText.NoticeShowIt" xml:space="preserve">
+    <value>Show it</value>
+  </data>
+  <data name="HostText.NoticeShowThem" xml:space="preserve">
+    <value>Show them</value>
+  </data>
+  <data name="HostText.NoticeUndo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="HostText.NoticeGotIt" xml:space="preserve">
+    <value>Got it</value>
+  </data>
+  <data name="HostText.NoticeOpenSettings" xml:space="preserve">
+    <value>Open settings</value>
+  </data>
+  <data name="HostText.WindowFailedTitle" xml:space="preserve">
+    <value>The settings window closed with an error</value>
+  </data>
+  <data name="HostText.WindowFailed" xml:space="preserve">
+    <value>Its log, {0}, says why.</value>
+  </data>
+  <data name="HostText.NoOverlayLayerShell" xml:space="preserve">
+    <value>thermi shows its overlays on this desktop through gtk4-layer-shell, which is not installed: install it, then start thermi again. thermi-cli still reads the sensors.</value>
+  </data>
   <data name="UiText.LockPosition" xml:space="preserve">
     <value>Lock position</value>
   </data>
@@ -219,11 +273,17 @@
   <data name="CatalogText.Added" xml:space="preserve">
     <value>Added {0} to {1}.</value>
   </data>
+  <data name="CatalogText.CatalogStopped" xml:space="preserve">
+    <value>Sensors stopped: they come back here when they start.</value>
+  </data>
   <data name="CatalogText.CatalogEmpty" xml:space="preserve">
-    <value>The sensor service reads no sensors yet</value>
+    <value>The sensor service reads no sensors yet.</value>
   </data>
   <data name="CatalogText.CatalogEmptyHint" xml:space="preserve">
     <value>It may still be starting. If this stays, restart thermi-sensors in Windows Services.</value>
+  </data>
+  <data name="CatalogText.CatalogEmptyHintOnLinux" xml:space="preserve">
+    <value>It may still be starting. If this stays, start it with systemctl start thermi-sensors.socket.</value>
   </data>
   <data name="CatalogText.FindIt" xml:space="preserve">
     <value>Find it</value>
@@ -333,6 +393,9 @@
   <data name="UiText.StartWithWindows" xml:space="preserve">
     <value>Start with Windows</value>
   </data>
+  <data name="UiText.StartAtSignIn" xml:space="preserve">
+    <value>Start at sign-in</value>
+  </data>
   <data name="UiText.ResetToDefaults" xml:space="preserve">
     <value>Reset to defaults</value>
   </data>
@@ -402,6 +465,9 @@
   <data name="UiText.LanguageFromWindows" xml:space="preserve">
     <value>Windows' language · {0}</value>
   </data>
+  <data name="UiText.LanguageFromSystem" xml:space="preserve">
+    <value>The system's language · {0}</value>
+  </data>
   <data name="UiText.TemperatureField" xml:space="preserve">
     <value>Temperature</value>
   </data>
@@ -419,6 +485,9 @@
   </data>
   <data name="HotkeyText.HotkeysNeedOverlay" xml:space="preserve">
     <value>Hotkeys work only while the overlay runs.</value>
+  </data>
+  <data name="HotkeyText.HotkeysRefused" xml:space="preserve">
+    <value>The desktop gave thermi no hotkeys.</value>
   </data>
   <data name="UiText.DuplicateOverlay" xml:space="preserve">
     <value>Duplicate</value>
@@ -629,6 +698,24 @@
   </data>
   <data name="OverlayPageText.ColorBlack" xml:space="preserve">
     <value>Black</value>
+  </data>
+  <data name="OverlayPageText.BelowTopBar" xml:space="preserve">
+    <value>Below the top bar (vertical doesn't fit in it)</value>
+  </data>
+  <data name="OverlayPageText.BesidePanel" xml:space="preserve">
+    <value>Beside the panel (vertical doesn't fit in it)</value>
+  </data>
+  <data name="OverlayPageText.VerticalAtBottomEdge" xml:space="preserve">
+    <value>At the bottom edge</value>
+  </data>
+  <data name="OverlayPageText.NoRoomHint" xml:space="preserve">
+    <value>Beside the taskbar (no room on it at this size)</value>
+  </data>
+  <data name="OverlayPageText.NoRoomHintOnTopBar" xml:space="preserve">
+    <value>Below the top bar (no room on it at this size)</value>
+  </data>
+  <data name="OverlayPageText.NoRoomHintOnPanel" xml:space="preserve">
+    <value>Beside the panel (no room on it)</value>
   </data>
   <data name="OverlayPageText.AboveTaskbar" xml:space="preserve">
     <value>Above the taskbar (vertical doesn't fit in it)</value>
@@ -1920,6 +2007,12 @@
   <data name="WindowText.HotkeysOff" xml:space="preserve">
     <value>All off · they work anywhere in Windows</value>
   </data>
+  <data name="WindowText.HotkeysSetOnLinux" xml:space="preserve">
+    <value>{0} set · they work anywhere on the desktop</value>
+  </data>
+  <data name="WindowText.HotkeysOffOnLinux" xml:space="preserve">
+    <value>All off · they work anywhere on the desktop</value>
+  </data>
   <data name="WindowText.HotkeyToggle" xml:space="preserve">
     <value>Hide or show the overlays</value>
   </data>
@@ -1991,6 +2084,42 @@
   </data>
   <data name="WindowText.StartIt" xml:space="preserve">
     <value>Start it</value>
+  </data>
+  <data name="WindowText.ExtensionMissing" xml:space="preserve">
+    <value>The overlay needs thermi's GNOME Shell extension.</value>
+  </data>
+  <data name="WindowText.ExtensionMissingMore" xml:space="preserve">
+    <value>GNOME asks before it installs it, and the overlay shows at once.</value>
+  </data>
+  <data name="WindowText.InstallExtension" xml:space="preserve">
+    <value>Install extension</value>
+  </data>
+  <data name="WindowText.ExtensionDisabled" xml:space="preserve">
+    <value>thermi's GNOME Shell extension is off.</value>
+  </data>
+  <data name="WindowText.ExtensionDisabledMore" xml:space="preserve">
+    <value>The overlay shows as soon as it is on.</value>
+  </data>
+  <data name="WindowText.ExtensionOtherVersion" xml:space="preserve">
+    <value>thermi's GNOME Shell extension is for another version of thermi.</value>
+  </data>
+  <data name="WindowText.ExtensionOtherVersionMore" xml:space="preserve">
+    <value>GNOME applies its update at your next sign-in.</value>
+  </data>
+  <data name="WindowText.ExtensionNextSignIn" xml:space="preserve">
+    <value>GNOME reads thermi&apos;s GNOME Shell extension at your next sign-in.</value>
+  </data>
+  <data name="WindowText.ExtensionNextSignInMore" xml:space="preserve">
+    <value>It is installed: sign out and back in, and the overlay shows.</value>
+  </data>
+  <data name="WindowText.EnableExtension" xml:space="preserve">
+    <value>Turn it on</value>
+  </data>
+  <data name="WindowText.ExtensionRefused" xml:space="preserve">
+    <value>GNOME did not install it or turn it on, so nothing changed.</value>
+  </data>
+  <data name="WindowText.OverlayNotStarted" xml:space="preserve">
+    <value>The overlay did not start, so changes show only here.</value>
   </data>
   <data name="WindowText.PipeTaken" xml:space="preserve">
     <value>Another program holds the connection thermi reads its sensors through. Close it, or restart the PC.</value>
@@ -2099,6 +2228,9 @@
   </data>
   <data name="SheetText.AnywhereInWindows" xml:space="preserve">
     <value>Anywhere in Windows · set them in Settings</value>
+  </data>
+  <data name="SheetText.AnywhereOnTheDesktop" xml:space="preserve">
+    <value>Anywhere on the desktop · set them in Settings</value>
   </data>
   <data name="SheetText.InThisWindow" xml:space="preserve">
     <value>In this window</value>
@@ -2325,6 +2457,57 @@
   <data name="AgentText.NotRunningFix" xml:space="preserve">
     <value>Ask the person to start thermi from the Start menu. Do not start it yourself.</value>
   </data>
+  <data name="AgentText.FramesNotReadCause" xml:space="preserve">
+    <value>FPS and frame time are not read on Linux: their items read as missing and take no room in the overlay.</value>
+  </data>
+  <data name="AgentText.FramesNotReadFix" xml:space="preserve">
+    <value>Nothing to fix: every other metric reads as usual.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowCause" xml:space="preserve">
+    <value>The overlay cannot show on this desktop: it needs GNOME with thermi&apos;s extension, a desktop with layer-shell, or X11.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowFix" xml:space="preserve">
+    <value>Ask the person to turn on thermi&apos;s GNOME extension, or to sign in to a desktop that can show it. The sensors still read.</value>
+  </data>
+  <data name="AgentText.ServiceStoppedFixLinux" xml:space="preserve">
+    <value>Ask the person to run sudo systemctl enable --now thermi-sensors.socket, or to install thermi&apos;s package again. Do not start it yourself.</value>
+  </data>
+  <data name="AgentText.ServiceStaleFixLinux" xml:space="preserve">
+    <value>Wait a few seconds and read again; systemd restarts the service if it stays stuck.</value>
+  </data>
+  <data name="AgentText.PipeTakenCauseLinux" xml:space="preserve">
+    <value>Another program serves the socket where thermi&apos;s sensors should be, so its readings cannot be trusted.</value>
+  </data>
+  <data name="AgentText.PipeTakenFixLinux" xml:space="preserve">
+    <value>Ask the person to stop the program that serves /run/thermi/sensors.sock, or to restart the PC.</value>
+  </data>
+  <data name="AgentText.DriverMissingFixLinux" xml:space="preserve">
+    <value>Ask the person to check that the kernel module for the CPU&apos;s sensors is loaded: k10temp on AMD, coretemp on Intel. A virtual machine has none to load.</value>
+  </data>
+  <data name="AgentText.DriverMissingCauseLinux" xml:space="preserve">
+    <value>The CPU has no temperature: the kernel module that reads it is not loaded, or thermi runs in a virtual machine, which has none.</value>
+  </data>
+  <data name="AgentText.SettingsBrokenFixLinuxSensorsOnly" xml:space="preserve">
+    <value>Ask the person to fix or delete thermi&apos;s settings file, ~/.config/thermi/config.json.</value>
+  </data>
+  <data name="AgentText.OverlayNotRunningCause" xml:space="preserve">
+    <value>thermi&apos;s overlay isn&apos;t running in this session, and on Linux only the overlay measures the monitors.</value>
+  </data>
+  <data name="AgentText.OverlayNotRunningFix" xml:space="preserve">
+    <value>Ask the person to start thermi in their desktop, or to install thermi&apos;s package where only its sensors are. Do not start it yourself. The sensors still read.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowCauseLayerShell" xml:space="preserve">
+    <value>The overlay cannot show on this desktop: thermi shows it through gtk4-layer-shell, which is not installed.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowFixLayerShell" xml:space="preserve">
+    <value>Ask the person to install gtk4-layer-shell with their package manager, then to start thermi again. Do not install it yourself. The sensors still read.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowCauseSignIn" xml:space="preserve">
+    <value>The overlay cannot show yet: thermi's GNOME extension was installed after the person signed in, and GNOME Shell reads it only at the next sign-in.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowFixSignIn" xml:space="preserve">
+    <value>Ask the person to sign out and in again. Do not restart GNOME Shell yourself. The sensors still read.</value>
+  </data>
   <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
     <value>This build does not update itself</value>
   </data>
@@ -2351,6 +2534,9 @@
   </data>
   <data name="WindowText.RestartToUpdate" xml:space="preserve">
     <value>Restart to update</value>
+  </data>
+  <data name="WindowText.UpdatesFromSystem" xml:space="preserve">
+    <value>Updates come with the system's updates</value>
   </data>
   <data name="WindowText.UpdatesBeta" xml:space="preserve">
     <value>{0} · Beta channel</value>
@@ -2444,5 +2630,80 @@
   </data>
   <data name="Refusal.AgentsOnlyByPerson" xml:space="preserve">
     <value>Only a person lets agents change settings, in thermi&apos;s Settings, under AI agents.</value>
+  </data>
+  <data name="NameText.TopBar" xml:space="preserve">
+    <value>Top bar</value>
+  </data>
+  <data name="NameText.Panel" xml:space="preserve">
+    <value>Panel</value>
+  </data>
+  <data name="NameText.BottomEdge" xml:space="preserve">
+    <value>Bottom edge</value>
+  </data>
+  <data name="PlaceText.OnTopBar" xml:space="preserve">
+    <value>on the top bar</value>
+  </data>
+  <data name="PlaceText.OnPanel" xml:space="preserve">
+    <value>on the panel</value>
+  </data>
+  <data name="PlaceText.AtBottomEdge" xml:space="preserve">
+    <value>at the bottom edge</value>
+  </data>
+  <data name="OverlayPageText.TopBarHint" xml:space="preserve">
+    <value>Drag it anywhere along the top bar</value>
+  </data>
+  <data name="OverlayPageText.PanelHint" xml:space="preserve">
+    <value>Drag it anywhere along the panel</value>
+  </data>
+  <data name="OverlayPageText.BottomEdgeHint" xml:space="preserve">
+    <value>Drag it anywhere along the bottom edge</value>
+  </data>
+  <data name="OverlayPageText.MatchTopBar" xml:space="preserve">
+    <value>Match top bar</value>
+  </data>
+  <data name="OverlayPageText.MatchPanel" xml:space="preserve">
+    <value>Match panel</value>
+  </data>
+  <data name="OverlayPageText.MatchDesktop" xml:space="preserve">
+    <value>Match desktop</value>
+  </data>
+  <data name="WindowText.Minimize" xml:space="preserve">
+    <value>Minimize</value>
+  </data>
+  <data name="WindowText.Maximize" xml:space="preserve">
+    <value>Maximize</value>
+  </data>
+  <data name="WindowText.RestoreDown" xml:space="preserve">
+    <value>Restore down</value>
+  </data>
+  <data name="WindowText.ThemeFromSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="WindowText.PasteFailedOnLinux" xml:space="preserve">
+    <value>The desktop would not hand over what was pasted or dropped, as while another app holds the clipboard. Try again in a moment.</value>
+  </data>
+  <data name="WindowText.HotkeyWithSuper" xml:space="preserve">
+    <value>Combinations with Super belong to the desktop.</value>
+  </data>
+  <data name="WindowText.HotkeyKeptByDesktop" xml:space="preserve">
+    <value>The desktop keeps this combination for itself.</value>
+  </data>
+  <data name="OverlayPageText.SizeOnTopBar" xml:space="preserve">
+    <value>On the top bar it never grows taller than the top bar.</value>
+  </data>
+  <data name="OverlayPageText.SizeOnPanel" xml:space="preserve">
+    <value>On a panel it never grows taller than the panel.</value>
+  </data>
+  <data name="OverlayPageText.SizeAtBottomEdge" xml:space="preserve">
+    <value>At the bottom edge it never grows taller than a bar.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomOnTopBar" xml:space="preserve">
+    <value>That top bar has no room for this overlay at its size.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomOnPanel" xml:space="preserve">
+    <value>That panel has no room for this overlay at its size.</value>
+  </data>
+  <data name="OverlayPageText.NoRoomAtBottomEdge" xml:space="preserve">
+    <value>That edge has no room for this overlay at its size.</value>
   </data>
 </root>

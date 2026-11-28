@@ -38,7 +38,7 @@ const useStyles = makeStyles({
     padding: '24px',
     background: surfaces.dialogFoot,
     borderTop: `1px solid ${surfaces.divider}`,
-    '@media (forced-colors: active)': { borderTop: '1px solid CanvasText' },
+    ':global(.t-contrast) &': { borderTop: '1px solid CanvasText' },
   },
   button: { flex: '1' },
   host: { display: 'contents' },

@@ -1,0 +1,62 @@
+using Thermi.Core.Bridge;
+using Thermi.Core.Editing;
+using Thermi.Core.Placement;
+using Thermi.Core.Settings;
+using Thermi.Core.Translations;
+
+namespace Thermi.Tests.Bridge;
+
+/// <summary>The fixes and words the window offers, as Core decides them from what its host says of the desktop.</summary>
+public sealed class HostDesktopTests
+{
+    // A CPU missing its readings: Windows offers the driver; Linux, which reads them with none, offers no driver, and in
+    // GNOME offers the extension's fix while it is missing, off, of another version or unread by the Shell, which only
+    // signing in again applies. What each says of the CPU's readings is DriverTests'.
+    [Theory] // Rows: Windows, and each state of the extension on Linux.
+    [InlineData(HostOs.Windows, ExtensionState.Missing, true, null, false)]
+    [InlineData(HostOs.Linux, ExtensionState.Missing, false, ExtensionState.Missing, true)]
+    [InlineData(HostOs.Linux, ExtensionState.Disabled, false, ExtensionState.Disabled, true)]
+    [InlineData(HostOs.Linux, ExtensionState.OtherVersion, false, ExtensionState.OtherVersion, true)]
+    [InlineData(HostOs.Linux, ExtensionState.NextSignIn, false, ExtensionState.NextSignIn, false)]
+    [InlineData(HostOs.Linux, ExtensionState.Enabled, false, null, false)]
+    public void EachDesktopOffersItsOwnFixes(HostOs os, ExtensionState? extension, bool driver, ExtensionState? fix, bool applies)
+    {
+        var desktop = new HostDesktop(os, "#e95420", extension, Contrast: true);
+
+        var status = desktop.Of(new WindowStatus(Overlay: true, Driver: true, [], [], null));
+
+        Assert.Equal(
+            (os, "#e95420", true, driver, fix, applies),
+            (status.Os, status.Accent, status.Contrast, status.Driver, status.Extension, desktop.ExtensionFixApplies));
+    }
+
+    // The overlay made on the taskbar takes the name of the bar it sits on, as each Linux desktop calls its own, and a
+    // vertical one snapped to it says where it sits by that bar; one with no bar sets it on the screen's bottom edge.
+    // GNOME's Shell on the bus says it is GNOME, as a program started without the session's variables, as over ssh, names
+    // no desktop, and Budgie, which names GNOME too, shows panels.
+    [Theory] // Rows: a desktop with panels that names GNOME, a barless one, none named, and the Shell.
+    [InlineData("Budgie:GNOME", false, NameText.Panel, OverlayPageText.BesidePanel)]
+    [InlineData("Hyprland", false, NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
+    [InlineData("", false, NameText.BottomEdge, OverlayPageText.VerticalAtBottomEdge)]
+    [InlineData("", true, NameText.TopBar, OverlayPageText.BelowTopBar)]
+    public void TheTaskbarsOverlayIsNamedForTheDesktopsBar(string desktops, bool shell, NameText name, OverlayPageText vertical)
+    {
+        var words = new HostDesktop(HostOs.Linux, Bar: HostDesktop.BarOf(desktops, shell)).Words(Texts.English);
+
+        Assert.Equal(
+            (Texts.English.Of(name), Texts.English.Of(vertical)),
+            (Names.OfOverlays(new ThermiConfig(), words)[0], words.Of(OverlayPageText.AboveTaskbar)));
+    }
+
+    // The map draws a monitor's taskbar along the edge it lies on: GNOME's top bar along the top, Windows' along the bottom.
+    [Theory] // Rows: a bar at each edge.
+    [InlineData(0, 48, BarEdge.Top)]
+    [InlineData(1032, 1080, BarEdge.Bottom)]
+    public void AMonitorsTaskbarLiesAlongTheEdgeItTouches(int top, int bottom, BarEdge edge)
+    {
+        var bounds = new PixelRect(0, 0, 1920, 1080);
+        var screen = new Screen("one", Primary: true, bounds, bounds, 1) { Taskbar = bounds with { Top = top, Bottom = bottom } };
+
+        Assert.Equal(edge, MonitorView.Of(screen).Edge);
+    }
+}

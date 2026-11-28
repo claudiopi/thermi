@@ -1,0 +1,226 @@
+{
+  "spec": "006-linux",
+  "steps": [
+    {
+      "id": "A1",
+      "covers": [
+        "R3",
+        "R6"
+      ],
+      "description": "Given the recorded trees of a desktop and a virtual machine (a table of the service's user, a plain user without the energy counters, no NVIDIA driver, files that vanish or fail to read mid-read, a virtual machine with no hwmon), when the service reads each second and the default overlay is laid out, then every metric reads what the tree holds, as Windows' recordings of the same chips map; the CPU's power, a vanished file, a board sensor at -40 °C and every metric of the virtual machine are missing, never 0; the virtual adapters are set apart; and the uptime, local IP and clock read as on Windows.",
+      "check": "TheServiceReadsWhatTheKernelGives",
+      "passes": true
+    },
+    {
+      "id": "A2",
+      "covers": [
+        "R7"
+      ],
+      "description": "Given a tree of a PC whose files name its host, its user, its MAC addresses and its drives' serials, when the service records it with --tree and --dump, then the recording replays to the same snapshots and holds none of those names.",
+      "check": "ARecordedTreeReplaysAndNamesNoPc",
+      "passes": true
+    },
+    {
+      "id": "A3",
+      "covers": [
+        "R5"
+      ],
+      "description": "Given the service's socket and clients (a table of the person while their own console serves too, another user serving the service's path and then the person's own, one that writes to it, nine of one user), when they connect, then the person reads Core's snapshot lines from the service before their own console, and from the console when THERMI_SENSORS_SOCKET names it; a server of another user is refused on either path, and the person's own console is read; what a client writes is never read; the ninth connection of one user is hung up at once and another user's still connects; and the service ends 10 s after the last client leaves.",
+      "check": "TheSocketServesOnlyTheServicesLines",
+      "passes": true
+    },
+    {
+      "id": "A4",
+      "covers": [
+        "R4"
+      ],
+      "description": "Given the packaged service unit and udev rule, when systemd judges the unit offline and the rule is applied to a recorded powercap tree, then the unit runs as its own user with no capability and a sandbox that systemd rates OK or better, and only that user's group may read the energy counters.",
+      "check": "TheServiceRunsWithNoRights",
+      "passes": true
+    },
+    {
+      "id": "A5",
+      "covers": [
+        "R8",
+        "R10"
+      ],
+      "description": "Given a headless GNOME Shell of the test's own with the extension, a window under the overlay and a recorded feed, when thermi runs (a table of a monitor at 100 % and at 150 %, X11 and Wayland, a window full screen on the overlay's monitor, sensors stopped, an overlay that hides in full screen with its corner on another monitor), then the screen shows, at the overlay's place and above the window and the top bar, the picture thermi preview paints for the same snapshot and scale; a click where it draws nothing reaches the window; over the full-screen window it shows still, and one that hides in full screen shows nothing on the monitor that holds most of it.",
+      "check": "TheOverlayShowsAboveEveryWindowOnGnome",
+      "passes": true
+    },
+    {
+      "id": "A12",
+      "covers": [
+        "R17"
+      ],
+      "description": "Given a headless KWin and Sway of the test's own, a window under the overlay and a recorded feed, when thermi runs (a table of KWin and Sway with a panel along the top, the bottom or the left side, a monitor at 150 %, a window full screen on the overlay's monitor, a Wayland session with neither GNOME Shell nor layer surfaces), then the screen shows, at the overlay's place and above the window and the panel, the picture thermi preview paints for the same snapshot and scale; a click where it draws nothing reaches the window; the full-screen window covers it; and with neither surface, started by its unit as at sign-in, thermi shows nothing, says why once and is not started again.",
+      "check": "TheOverlayShowsAboveEveryWindowOnLayerShell",
+      "passes": true
+    },
+    {
+      "id": "A6",
+      "covers": [
+        "R11"
+      ],
+      "description": "Given the headless GNOME Shell, KWin and an X11 desktop with a panel, each with two monitors, when an overlay is dragged into a corner and then onto the top bar or the panel, thermi restarts and the monitors swap places, then it snaps where it was let go, inside the work area or along the panel, the settings name the snap and not a position, and it shows on the same monitor after the swap.",
+      "check": "TheOverlayIsDraggedAndStaysOnGnome",
+      "passes": true
+    },
+    {
+      "id": "A7",
+      "covers": [
+        "R12",
+        "R13"
+      ],
+      "description": "Given the headless GNOME Shell, KWin and an X11 desktop with the overlay, when the person right-clicks a pill, presses Esc, opens it again and clicks outside it, then chooses Hide overlays, undoes it, chooses Task Manager, then Exit thermi, then the menu is the Shell's on GNOME and GTK's on KWin and X11, with Core's entries, and Esc and the click outside close it; the overlay hides and comes back; the desktop's system monitor starts; and thermi ends and its unit stays stopped. Given thermi killed instead, then its unit starts it again, and one overlay shows. Given the settings window's Exit thermi, through the overlay's name on the session's bus, then thermi ends with 0 as the menu's Exit does, and its unit stays stopped. Given the settings window open when the session ends, with SIGTERM to each of thermi's processes, then the overlay tells of no window closed with an error, and its unit ends with 0, as a success.",
+      "check": "TheOverlaysMenuIsTheShellsOwn",
+      "passes": true
+    },
+    {
+      "id": "A8",
+      "covers": [
+        "R9"
+      ],
+      "description": "Given the headless Shell with an extension of another protocol version that lacks the overlay's own calls, and then with none, when thermi starts, then it shows nothing through the other version and its notice says to update; with none, it asks the Shell to install thermi's from extensions.gnome.org and its notice offers the install; with its files in place that the running Shell has not read, it asks the same, and when the Shell does not install it, its notice says to sign in again, with no button.",
+      "check": "AnExtensionOfAnotherVersionShowsNothing",
+      "passes": true
+    },
+    {
+      "id": "A9",
+      "covers": [
+        "R2",
+        "R15"
+      ],
+      "description": "Given a recorded Linux feed served on the socket (a table of every shell with no overlay running, a session with no display and no overlay, as over SSH, and the overlay running on GNOME at 150 %), when every command of spec 003 runs from bash, zsh and fish, and the SDK reads, then each waits, answers JSON that validates against its schema and exits with its code; status says the service serves, whether an overlay runs, and in a session where the overlay cannot show that it cannot; monitors gives the monitors the running overlay places its overlays on, in thermi's pixels with the top bar on GNOME, and with none running none and why, with no display needed; and start-with-windows enables and disables the overlay's unit without starting it.",
+      "check": "TheCliAnswersOnLinux",
+      "passes": true
+    },
+    {
+      "id": "A10",
+      "covers": [
+        "R16"
+      ],
+      "description": "Given a settings file written on Windows with FPS items, hotkeys, tray icons and the window's place, when the overlay and the window on Linux read it and an agent edits it, then it loses nothing and Windows reads it back; the FPS items take no room in the overlay, show as missing with why in the window, and status says frames are not read on Linux.",
+      "check": "AWindowsFileLosesNothingOnLinux",
+      "passes": true
+    },
+    {
+      "id": "A11",
+      "covers": [
+        "R1"
+      ],
+      "description": "Given both packages built for amd64 and arm64 from one build, when the amd64 ones are installed in clean containers (a table of Ubuntu 24.04, Ubuntu 26.04, Debian 13, Fedora, Arch through the AUR's PKGBUILD), thermi-sensors alone and then thermi, and removed, then each installs what spec.md lists and nothing else is downloaded but the distribution's libraries; thermi-cli runs after the first alone; the .deb and the .rpm add thermi's signed repository; and their removal leaves each person's settings.",
+      "check": "ThePackagesInstallWhatTheySay",
+      "passes": true
+    },
+    {
+      "id": "A13",
+      "covers": [
+        "R24"
+      ],
+      "description": "Given an X11 desktop of the test's own with a panel, a window under the overlay and a recorded feed, when thermi runs (a table of a panel at the bottom, and at the left with GTK at 200 %), with an overlay snapped to the taskbar, one click-through on the window, then the snapped one dragged onto the window and a window full screen in front, then the overlay shows above the window and the panel as thermi preview paints it, on the panel's own edge or beside a side one, lists in no taskbar or window switcher, every click passes to the window once it is click-through, the dragged one shows and stays where it was let go, and a full-screen window in front covers it.",
+      "check": "TheOverlayShowsAboveEveryWindowOnX11",
+      "passes": true
+    },
+    {
+      "id": "A14",
+      "covers": [
+        "R23"
+      ],
+      "description": "Given two overlays on the headless GNOME Shell, on KWin and on an X11 desktop, when a value is held until it lifts and dropped on the other overlay, a pill is held and dropped on the desktop, a drag is cancelled with Esc, and Ctrl and the wheel turn over an overlay, then the item joins the other overlay, the pill becomes an overlay that snaps, Esc puts everything back, and the overlay grows a step for each notch; with Fade near the pointer, the overlay fades as the pointer nears it on GNOME and X11 and as it comes over it on KWin.",
+      "check": "DesktopGesturesWorkOnLinux",
+      "passes": true
+    },
+    {
+      "id": "A15",
+      "covers": [
+        "R18"
+      ],
+      "description": "Given the headless GNOME Shell with the overlay and a recorded feed, when the window opens from the overlay's menu, a double-click on a value, thermi settings and the app launcher's entry, the overlay's two again with another program's window over it, and a slider is dragged and undone twice, then one window shows, on the item double-clicked, and the overlay's two bring it in front; a warm edit, the second, shows on the overlay within 300 ms and undo takes it back; and closing the window leaves no process of it.",
+      "check": "TheSettingsWindowWorksOnLinux",
+      "passes": true
+    },
+    {
+      "id": "A16",
+      "covers": [
+        "R18"
+      ],
+      "description": "Given the page in WebKit with the bridge's client over WebKit's messages, when it loads and calls the bridge, then every call is answered and every event arrives, as over WebView2's.",
+      "check": "TheBridgeAnswersOverWebKit",
+      "passes": true
+    },
+    {
+      "id": "A17",
+      "covers": [
+        "R19"
+      ],
+      "description": "Given the page as Linux's host serves it, with the desktop dark, light, with an accent and in high contrast, a stopped service and a GNOME session whose extension is missing, off or of another version, when Settings and the fixes show, then the page follows the desktop's scheme, accent and contrast, the switch reads Start at sign-in, the fixes offered are the extension's and the service's and none is the driver's.",
+      "check": "TheWindowFollowsTheLinuxDesktop",
+      "passes": true
+    },
+    {
+      "id": "A18",
+      "covers": [
+        "R20"
+      ],
+      "description": "Given thermi's icon and two items' tray icons, on the headless GNOME Shell and with a StatusNotifierWatcher as KDE Plasma's tray, when the values change level and thermi restarts, then each icon shows the value and color thermi paints for it, its menu is Core's, and each comes back with its identity after the restart.",
+      "check": "TrayIconsShowOnEveryDesktop",
+      "passes": true
+    },
+    {
+      "id": "A19",
+      "covers": [
+        "R21"
+      ],
+      "description": "Given the four hotkeys set (a table of the GNOME extension, the GlobalShortcuts portal, X11, a combination another program holds), when each is pressed, then each does what it does on Windows, and the held one is refused with its reason.",
+      "check": "HotkeysWorkOnEveryDesktop",
+      "passes": true
+    },
+    {
+      "id": "A20",
+      "covers": [
+        "R22"
+      ],
+      "description": "Given the desktop's own notifications, watched by the test (on GNOME the Shell's, elsewhere a server of the test's own), when thermi starts the first time, an item with Notify me when critical stays critical for 10 s and the extension is missing, then each notice is one notification, once, and its buttons do what they do on Windows; a settings window that dies as a button opens it is told as a notice, with its log, whose button opens it again. Off GNOME, the hotkeys that hide the overlays and turn click-through on tell their notices, and a button of one and a click on the other itself do what they do on Windows.",
+      "check": "NoticesAreTheDesktopsNotifications",
+      "passes": true
+    },
+    {
+      "id": "A21",
+      "covers": [
+        "R25",
+        "R26"
+      ],
+      "description": "Given clean Ubuntu and Fedora containers with thermi installed from a repository the levers wrote, when a newer version is published to beta and promoted to its channel, from a folder holding none of its tarballs, rolled back on beta and promoted again, disabled, served signed by another key, restored to the offer before, and served as a copy of its first offer, of an older version than the PC's, then the system's update takes the newer version, which a new process of the service runs, then the one before, then nothing new; refuses the repository not signed by thermi, keeping its version and naming the signature; takes the restored offer, whose index apt holds as its newest; and keeps its version from the older copy, apt keeping the newer index it holds.",
+      "check": "UpdatesComeFromThermisRepository",
+      "passes": true
+    },
+    {
+      "id": "A22",
+      "covers": [
+        "R25"
+      ],
+      "description": "Given an overlay and its window running when the package changed thermi's files, when the session turns quiet, then each hands over to the new version, one overlay runs, and status says the new version. That About says the channel and that updates come from the system is StatusAboutTests', and the packages' containers'.",
+      "check": "TheOverlayHandsOverAfterAnUpdateOnLinux",
+      "passes": true
+    },
+    {
+      "id": "A23",
+      "covers": [
+        "R9"
+      ],
+      "description": "Given the headless Shell running thermi's extension as the protocol before thermi's, with no more than the overlay's own calls and monitors of the parts every protocol had, as GNOME runs it from a package's update until the next sign-in, when thermi starts, then both overlays show as painted, on the top bar and on a window, and a notice says to sign in again, with no button.",
+      "check": "AnEarlierExtensionStillShowsTheOverlays",
+      "passes": true
+    },
+    {
+      "id": "A24",
+      "covers": [
+        "R13"
+      ],
+      "description": "Given an X11 desktop and Sway of the test's own, which bring no graphical-session.target for systemd, with start at sign-in on, when the session starts and runs the package's autostart entry or its file of Sway's config.d, then the overlay comes up as a unit of its own, and a second start finds it running and starts none.",
+      "check": "TheSessionsStartBringsTheOverlayUp",
+      "passes": false
+    }
+  ]
+}

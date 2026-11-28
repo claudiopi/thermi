@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using Thermi.Core.Agents;
+using Thermi.Core.Bridge;
 using Thermi.Core.Pipe;
 using Thermi.Core.Placement;
 
@@ -40,6 +42,9 @@ internal interface IAgentEnvironment
 
     IReadOnlyList<Screen> Screens();
 
+    /// <summary>Why <see cref="Screens"/> holds none, where only a running overlay measures them; null where it holds them, as Windows always does.</summary>
+    AgentProblem? WhyNoScreens() => null;
+
     IReadOnlySet<int> AltGrKeys();
 
     /// <summary>Loads every core until <paramref name="stop"/>, in a process of its own, for the fan finder.</summary>
@@ -47,4 +52,13 @@ internal interface IAgentEnvironment
 
     /// <summary>Whether a file failed to open because another process holds it, as each OS says so in its own error.</summary>
     bool HeldElsewhere(IOException error);
+
+    /// <summary>The OS this runs on, which says whether the frames of the game in front are read and which fixes a person reads.</summary>
+    HostOs Os => HostOs.Windows;
+
+    /// <summary>Why this desktop can show no overlay at all, or null where it can, as every Windows desktop.</summary>
+    NoOverlayCause? OverlayCannotShow() => null;
+
+    /// <summary>What About says of the version, the channel and the updates, which status says too where the host gives it.</summary>
+    AboutFacts About() => AboutFacts.None;
 }

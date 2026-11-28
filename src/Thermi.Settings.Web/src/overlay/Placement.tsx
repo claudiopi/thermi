@@ -57,7 +57,7 @@ export function Placement({ data, overlay, shown, lockOpen, onLockOpen }: Placem
   const vertical = one.style?.orientation === 'vertical';
   const hidden = one.hidden === true;
   // A hidden overlay shows only here, so the map says it, dimmed where it sits.
-  const hint = positionHint(placed, vertical, shown);
+  const hint = positionHint(placed, vertical, shown, places[overlay] ?? null);
   const said = [hidden ? t('UiText.OverlayHidden') : null, hint === null ? null : t(hint)].filter((part) => part !== null).join(' · ');
   return (
     <section className="t-col t-col-place" aria-label={t('OverlayPageText.PlacementSection')}>

@@ -11,3 +11,9 @@
 tests/Thermi.Tests/Golden/*.jsonl binary
 # A catalog's files as it hashed them, byte for byte.
 tests/Thermi.Windows.Tests/Updates/Catalog/** binary
+# The kernel's files as a Linux PC gave them, byte for byte, its newlines included.
+tests/Thermi.Tests/Recordings/Trees/** -text
+# What Linux reads as it is, systemd's units, udev's rules, sysusers' files and the scripts' shell scripts among it, which
+# a carriage return breaks.
+src/*/Packaging/** text eol=lf
+scripts/*.sh text eol=lf

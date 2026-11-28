@@ -55,11 +55,20 @@ function Get-Entry {
         doctor = (Get-DoctorScore $run).Score
         ciSeconds = if ($github) { $github.wallSeconds } else { @($run.Steps | ForEach-Object { $_.seconds } | Sort-Object)[-1] }
         msiX64 = $x64.megabytes
+        debX64 = Get-Packaged '_amd64\.deb$'
+        rpmX64 = Get-Packaged '\.x86_64\.rpm$'
+        aurX64 = Get-Packaged '-linux-x64\.tar\.gz$'
         codeProduct = ($code | Where-Object { -not $_.Test } | Measure-Object Lines -Sum).Sum
         codeTests = ($code | Where-Object { $_.Test } | Measure-Object Lines -Sum).Sum
         code = ($code | Measure-Object Lines -Sum).Sum
         passed = if ($github) { $github.passed }
     }
+}
+
+# A Linux format's x64 download, thermi's two packages together, as the MSI holds both; the AUR's is the tarball it installs.
+function Get-Packaged([string]$Pattern) {
+    $files = @($run.Packages.files | Where-Object { $_.name -match $Pattern })
+    if ($files) { Get-Sum $files megabytes }
 }
 
 function Get-Sum([object[]]$Items, [string]$Key) {
@@ -89,14 +98,20 @@ function Write-Kpis {
             "$(if ($doctor.Ok) { '0 issues' } elseif ($doctor) { 'issues in its log' } else { 'not run' }) · $(Format-Delta $now.doctor $before.doctor)")
         ,@('⏱️ CI time', (Format-Duration $now.ciSeconds),
             "$(if ($slowest) { "slowest: $(Get-JobLabel $slowest.name) · " })$(Format-Delta $now.ciSeconds $before.ciSeconds -Duration)")
+        ,@('🐞 Open bugs', "$($github.openBugs ?? '–')", 'open `bug` issues')
     )
+    # The .rpm and the AUR's tarball beside the .deb, each with its change only when it changed.
+    $packages = foreach ($format in @('.rpm', 'rpmX64'), @('AUR', 'aurX64')) {
+        $delta = Format-Delta $now.($format[1]) $before.($format[1]) -Decimals 1 -Unit ' MB'
+        "$($format[0]) $(Format-Megabytes $now.($format[1]))$(if ($delta -match '^[▲▼]') { " $delta" })"
+    }
     $second = @(
         ,@('📝 Lines of code', (Format-Count $now.code),
             "$(Format-Thousands $now.codeProduct) product · $(Format-Thousands $now.codeTests) tests · $(Format-Delta $now.code $before.code)")
         ,@('📋 Specs', "$done / $($specs.Count)", "done · $passing / $(@($specs.Steps).Count) checks pass")
-        ,@('🐞 Open bugs', "$($github.openBugs ?? '–')", 'open `bug` issues')
         ,@('📦 x64 installer', (Format-Megabytes $now.msiX64),
             "Arm64 $(Format-Megabytes $arm.megabytes) · $(Format-Delta $now.msiX64 $before.msiX64 -Decimals 1 -Unit ' MB')")
+        ,@('🐧 x64 .deb', (Format-Megabytes $now.debX64), "$(Format-Delta $now.debX64 $before.debX64 -Decimals 1 -Unit ' MB') · $($packages -join ' · ')")
         ,@('🔐 Security', $(switch ($security) { 'success' { '✅ clean' } $null { '–' } default { "❌ $security" } }), 'secrets · vulnerable packages')
         ,@('🔄 Dependencies', "$($github.updates ?? '–')", 'open Renovate PRs')
     )
@@ -114,17 +129,12 @@ function Write-Coverage {
     ''
     '| Project | Lines | Branches | | Measured by |'
     '| --- | --: | --: | --- | --- |'
-    foreach ($name in 'Thermi.Core', 'Thermi.Cli') {
-        $rates = $run.Coverage.$name
-        $floor = if ($rates) { " · floor $($rates.floor) %" }
-        Format-CoverageRow $name $rates.lines $rates.branches "Thermi.Tests$floor"
+    $rows = @(Get-CoverageRows) + [pscustomobject]@{
+        Project = 'Thermi.Settings.Web'; Lines = $run.Web.lines; Branches = $run.Web.branches
+        By = 'Vitest unit tests, not the Playwright tests · shown, not gated'
     }
-    foreach ($name in 'thermi', 'thermi-sensors', 'Thermi.App') {
-        $module = $run.App[$name]
-        $lines = if ($module) { Get-Rate $module.Lines }
-        $branches = if ($module) { Get-Rate $module.Branches }
-        Format-CoverageRow $name $lines $branches 'Thermi.Windows.Tests · shown, not gated'
-    }
+    $rows += foreach ($each in $coverageUnmeasured.GetEnumerator()) { [pscustomobject]@{ Project = $each.Key; By = $each.Value } }
+    foreach ($row in $rows | Sort-Object Project -Stable) { Format-CoverageRow $row.Project $row.Lines $row.Branches $row.By }
     ''
     '| Tests | Cases |'
     '| --- | --: |'
@@ -137,6 +147,27 @@ function Write-Coverage {
     $baseline = Get-Sum $run.Tests baseline
     "| **Total** | **$(Format-Count $now.tests)** of the ratchet's $(Format-Count $baseline) |"
     ''
+}
+
+# Each project a test project measures, by the project's name: Thermi.Tests' against its floor, the app's as each OS's
+# tests ran it, shown, not gated.
+function Get-CoverageRows {
+    foreach ($tests in $coverageMeasured.Keys) {
+        foreach ($assembly in $coverageMeasured[$tests].GetEnumerator()) {
+            $row = [pscustomobject]@{ Project = $assembly.Value; Lines = $null; Branches = $null; By = "$tests · shown, not gated" }
+            if ($tests -eq 'Thermi.Tests') {
+                $rates = $run.Coverage.($assembly.Value)
+                $row.Lines = $rates.lines
+                $row.Branches = $rates.branches
+                $row.By = if ($rates.floor) { "$tests · floor $($rates.floor) %" } elseif (-not $rates) { $tests } else { $row.By }
+            }
+            elseif ($run.App[$tests][$assembly.Key]) {
+                $row.Lines = Get-Rate $run.App[$tests][$assembly.Key].Lines
+                $row.Branches = Get-Rate $run.App[$tests][$assembly.Key].Branches
+            }
+            $row
+        }
+    }
 }
 
 # Non-blank lines by project and language, the product's and the tests' apart.

@@ -40,10 +40,25 @@ public sealed partial class RepoRulesTests
         AssertNone(unnamed);
     }
 
-    // A project is a folder with a .NET, WiX or npm project file of its own.
+    // npm installs and builds the page in one folder, and two at once there fail on each other's files: only one project runs
+    // npm, never a file several projects import, so a build of every host runs it once, as MSBuild builds a project once.
+    [Fact]
+    public void OnlyOneProjectRunsNpm()
+    {
+        var running = RepoFiles([".csproj", ".props", ".targets", ".wixproj"])
+            .Where(file => XDocument.Load(file).Descendants().Any(node => node.Name.LocalName == "Exec"
+                && node.Attribute("Command")?.Value.TrimStart().StartsWith("npm ", StringComparison.Ordinal) == true))
+            .Select(Path.GetFileName);
+
+        Assert.Equal(["Thermi.Settings.Types.csproj"], running);
+    }
+
+    // A project is a folder with a .NET, WiX or npm project file of its own, or a GNOME Shell extension's metadata beside
+    // its code.
     private static IEnumerable<string> ProjectFolders() =>
         RepoFiles([".csproj", ".wixproj", ".json"])
-            .Where(path => Path.GetExtension(path) != ".json" || Path.GetFileName(path) == "package.json")
+            .Where(path => Path.GetExtension(path) != ".json" || Path.GetFileName(path) == "package.json"
+                || (Path.GetFileName(path) == "metadata.json" && File.Exists(Path.Combine(Path.GetDirectoryName(path)!, "extension.js"))))
             .Select(path => Path.GetDirectoryName(path)!)
             .Distinct(StringComparer.OrdinalIgnoreCase);
 

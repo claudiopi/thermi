@@ -123,7 +123,5 @@ internal static class McpTools
 
     private static string Said(AgentReply reply) => string.Join("\n", new[] { reply.Error, reply.Json }.OfType<string>());
 
-    private static string Version() =>
-        typeof(McpTools).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), inherit: false)
-            is [System.Reflection.AssemblyInformationalVersionAttribute version] ? version.InformationalVersion : "0";
+    private static string Version() => Core.Install.BuildVersion.Of(typeof(McpTools).Assembly);
 }

@@ -1,0 +1,13 @@
+# Xfce, MATE and Cinnamon run their autostart themselves and start no graphical-session.target, which alone starts
+# thermi.service, so this starts the overlay there. Where systemd runs the autostart, as on GNOME and Plasma, the target
+# starts the unit itself, and X-systemd-skip leaves this out.
+[Desktop Entry]
+Type=Application
+Name=thermi
+Comment=Starts thermi's overlay at sign-in, where start at sign-in is on
+Exec=thermi sign-in
+Icon=io.github.claudiopi.thermi
+Terminal=false
+NoDisplay=true
+X-systemd-skip=true
+Hidden=true

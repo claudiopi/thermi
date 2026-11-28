@@ -41,6 +41,15 @@ public static class SnapshotJson
 {
     public const string PipeName = "thermi-sensors";
 
+    /// <summary>The Linux service's socket, which systemd listens on and hands it (docs/adr/0019-linux.md).</summary>
+    public const string SocketPath = "/run/thermi/sensors.sock";
+
+    /// <summary>
+    /// A socket of the person's own, under their runtime folder, as <c>thermi-sensors --console</c> opens: on Linux,
+    /// thermi and <c>thermi-cli</c> read it where the service's is missing.
+    /// </summary>
+    public const string RuntimeSocket = "thermi/sensors.sock";
+
     /// <summary>Far above a real snapshot (about 40 KB with network and disks); a longer line is rejected unread.</summary>
     public const int MaxLineLength = 1_000_000;
 

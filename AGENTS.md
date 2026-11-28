@@ -1,6 +1,6 @@
 # thermi
 
-A light, always-on-top hardware monitor for Windows: CPU, GPU, RAM, fans, voltages and the FPS of the game in front, in a small overlay you place anywhere on screen. AI agents read it and configure it through a CLI and MCP.
+A light, always-on-top hardware monitor for Windows and Linux: CPU, GPU, RAM, fans, voltages and, on Windows, the FPS of the game in front, in a small overlay you place anywhere on screen. AI agents read it and configure it through a CLI and MCP.
 
 This is the one guide for people and AI agents alike. Keep it short. New here? Read `docs/QUICKSTART.md`, then `docs/ARCHITECTURE.md`.
 
@@ -8,19 +8,23 @@ This is the one guide for people and AI agents alike. Keep it short. New here? R
 
 | Path | What lives there |
 | --- | --- |
-| `src/Thermi.Core` | Everything that does not need Windows: readings, sensor mapping, config and layout. No dependencies. |
-| `src/Thermi.App` | What the overlay and the window share across OSes beyond Core, needing a package or the file system: the settings file and the settings a host holds, the window's edits, readings and charts, a desktop gesture's undo and drop, the fan finder's run, and the logs. `net10.0`. |
+| `src/Thermi.Core` | Everything that needs no OS: readings, sensor mapping, config and layout. No dependencies. |
+| `src/Thermi.App` | What every OS's overlay and window share beyond Core, needing a package or the file system: the settings file, the sensors' client, the window's bridge, the overlay and window's link, the gestures and tooltips a desktop only feeds and draws, and the logs. `net10.0`. |
 | `src/Thermi.Cli` | `thermi-cli`'s commands and its MCP server, the same commands over stdio, for any OS: what an OS answers comes in through `IAgentEnvironment`. `net10.0`. |
 | `src/Thermi.Windows` | The overlay app, as the user: the overlay, painting, the pipe client, and the settings window that hosts the page in WebView2. |
 | `src/Thermi.Settings.Web` | The settings window's page: React and Fluent, holding no logic, talking to C# only through the bridge. |
-| `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys; and the agents' JSON Schemas. |
+| `src/Thermi.Settings.Types` | Writes the settings window page's TypeScript from Core in the build: the bridge's types and the texts' keys; and the agents' JSON Schemas. Then installs and builds the page, once for every host. |
 | `src/Thermi.Client` | The .NET SDK of the agents' contract, which starts `thermi-cli`: `net10.0`, MIT, no dependencies. |
 | `src/Thermi.Sensors.Windows` | The `thermi-sensors` service, the only one that loads LibreHardwareMonitor and the one that updates thermi; the same host as the user's own process in a per-user install, which updates it and installs it for everyone; and the `thermi-elevated` service, which runs the window's two fixes as SYSTEM. |
 | `src/Thermi.Trust` | The checks the window's fixes and the updater make with Windows' own means before they trust a file: a folder only administrators change, Authenticode signatures, signed catalogs and a held switch lock. |
 | `src/Thermi.Releases` | `thermi-releases`, the owner's levers on the update channels, which sign each channel's manifest. |
 | `src/Thermi.Installer` | The MSI, built with WiX 5 from a published version. |
+| `src/Thermi.Sensors.Linux` | `thermi-sensors` on Linux: the service that reads `hwmon`, NVML, `/proc` and `/sys` as a user of its own, started by its socket. |
+| `src/Thermi.Linux` | `thermi` and `thermi-cli` on Linux, as the person: the overlay painted by Cairo and Pango on each desktop's surface, the settings window in WebKitGTK, and the agents' environment. |
+| `src/Thermi.Gnome` | The GNOME Shell extension, in JavaScript: shows on GNOME what `thermi` paints, above every window and the top bar. |
 | `tests/Thermi.Tests` | Behavior tests, recorded sensor data in `Recordings`, and the repo rules. |
 | `tests/Thermi.Windows.Tests` | Tests that need Windows, like the sensor pipe and the window's side of the bridge. |
+| `tests/Thermi.Linux.Tests` | Tests that need Linux: the service on recorded trees, its socket, and thermi against compositors of the tests' own. |
 | `src/Thermi.Settings.Web/tests` | The page's Playwright tests, with axe. |
 | `docs/QUICKSTART.md`, `docs/ARCHITECTURE.md` | What thermi is, as a story, and how it is built, with the real names. |
 | `docs/agents` | The contract `thermi-cli` answers AI agents and other programs, with its JSON Schemas. |
@@ -34,7 +38,7 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 
 | Command | What it does, and when |
 | --- | --- |
-| `pwsh scripts/check.ps1` | The one check: restore, format, build, notices, test count, tests and coverage, then the page's build, lint, react-doctor, unit, dead-code and Playwright tests. Here it runs only what the change can affect since this worktree's last green check, or since it left `main` (`-Base <branch>` for another), with the .NET half and the page's side by side. `-Full` runs every step, as the CI does. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. |
+| `pwsh scripts/check.ps1` | The one check: restore, format, build, notices, test count, tests and coverage, then the page's build, lint, react-doctor, unit, dead-code and Playwright tests. Here it runs only what the change can affect since this worktree's last green check, or since it left `main` (`-Base <branch>` for another), with the .NET half and the page's side by side. `-Full` runs every step, as the CI does, but for the page on Linux. Run it before every PR. `-Part DotNet` or `-Part Web` runs one half. On Linux it builds and runs `tests/Thermi.Tests` and `tests/Thermi.Linux.Tests` (`-Part LinuxCore`, `-Part Linux`); the page's Playwright tests in WebKit and Chromium run apart, as the CI runs them: `npm run build`, then `npx playwright test`, in `src/Thermi.Settings.Web`. |
 | `pwsh scripts/check.ps1 -Mutation` | The same, then the Bug hunt: Stryker plants small bugs in Core, the CLI and the page's logic, one at a time, and scores the share their tests catch, with the rows that catch and run nothing of their own (`scripts/redundant.ps1`). Slow: run it when you change Core, the CLI, the page's logic or their tests. The CI runs it each night. |
 | `pwsh scripts/stats.ps1` | Prints the CI's dashboard for the last check here: counts, coverage, lines of code, the Bug hunt if it ran, specs, timings, each against `main`'s last from the `stats` branch. The CI writes it into each run's summary. |
 | `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-method "*Threshold*"` | Runs only some tests while you work. `-Web tests/Quality.spec.ts -g "fits"` builds the page and runs some Playwright tests. Set `THERMI_WEB_PORT` to another port than 4173 if something else holds it. |
@@ -51,8 +55,11 @@ Requires the .NET SDK in `global.json` and PowerShell 7.
 | `pwsh scripts/updates.ps1 <command>` | Packs a version and its MSIs, makes keys, and pulls the update channels' levers: `docs/RELEASES.md`. |
 | `thermi-sensors --dump <file> [--seconds <n>]` | Saves what the sensors read now, or a series of one snapshot a second, to report a bug or record test data. As administrator it sees everything; without, it records the no-admin case. |
 | `thermi-sensors --frames <file> --seconds <n>` | As administrator, records every present for n seconds, to replay frames in tests. It never records a process's name. |
-| `thermi preview <snapshot> <png> [scale] [settings]` | Paints the first overlay for a saved snapshot, at a scale from 0.25 to 8, without showing it. In PowerShell, wrap it in `Start-Process -Wait`. |
-| `thermi settings [--overlay <n>]` | Opens the settings window on overlay n, from 1. `--pseudo` makes its texts 40 % longer; `--trace` logs each paint and input to `%LOCALAPPDATA%\thermi`. |
+| `thermi-sensors --tree <folder> [--seconds <n>]` | On Linux, copies the files under `/sys` and `/proc` the sensors read, and NVML's answers, a folder a second, for tests to replay. Run it with `sudo` for the service's view, or as yourself for a plain user's. |
+| `thermi-sensors --root <tree> [--dump <file>]` | On Linux, reads a saved tree in place of the kernel's files: with `--dump`, to see what the service makes of it; with `--console`, to serve it. |
+| `thermi-sensors --console` | On Linux, serves the readings on a socket of your own, `$XDG_RUNTIME_DIR/thermi/sensors.sock`, which thermi reads where the service's is missing or stopped. |
+| `thermi preview <snapshot> <png> [scale] [settings]` | Paints the first overlay for a saved snapshot, at a scale from 0.25 to 8, without showing it; an empty file paints the sensors stopped, and a file that is no snapshot says why and exits with 2. In PowerShell, wrap it in `Start-Process -Wait`. |
+| `thermi settings [--overlay <n>]` | Opens the settings window on overlay n, from 1. `--pseudo` makes its texts 40 % longer; `--trace` logs each paint and input to the log folder, `%LOCALAPPDATA%\thermi` or `~/.local/state/thermi`. On Linux, `thermi --trace` also writes on stderr the events the tests wait for (`src/Thermi.Linux/README.md`). |
 
 To record how the fans answer a CPU load: as administrator run `thermi-sensors --dump <file> --seconds 45`, wait 5 s, run `Start-Process -Wait thermi -ArgumentList cpu-load,30`, and let the recording finish.
 
@@ -68,10 +75,10 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | Code lines up to 160 characters (generated `.g.ts` aside). | `RepoRulesTests` |
 | Code lives in folders by topic, at most 12 C# files directly in any folder, and a namespace follows its folder. | `RepoRulesTests`, IDE0130 |
 | `Thermi.Core` depends on nothing, Windows included. | its target framework, `RepoRulesTests` |
-| What every OS's host shares, `Thermi.Core`, `Thermi.App`, `Thermi.Cli` and `Thermi.Client`, targets plain `net10.0` and builds on no Windows-only project. | `RepoRulesTests` |
-| Each file of a `*.Windows` project uses a Windows-only API, or a type of its project that does, or is listed in the rule with why it stays. | `RepoRulesTests` |
+| What every OS's host shares, `Thermi.Core`, `Thermi.App`, `Thermi.Cli` and `Thermi.Client`, targets plain `net10.0` and builds on no Windows-only project and no `*.Linux` one. | `RepoRulesTests` |
+| Each file of a `*.Windows` project uses a Windows-only API, or a type of its project that does, or is listed in the rule with why it stays; and each file of a `*.Linux` project likewise a Linux-only one: GirCore's GTK, WebKit, Cairo, Pango and D-Bus, `/sys` and `/proc`, a Unix socket and its peer's credentials, systemd, NVML or `gtk4-layer-shell`. | `RepoRulesTests` |
 | No WPF: the settings window is a web page in WebView2, so no process of thermi's loads WPF. | `RepoRulesTests` |
-| The page has no `<i>` but the icon's: Edge would load the italic face, which nothing draws, when one first shows, and the page waits for it. | the page's ESLint |
+| The page has no `<i>`: Edge would load the italic face, which nothing draws, when one first shows, and the page waits for it. | the page's ESLint |
 | The page scores 100 with react-doctor: a warning fails the check as an error does. | `--blocking warning` in the page's `doctor` script |
 | Every project has a `README.md`: a short intro, and a table of its folders that names every folder with code and none that is gone. | `RepoRulesTests` |
 | The README quotes no count or score a run measures, which goes stale: its badges and each CI run's dashboard show them. | `RepoRulesTests` |
@@ -80,10 +87,11 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | `Thermi.Core` keeps 90 % line and branch coverage, and `Thermi.Cli` 85 %. | `scripts/check.ps1` |
 | A new field of the settings goes into `src/Thermi.Core/Editing/ConfigFields.cs`, or undo cannot take it back. | `UndoRulesTests` |
 | The settings change shape only with a new format version and its migration, or with the reason an earlier version reads them as they are, recorded in `tests/Thermi.Tests/Configs/shapes.json`; what a version does not know it keeps. | `RepoRulesTests`, `UnknownFields` |
-| Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. A Win32 timer (`SetTimer`) may only wake a window's loop, and what it then shows reads the injected clock. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002 |
+| Time comes from an injected `TimeProvider`: no real clock, sleeps, delays or timers without it. A Win32 timer (`SetTimer`) or a GLib timeout (`TimeoutAdd`, `TimeoutAddSeconds`) may only wake a window's or the main loop, and what it then shows reads the injected clock. No blocking on tasks. | `BannedSymbols.txt`, VSTHRD002; review for what a Win32 timer or a GLib timeout wakes, which neither bans |
+| On Linux, GTK's objects die on its main loop: what thermi lets go of that sent a signal thermi heard, or came in one, goes through `MainLoopRelease`, as GirCore's copies of a signal's arguments would have .NET's finalizer thread free it. One that sent none, as a file dialog or a texture, has no such copy. | `MainLoopRelease`'s watch of what it holds, `SurfaceTests` for the overlays' windows; review for the rest |
 | Every class logs through an injected `ILogger`, each event a `[LoggerMessage]`; no static log, `Trace` or `Debug`. | `BannedSymbols.txt`, CA1848, CA2254 |
-| Win32 calls are generated by CsWin32 from `NativeMethods.txt`, never declared by hand. | `RepoRulesTests` |
-| No test shows a window or starts a process on the user's desktop: windows are made under `TestWindows.OnOwnDesktop`, processes start through `DesktopProcess`, both on a desktop of the tests' own. | `RepoRulesTests` |
+| Win32 calls are generated by CsWin32 from `NativeMethods.txt`, never declared by hand. On Linux, GirCore generates GTK's, WebKit's, Cairo's, Pango's and D-Bus's; only NVML's, `gtk4-layer-shell`'s with libc's `dlopen` that loads it, GDK's `gdk_x11_*`, and X11's through Xlib, Xext, XCB and RandR are declared by hand, their libraries listed in the rule with why. | `RepoRulesTests` |
+| No test shows a window or starts a process on the user's desktop: windows are made under `TestWindows.OnOwnDesktop`, processes start through `DesktopProcess`, both on a desktop of the tests' own. On Linux, every process, a compositor and the SDK's `thermi-cli` among them, starts through `OwnSession`, with a runtime folder, Wayland and X11 displays and a D-Bus session bus of the test's own, never the person's; the one thing of theirs a test uses is their systemd user manager, which runs the test's own manager in a scope it delegates, `thermi-tests-<pid>-<guid>`, loading the test's units alone. Each async Linux test carries `Timeout = Bound.Test`, and each wait of its helpers runs out before it, saying what it waited for and the program's last lines, so none hangs the run. | `RepoRulesTests` |
 | No test writes to Windows' Event Log: only the sinks each program's Main hands down reach it, and no test names one. | `RepoRulesTests` |
 | No TODOs in code: open an issue. | MA0026 |
 | Comments say why, never what. No process history (issue numbers, "for now") in production code. | `RepoRulesTests`, comment-trimmer |
@@ -96,7 +104,7 @@ A rule without a check gets forgotten. If you add a rule, add its check in the s
 | No package with a known vulnerability: any NuGet package, and any npm package the page ships, unless `scripts/audit.ps1` lists its advisory with why it cannot reach a user and a date to look again. A PR adds none. | `scripts/audit.ps1` and dependency review in `.github/workflows/security.yml`, each day too |
 | No secret anywhere in the history: a finding is revoked, then removed, and only a proven false positive is allowed, in `.gitleaks.toml`, with its reason. | gitleaks in `.github/workflows/security.yml` |
 | Recordings and snapshots name no PC, person or network: no machine or user names, user folders, addresses, serial numbers or Wi-Fi names, and a network adapter's id is a made-up GUID. | `RepoRulesTests` |
-| `thermi-cli` never elevates, starts a service or installs anything. | `RepoRulesTests` |
+| `thermi-cli` never elevates, installs anything or starts a service itself. On Linux, systemd starts the sensor service when any client connects to its socket, `thermi-cli` too (`docs/adr/0019-linux.md`). | `RepoRulesTests` |
 | Every answer of the agents' contract validates against its schema, and a schema only grows. | `ContractTests` |
 | `THIRD-PARTY-NOTICES.md` lists every package that ships, NuGet and npm, with its license, and each license's text with every copyright line. | `scripts/notices.ps1 -Check` in `scripts/check.ps1` |
 | thermi's version lives only in `Directory.Build.props`, and About shows it. | `BridgeContractTests` |

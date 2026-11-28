@@ -41,12 +41,20 @@ function installFake(initial: FakeState): void {
   // The answers on their way from the oracle, a round trip to the test that a busy PC makes long: until they come, the
   // page still shows what it showed before the call.
   let answering = 0;
+  // Who waits for the page to catch up, woken as an answer lands or the page reads the settings.
+  const waiting: (() => void)[] = [];
+  const wake = (): void => {
+    if (answering === 0 && read === changes) {
+      waiting.splice(0).forEach((done) => done());
+    }
+  };
   const answered = async <T>(answer: Promise<T> | undefined): Promise<T | undefined> => {
     answering += 1;
     try {
       return await answer;
     } finally {
       answering -= 1;
+      wake();
     }
   };
   // As C# tells it, with whether the sensors or the service may have changed.
@@ -93,7 +101,11 @@ function installFake(initial: FakeState): void {
     },
     pick: (pick) => pickers.forEach((picker) => picker(pick)),
     answered,
-    caughtUp: () => answering === 0 && read === changes,
+    caughtUp: async () =>
+      new Promise<void>((done) => {
+        waiting.push(done);
+        wake();
+      }),
   };
 
   // The views, the look files, the pictures, the catalog, the finder and the window's status are each installed apart, after this.
@@ -101,6 +113,7 @@ function installFake(initial: FakeState): void {
   window.thermi = {
     settings: async () => {
       read = changes;
+      wake();
       return structuredClone(state.settings);
     },
     problem: async () => state.problem,
@@ -186,9 +199,30 @@ function installFake(initial: FakeState): void {
       changed(true);
       return true;
     },
+    // An extension of another version takes the Shell's update only at the next sign-in, so it stays as it was.
+    installExtension: async () => {
+      if (state.extensionAnswer === 'refused') {
+        return false;
+      }
+      state.extension = state.extension === 'other-version' ? state.extension : 'enabled';
+      changed();
+      return true;
+    },
+    // The window's own state, which only the maximize button changes in a page; a move is only counted.
+    caption: async (action) => {
+      state.moves += action === 'move' ? 1 : 0;
+      if (action === 'maximize') {
+        state.maximized = !state.maximized;
+        changed();
+      }
+    },
     startOverlay: async () => {
+      if (state.overlayAnswer === 'refused') {
+        return false;
+      }
       state.overlayRunning = true;
       changed();
+      return true;
     },
     restore: async () => {
       state.problem = null;
@@ -256,7 +290,7 @@ export async function openWindow(page: Page, state: FakeState = fakeState()): Pr
   await page.addInitScript(installLateReplies);
   await page.goto('/');
   // A person's first key comes once the window shows its settings, not while the page is still starting.
-  await page.waitForFunction(() => window.thermiFake?.caughtUp() === true, undefined, { timeout: 10_000 });
+  await page.evaluate(async () => window.thermiFake?.caughtUp());
   await page.evaluate(settled);
 }
 
@@ -277,7 +311,7 @@ export async function windowWith(context: BrowserContext, state: FakeState): Pro
  * them and drawn what it read, so the test's next key lands on the page as it shows them, as a person's does.
  */
 export async function fakeOf(page: Page): Promise<FakeState> {
-  await page.waitForFunction(() => window.thermiFake?.caughtUp() !== false, undefined, { timeout: 5000 });
+  await page.evaluate(async () => window.thermiFake?.caughtUp());
   await page.evaluate(settled);
   return page.evaluate(() => {
     if (window.thermiFake === undefined) {

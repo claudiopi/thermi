@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ExtensionState } from '../bridge/bridge.g';
 import { bridge, type WindowData } from '../bridge/useWindow';
 import { Button, Dialog, Icon, InfoBar, LinkButton, Progress } from '../kit';
 import { useText } from '../texts/Texts';
@@ -169,6 +170,65 @@ function ServiceBar({ data }: { data: WindowData }) {
   );
 }
 
+/**
+ * The GNOME Shell extension's bar, while C# offers its fix: missing, to install behind GNOME's own prompt, or off, to
+ * turn on; refused, it says so and offers it again. Installed but not read by the Shell, which did not install it from
+ * extensions.gnome.org, it says to sign in again, with no button, as nothing here can do that. Once the Shell has it on, C# offers no fix and the bar goes.
+ */
+function ExtensionBar({ fix }: { fix: ExtensionState | null }) {
+  const t = useText();
+  const [refused, setRefused] = useState(false);
+  if (fix === null || fix === 'enabled') {
+    return null;
+  }
+  const install = async (): Promise<void> => {
+    setRefused(false);
+    setRefused(!((await bridge()?.installExtension().catch(() => false)) ?? false));
+  };
+  const words = {
+    missing: ['WindowText.ExtensionMissing', 'WindowText.ExtensionMissingMore', 'WindowText.InstallExtension'],
+    disabled: ['WindowText.ExtensionDisabled', 'WindowText.ExtensionDisabledMore', 'WindowText.EnableExtension'],
+    'other-version': ['WindowText.ExtensionOtherVersion', 'WindowText.ExtensionOtherVersionMore', 'HostText.GnomeExtensionUpdate'],
+    'next-sign-in': ['WindowText.ExtensionNextSignIn', 'WindowText.ExtensionNextSignInMore', null],
+  } as const;
+  const [title, message, button] = words[fix];
+  const failed = refused && button !== null;
+  return (
+    <InfoBar
+      intent={failed ? 'error' : 'warning'}
+      title={t(failed ? 'WindowText.ExtensionRefused' : title)}
+      message={t(message)}
+      actions={
+        button === null ? undefined : (
+          <Button ref={failed ? focusOnMount : null} onClick={() => void install()}>
+            {t(failed ? 'WindowText.TryAgain' : button)}
+          </Button>
+        )
+      }
+    />
+  );
+}
+
+function OverlayBar() {
+  const t = useText();
+  const [failed, setFailed] = useState(false);
+  const start = async (): Promise<void> => {
+    setFailed(false);
+    setFailed(!((await bridge()?.startOverlay().catch(() => false)) ?? false));
+  };
+  return (
+    <InfoBar
+      intent={failed ? 'error' : 'info'}
+      title={t(failed ? 'WindowText.OverlayNotStarted' : 'UiText.OverlayNotRunning')}
+      actions={
+        <Button ref={failed ? focusOnMount : null} onClick={() => void start()}>
+          {t(failed ? 'WindowText.TryAgain' : 'UiText.StartOverlay')}
+        </Button>
+      }
+    />
+  );
+}
+
 export interface BarsProps {
   data: WindowData;
   /** The driver installed: the focus goes back to the list's selected row. */
@@ -177,20 +237,14 @@ export interface BarsProps {
 
 /**
  * The bars under the title row, for what keeps the window from working fully, each with its fix: the overlay not
- * running, the sensor service stopped or late, and the CPU's driver.
+ * running, the sensor service stopped or late, the GNOME Shell extension missing or off, and the CPU's driver.
  */
 export function Bars({ data, onDriverInstalled }: BarsProps) {
-  const t = useText();
   return (
     <div className="t-bars" aria-live="polite">
-      {!data.status.overlay && (
-        <InfoBar
-          intent="info"
-          title={t('UiText.OverlayNotRunning')}
-          actions={<Button onClick={() => void bridge()?.startOverlay()}>{t('UiText.StartOverlay')}</Button>}
-        />
-      )}
+      {!data.status.overlay && <OverlayBar />}
       <ServiceBar data={data} />
+      <ExtensionBar fix={data.status.extension} />
       <DriverBar needed={data.status.driver} forEveryone={data.status.forEveryone} onInstalled={onDriverInstalled} />
     </div>
   );

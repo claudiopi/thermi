@@ -146,7 +146,7 @@ internal sealed partial class AgentCommands
             : written with { Error = $"{written.Error} The look's file kept its new name, {to.Trim()}, while the overlays still wear {was}." };
     }
 
-    private AgentReply StartWithWindows(bool? on)
+    private async Task<AgentReply> StartWithWindowsAsync(bool? on, CancellationToken stop)
     {
         if (environment.SensorsOnly())
         {
@@ -156,12 +156,23 @@ internal sealed partial class AgentCommands
                 "This install is thermi's sensors alone: there is no overlay to start.");
         }
 
-        if (on is { } set)
+        // systemctl --user has no manager to reach from cron or a container: refuse with why, not crash.
+        try
         {
-            environment.Startup.Set(set);
+            if (on is { } set)
+            {
+                await environment.Startup.SetAsync(set, stop);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new AgentReply(
+                AgentExit.Refused,
+                AgentJson.Write(new StartAnswer(await environment.Startup.OnAsync(stop), Overlay: true)),
+                $"Start at sign-in could not be changed: {ex.Message}");
         }
 
-        return new AgentReply(AgentExit.Done, AgentJson.Write(new StartAnswer(environment.Startup.On, Overlay: true)));
+        return new AgentReply(AgentExit.Done, AgentJson.Write(new StartAnswer(await environment.Startup.OnAsync(stop), Overlay: true)));
     }
 
     // Core's edit, tried on the file as read and refused there without a write, then made over the file as it is then.

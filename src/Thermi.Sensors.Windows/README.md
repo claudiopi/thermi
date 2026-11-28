@@ -7,9 +7,8 @@ Fewer dependencies in a SYSTEM process is a security property, so it takes no lo
 | Folder | What lives there |
 | --- | --- |
 | `Reading` | LibreHardwareMonitor, each device updated on its own thread, so one that stalls holds back none (`docs/adr/0015-a-stalled-device-holds-back-none.md`), and what the service mends before it sends. |
-| `Pipe` | The `thermi-sensors` pipe: the whole snapshot once, then the values alone (`docs/adr/0012-sensor-pipe-catalog-once.md`). |
+| `Pipe` | The `thermi-sensors` pipe, whose clients it takes in and hands to Core's `SnapshotBroadcast`, which sends the whole snapshot once, then the values alone (`docs/adr/0012-sensor-pipe-catalog-once.md`). |
 | `Service` | The command line, what the service reaches outside its code (which tests replace), and the `thermi-elevated` service that runs the window's two fixes. |
-| `Recording` | `--dump <file> --seconds <n>`: a series for tests to replay. |
 | `Frames` | The frames games present, from ETW (`docs/adr/0014-frames-from-etw.md`). |
 | `Updates` | The updater and the watchdog that switches versions and rolls back (`docs/adr/0008-updates.md`). |
 | `Install` | `--adopt` and `--remove`: lay a version down or take thermi off, for the MSI and `scripts/install.ps1`. |
@@ -19,7 +18,7 @@ Entry points worth knowing:
 
 - `Program.cs` reads the arguments and runs the service, a console, a dump, a watchdog or an install.
 - `Reading/LhmSensorSource.cs` is the only class that talks to LibreHardwareMonitor.
-- `Pipe/SensorPipeServer.cs` writes each snapshot to every client, and ends the process when a read hangs past 60 s, so Windows restarts it.
+- `Pipe/SensorPipeServer.cs` takes in each client of the pipe and hands it to Core's `SnapshotBroadcast`, which writes each snapshot to every client and ends the process when a read hangs past 60 s, so Windows restarts it.
 - `Updates/Updater.cs` checks the channel and takes a version only when its signatures hold.
 
 Its tests are in `tests/Thermi.Windows.Tests/Sensors`.

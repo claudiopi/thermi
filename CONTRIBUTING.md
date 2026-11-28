@@ -14,25 +14,28 @@ The easiest real change is in `src/Thermi.Core`, which holds everything thermi d
 | 2. A task | An issue labeled [good first issue](https://github.com/claudiopi/thermi/labels/good%20first%20issue), or any small fix. For anything bigger, open an issue first so we agree on the approach. |
 | 3. The test first | Write the test in `tests/Thermi.Tests`, next to the tests of the code you change, and watch it fail. If the behavior already has a test, add a row to its `[Theory]` instead of a new test. |
 | 4. The change | Change `src/Thermi.Core` until the test passes. |
-| 5. Run your tests | Windows: `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-class "*YourTests"`. Linux or macOS: `dotnet test --project tests/Thermi.Tests --filter-class "*YourTests"`. |
-| 6. Check | On Windows: `pwsh scripts/check.ps1 -Part Core`, which runs the format, the build, the test count and every test of `tests/Thermi.Tests` with Core's coverage. It also builds the settings page, which needs Node.js 22.12 or later. On Linux or macOS, skip this step: the CI runs it. |
+| 5. Run your tests | Windows or Linux: `pwsh scripts/test.ps1 --project tests/Thermi.Tests --filter-class "*YourTests"`. macOS: `dotnet test --project tests/Thermi.Tests --filter-class "*YourTests"`. |
+| 6. Check | On Windows: `pwsh scripts/check.ps1 -Part Core`, which runs the format, the build, the test count and every test of `tests/Thermi.Tests` with Core's coverage. It also builds the settings page, which needs Node.js 22.12 or later. On Linux: `pwsh scripts/check.ps1 -Part LinuxCore`, which builds and runs every test of `tests/Thermi.Tests`; the CI runs the format, the test count and the coverage. On macOS, skip this step: the CI runs it. |
 | 7. The PR | One change per PR. The title follows [Conventional Commits](https://www.conventionalcommits.org) (`fix: ...`, `feat: ...`), because it becomes the commit message. |
 
 A new feature, as opposed to a fix, starts with a spec that a person approves: [docs/specs/README.md](docs/specs/README.md).
 
 ## What the CI runs for you
 
-Every PR runs all of `scripts/check.ps1` on Windows, whatever you ran yourself. A PR merges only when its one required check, `CI gate`, passes ([docs/RELEASES.md](docs/RELEASES.md)).
+Every PR runs all of `scripts/check.ps1` on Windows and on Linux, whatever you ran yourself, and the page's tests on Linux beside it. A PR merges only when its one required check, `CI gate`, passes ([docs/RELEASES.md](docs/RELEASES.md)).
 
-| Job | What it checks | Needs Windows |
+| Job | What it checks | Runs on |
 | --- | --- | --- |
-| Core | Restore, format, build, the third-party notices, the test count, `tests/Thermi.Tests` and Core's coverage | No: you can run most of it anywhere |
-| Windows tests | `tests/Thermi.Windows.Tests`: the overlay, the sensor pipe, the settings window | Yes |
-| Settings page | The page's build, lint, react-doctor, unit tests, dead code, and Playwright with axe in Edge | Yes, for Playwright |
-| Installers | The MSIs for x64 and Arm64 | Yes |
-| PR title, Security | The title's format, secrets and vulnerable packages | No |
+| Core | Restore, format, build, the third-party notices, the test count, `tests/Thermi.Tests` and Core's coverage | Windows; you can run most of it anywhere |
+| Windows tests | `tests/Thermi.Windows.Tests`: the overlay, the sensor pipe, the settings window | Windows |
+| Thermi.Tests on Linux | `tests/Thermi.Tests` again, as Linux's .NET reads paths, cultures and files its own way | Linux |
+| Linux tests | `tests/Thermi.Linux.Tests`: the sensor service, its socket, the overlay against headless desktops, and the packages installed in containers | Linux |
+| Settings page | The page's build, lint, react-doctor, unit tests, dead code, the GNOME extension's lint, and Playwright with axe in Edge | Windows |
+| Settings page on Linux | The page's Playwright tests in WebKit and Chromium | Linux |
+| Installers | The MSIs for x64 and Arm64 | Windows |
+| PR title, Security | The title's format, secrets and vulnerable packages | Either: none of it runs thermi |
 
-Without Windows you can still open the PR: the CI runs what needs Windows, and its failures show in the run's summary.
+Without Windows or Linux you can still open the PR: the CI runs what needs each, and its failures show in the run's summary.
 
 ## The rules that trip people
 

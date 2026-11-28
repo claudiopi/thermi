@@ -247,11 +247,12 @@ test.describe('AxeFindsNothingInAnyState', () => {
       test.fixme(`${view.name}, until ${view.waits}`, () => {});
       continue;
     }
-    test(view.name, async ({ page }) => {
+    test(view.name, async ({ page, browserName }) => {
       await openWindow(page, fakeState(view.state));
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await openOn(page, view);
-      for (const mode of modes) {
+      // WebKit forces no colors: emulated, the query matches and nothing is forced, and WebKitGTK's window never matches it.
+      for (const mode of modes.filter((each) => browserName !== 'webkit' || each.forcedColors === 'none')) {
         await page.emulateMedia({ colorScheme: mode.colorScheme, forcedColors: mode.forcedColors });
         // As the host marks the page where Windows refuses Mica. The page follows the mode on its next render, so axe
         // waits for it: on a solid background, a frame in between would read as text of the other mode.

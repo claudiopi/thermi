@@ -143,7 +143,7 @@ export async function settled(): Promise<void> {
 /** What a person would see as broken: the page scrolling sideways, a text cut, or two controls overlapping. */
 export async function layoutFaults(page: Page): Promise<string[]> {
   // What the window shows once C# answered what the view asked, as a delete's: until then it still shows the page before.
-  await page.waitForFunction(() => window.thermiFake?.caughtUp() !== false, undefined, { timeout: 5000 });
+  await page.evaluate(async () => window.thermiFake?.caughtUp());
   // After a resize, once the page measured its new size and drew again.
   await page.evaluate(settled);
   return page.evaluate(async () => {
@@ -255,8 +255,8 @@ export async function layoutFaults(page: Page): Promise<string[]> {
         }
       }
     }
-    // A button says something of its own, never its row's name again. Its words only: an icon is a glyph of Windows' font.
-    const wordsOf = (element: Element): string => (element.textContent ?? '').replace(/\p{Co}/gu, '').trim();
+    // A button says something of its own, never its row's name again.
+    const wordsOf = (element: Element): string => (element.textContent ?? '').trim();
     for (const button of controls.filter((one) => one.matches('button'))) {
       const own = wordsOf(button);
       let row = button.parentElement;

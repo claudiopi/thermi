@@ -58,6 +58,18 @@ public sealed class Texts
     /// </summary>
     public static Texts Pseudo() => new(English._texts.ToFrozenDictionary(pair => pair.Key, pair => Stretch(pair.Value), StringComparer.Ordinal));
 
+    /// <summary>These texts with some in other words: each key of <paramref name="words"/> says the text its value keys.</summary>
+    public Texts With(IEnumerable<KeyValuePair<string, string>> words)
+    {
+        var said = new Dictionary<string, string>(_texts, StringComparer.Ordinal);
+        foreach (var (key, other) in words)
+        {
+            said[key] = _texts[other];
+        }
+
+        return new Texts(said.ToFrozenDictionary(StringComparer.Ordinal));
+    }
+
     /// <summary>Every text by its key, as the window's page takes them.</summary>
     public IReadOnlyDictionary<string, string> All => _texts;
 

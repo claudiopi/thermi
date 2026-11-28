@@ -10,9 +10,6 @@ namespace Thermi.Windows.Painting;
 /// </summary>
 internal sealed class PainterFonts : IDisposable
 {
-    // A tag is said small and quiet after its value, so the value stays what the eye finds first.
-    private const double TagShare = 0.8;
-
     public PainterFonts(StyleFont font, TextStyle label, TextStyle value, float scale)
     {
         Key = (font, label, value, scale);
@@ -21,7 +18,7 @@ internal sealed class PainterFonts : IDisposable
         try
         {
             made = Make(font, value, scale);
-            Tag = Make(font, new TextStyle(label.Size * TagShare, TextWeight.Regular), scale);
+            Tag = Make(font, new TextStyle(label.Size * Core.Painting.PaintSizes.TagShare, TextWeight.Regular), scale);
             Value = made;
         }
         catch

@@ -12,45 +12,15 @@ using Windows.Win32.System.Recovery;
 namespace Thermi.Windows.Tests;
 
 /// <summary>
-/// What <c>thermi</c> and <c>thermi-sensors</c> make of their arguments, read before anything runs: arguments that make
-/// no sense are null, which exits with 2.
+/// What <c>thermi</c> and <c>thermi-sensors</c> make of their arguments on Windows, read before anything runs: arguments
+/// that make no sense are null, which exits with 2.
 /// </summary>
 public sealed class CommandLineTests : IDisposable
 {
-    // A snapshot that exists, since a preview refuses one that does not.
-    private static readonly string Snapshot = TestRecordings.Path(TestRecordings.Admin);
 
     private readonly SettingsFolder _folder = new();
 
     public void Dispose() => _folder.Dispose();
-
-    [Theory]
-    [InlineData(new string[0], 0)]
-    [InlineData(new[] { "--overlay", "2" }, 2)]
-    [InlineData(new[] { "--overlay", "0" }, null)]
-    [InlineData(new[] { "--overlay", "two" }, null)]
-    [InlineData(new[] { "--overlay" }, null)]
-    [InlineData(new[] { "--other" }, null)]
-    [InlineData(new[] { "--overlay", "2", "extra" }, null)]
-    public void SettingsTakesAnOverlayCountedFromOne(string[] args, int? overlay)
-    {
-        var request = ThermiCommands.Parse(["settings", .. args], out var errors);
-
-        Assert.Equal(overlay, (request as SettingsRequest)?.Overlay);
-        Assert.Equal(overlay is null, request is null);
-        Assert.Equal(overlay is null, errors.Count > 0);
-    }
-
-    // Without --trace the debug events are left out; the option goes before or after the command.
-    [Theory]
-    [InlineData(new string[0], false)]
-    [InlineData(new[] { "--trace" }, true)]
-    public void TheOverlayRunsWithNoCommand(string[] args, bool trace)
-    {
-        Assert.Equal(new OverlayRequest(trace), ThermiCommands.Parse(args, out _));
-        Assert.Equal(new SettingsRequest(2, trace, Pseudo: false), ThermiCommands.Parse(["settings", .. args, "--overlay", "2"], out _));
-        Assert.Equal(new SettingsRequest(0, trace, Pseudo: false), ThermiCommands.Parse([.. args, "settings"], out _));
-    }
 
     // The overlay that crashed or hung is started again as it ran, traced or not, and never by an update of thermi or of
     // Windows, which start it themselves: a second thermi would open the window. This process registers as the overlay
@@ -166,41 +136,16 @@ public sealed class CommandLineTests : IDisposable
         Assert.Equal(exit, await run);
     }
 
-    // The scale is read in the invariant culture, so 1.5 is the same in every language. The settings file may be missing:
-    // the preview paints the defaults then, and creates none.
-    [Theory]
-    [InlineData(new[] { "o.png" }, 1f, null)]
-    [InlineData(new[] { "o.png", "1.5" }, 1.5f, null)]
-    [InlineData(new[] { "o.png", "0.25" }, 0.25f, null)]
-    [InlineData(new[] { "o.png", "8" }, 8f, null)]
-    [InlineData(new[] { "o.png", "2", "c.json" }, 2f, "c.json")]
-    public void APreviewTakesASnapshotAPngAScaleAndSettings(string[] args, float scale, string? settings)
-    {
-        Assert.Equal(new PreviewRequest(Snapshot, "o.png", scale, settings), ThermiCommands.Parse(["preview", Snapshot, .. args], out _));
-    }
-
-    // A comma is no decimal point, and a scale past 8 or under a quarter is a typo, never a picture worth painting.
-    [Theory]
-    [InlineData("o.png", "1,5")]
-    [InlineData("o.png", "NaN")]
-    [InlineData("o.png", "0.2")]
-    [InlineData("o.png", "8.5")]
-    [InlineData("o.png", "1", "c.json", "more")]
-    [InlineData]
-    public void APreviewWithoutItsFilesOrWithABadScaleExitsWithTwo(params string[] args)
-    {
-        Assert.Null(ThermiCommands.Parse(["preview", Snapshot, .. args], out var errors));
-        Assert.NotEmpty(errors);
-    }
-
     // thermi.exe is a windowed program, so what it says goes to stderr only when someone reads it: here, a pipe. Arguments
-    // that make no sense exit with 2, a snapshot that is none too, as the user's input; a picture Windows would not write,
-    // here into a folder that is not there, is a run that failed, with 1.
+    // that make no sense exit with 2, a snapshot that is none too, as the user's input, where an empty one is the sensors
+    // stopped, which it paints, as on every OS; a picture Windows would not write, here into a folder that is not there, is
+    // a run that failed, with 1.
     [Theory]
     [InlineData(2, "--overlay takes a whole number from 1 up.", "settings", "--overlay", "0")]
     [InlineData(2, "not-there.json", "preview", "not-there.json", "o.png", "1", "own-settings.json")]
     [InlineData(2, "scale takes a number from 0.25 to 8, such as 1.5.", "preview", TestRecordings.Admin, "o.png", "1,5", "own-settings.json")]
     [InlineData(2, "is not a snapshot saved with thermi-sensors --dump.", "preview", "own-junk.json", "o.png", "1", "own-settings.json")]
+    [InlineData(0, "", "preview", "own-empty.json", "own-picture.png", "1", "own-settings.json")]
     [InlineData(1, "could not be written: Could not find a part of the path", "preview", TestRecordings.Admin, "own-missing-folder", "1", "own-settings.json")]
     public async Task WhatItCannotDoIsSaidOnStandardErrorWithItsExitCode(int expectedCode, string expected, params string[] args)
     {
@@ -210,21 +155,25 @@ public sealed class CommandLineTests : IDisposable
         Assert.Contains(expected, said, StringComparison.Ordinal);
     }
 
-    // The test's own files stand in for the words that name them: its settings, a file that is no snapshot, and a picture
-    // in a folder that is not there.
+    // The test's own files stand in for the words that name them: its settings, a file that is no snapshot, an empty one,
+    // a picture in its folder, and one in a folder that is not there.
     private async Task<(int Code, string Said)> RunAsync(string[] args)
     {
         var folder = Path.GetDirectoryName(_folder.File)!;
         var junk = Path.Combine(folder, "junk.json");
         await File.WriteAllTextAsync(junk, "{ \"not\": \"a snapshot\" }", TestContext.Current.CancellationToken);
+        var empty = Path.Combine(folder, "empty.json");
+        await File.WriteAllTextAsync(empty, "", TestContext.Current.CancellationToken);
         string[] words =
         [
             .. args.Select(argument => argument switch
             {
                 "own-settings.json" => _folder.File,
                 "own-junk.json" => junk,
+                "own-empty.json" => empty,
+                "own-picture.png" => Path.Combine(folder, "o.png"),
                 "own-missing-folder" => Path.Combine(folder, "not-there", "o.png"),
-                TestRecordings.Admin => Snapshot,
+                TestRecordings.Admin => TestRecordings.Path(TestRecordings.Admin),
                 _ => argument,
             }),
         ];
@@ -259,8 +208,8 @@ public sealed class CommandLineTests : IDisposable
     [InlineData(new[] { "--seconds", "45" }, "--seconds needs --dump or --frames.")]
     [InlineData(new[] { "--frames", "zwift.jsonl", "--seconds", "90" }, "frames zwift.jsonl 90")]
     [InlineData(new[] { "--frames", "zwift.jsonl" }, "--frames needs --seconds, and goes without --dump.")]
-    [InlineData(new[] { "--dump", "load.json", "--seconds", "0" }, "--seconds needs a whole number above zero.")]
-    [InlineData(new[] { "--dump", "load.json", "--seconds", "many" }, "--seconds needs a whole number above zero.")]
+    [InlineData(new[] { "--dump", "load.json", "--seconds", "0" }, "--seconds takes a whole number from 1 up.")]
+    [InlineData(new[] { "--dump", "load.json", "--seconds", "many" }, "--seconds takes a whole number from 1 up.")]
     [InlineData(new[] { "--elevated" }, "elevated")]
     [InlineData(new[] { "--elevated", "--console" }, "--elevated takes no other option.")]
     [InlineData(new[] { "--adopt", "--product", "{db4b32af-cd73-400d-bfc1-1a144c2be80c}" }, "Adopt {DB4B32AF-CD73-400D-BFC1-1A144C2BE80C}")]

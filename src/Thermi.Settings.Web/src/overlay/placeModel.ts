@@ -1,4 +1,4 @@
-import type { Monitor, Overlay, Rect, Snap, SnapSpot, Value } from '../bridge/bridge.g';
+import type { Monitor, Overlay, OverlayPlace, Rect, Snap, SnapSpot, Value } from '../bridge/bridge.g';
 import type { TextKey } from '../texts/Texts';
 
 // Where an overlay sits, as the Placement column and the page's subtitle say it: its spot, its display counted from
@@ -54,9 +54,10 @@ export function alongOf(placed: Placed | null, display: number, monitor: Monitor
 
 /**
  * What the Position row says under its name: how a free overlay or one on the taskbar moves, why a taskbar spot floats
- * beside a taskbar on a side or one that hides, or where a vertical one goes.
+ * beside a taskbar on a side or one that hides, where a vertical one goes, or that one shows beside its taskbar where C#
+ * says no room on it holds it, at `place`.
  */
-export function positionHint(placed: Placed | null, vertical: boolean, shown: readonly Monitor[]): TextKey | null {
+export function positionHint(placed: Placed | null, vertical: boolean, shown: readonly Monitor[], place: OverlayPlace | null): TextKey | null {
   if (placed === null) {
     return 'OverlayPageText.FreeHint';
   }
@@ -67,7 +68,10 @@ export function positionHint(placed: Placed | null, vertical: boolean, shown: re
   if (floats !== undefined) {
     return floats === 'side' ? 'OverlayPageText.TaskbarOnSide' : 'OverlayPageText.TaskbarHides';
   }
-  return vertical ? 'OverlayPageText.AboveTaskbar' : 'OverlayPageText.TaskbarHint';
+  if (vertical) {
+    return 'OverlayPageText.AboveTaskbar';
+  }
+  return place?.beside === true ? 'OverlayPageText.NoRoomHint' : 'OverlayPageText.TaskbarHint';
 }
 
 /** The snap a spot of the map writes, as an overlay edit's value: the main display is left out, as the file does. */

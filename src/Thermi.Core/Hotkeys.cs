@@ -16,6 +16,12 @@ public enum HotkeyFailures
     NextStyle = 2,
     ClickThrough = 4,
     ResetMinMax = 8,
+
+    /// <summary>
+    /// The desktop took none of the hotkeys, as one without a way to take them, or whose own dialog for them the person
+    /// declined, so every hotkey set failed, though no other program holds it.
+    /// </summary>
+    DesktopRefused = 16,
 }
 
 /// <summary>A hotkey's modifier keys, with the values Windows gives them, so the overlay passes them as they are.</summary>
@@ -91,7 +97,7 @@ public static class Hotkeys
 {
     private const uint FnvOffset = 2166136261;
     private const uint FnvPrime = 16777619;
-    private const long FailureBits = 0b1111;
+    private const long FailureBits = 0b1_1111;
 
     // F13 to F24, which no common keyboard has, so a hotkey of one alone takes no key another app needs.
     private const int F13 = 0x7C;
@@ -220,7 +226,7 @@ public static class Hotkeys
         return hash;
     }
 
-    /// <summary>The overlay's answer: the hash of the hotkeys it tried in the upper 32 bits, and which failed in the low four.</summary>
+    /// <summary>The overlay's answer: the hash of the hotkeys it tried in the upper 32 bits, and which failed in the low five.</summary>
     public static long Status(HotkeysConfig? tried, HotkeyFailures failed) => ((long)Hash(tried) << 32) | ((long)failed & FailureBits);
 
     /// <summary>Which of the hotkeys shown the overlay could not register, or null when its answer is about other hotkeys.</summary>

@@ -10,6 +10,11 @@ internal static class UserFolders
 
     public static string Local => Of("LOCALAPPDATA", Environment.SpecialFolder.LocalApplicationData);
 
+    /// <summary>Where Linux keeps what a program leaves of its own, as logs: <c>$XDG_STATE_HOME</c>, or <c>~/.local/state</c>.</summary>
+    public static string State => Environment.GetEnvironmentVariable("XDG_STATE_HOME") is { Length: > 0 } named
+        ? named
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "state");
+
     private static string Of(string variable, Environment.SpecialFolder folder) =>
         Environment.GetEnvironmentVariable(variable) is { Length: > 0 } named ? named : Environment.GetFolderPath(folder);
 }

@@ -167,12 +167,10 @@
   user-select: text;
 }
 
-@media (forced-colors: active) {
-  .t-hk-capturing {
-    border-color: Highlight;
-  }
+.t-contrast .t-hk-capturing {
+  border-color: Highlight;
+}
 
-  .t-kbd kbd {
-    border: 1px solid CanvasText;
-  }
+.t-contrast .t-kbd kbd {
+  border: 1px solid CanvasText;
 }

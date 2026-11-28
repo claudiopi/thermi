@@ -23,6 +23,10 @@ test('TheWindowSaysWhatIsWrongAndOffersTheFix', async ({ context }) => {
   type Fix = { fix: string; answer?: Partial<FakeState>; then: (state: FakeState) => boolean; shows?: string };
   const rows: { name: string; state: Partial<FakeState>; fixes: Fix[] }[] = [
     { name: 'no overlay', state: { overlayRunning: false }, fixes: [{ fix: 'UiText.StartOverlay', then: (state) => state.overlayRunning }] },
+    { name: 'the overlay did not start, then started', state: { overlayRunning: false, overlayAnswer: 'refused' }, fixes: [
+      { fix: 'UiText.StartOverlay', then: (state) => !state.overlayRunning, shows: 'WindowText.OverlayNotStarted' },
+      { fix: 'WindowText.TryAgain', answer: { overlayAnswer: 'accepted' }, then: (state) => state.overlayRunning },
+    ] },
     { name: 'the service stopped', state: { service: 'stopped' }, fixes: [{ fix: 'WindowText.StartIt', then: (state) => state.service === 'running' }] },
     { name: 'the service refused, then started', state: { service: 'stopped', serviceAnswer: 'refused' }, fixes: [
       { fix: 'WindowText.StartIt', then: (state) => state.service === 'stopped' },

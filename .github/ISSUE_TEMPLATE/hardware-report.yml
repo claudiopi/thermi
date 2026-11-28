@@ -6,7 +6,7 @@ body:
     attributes:
       value: >-
         Thanks. A report that everything looked right helps as much as one that something broke.
-        Before you attach a file, look it over: the logs name files under your profile, so they may show your Windows user name.
+        Before you attach a file, look it over: the logs name files under your profile, so they may show your user name.
   - type: input
     id: version
     attributes:
@@ -27,9 +27,9 @@ body:
   - type: input
     id: windows
     attributes:
-      label: Windows version
-      description: Settings > System > About shows it.
-      placeholder: Windows 11 24H2, or Windows 10 22H2
+      label: Windows version, or Linux distribution and desktop
+      description: On Windows, Settings > System > About shows it; on Linux, the distribution and the desktop, with GNOME's version.
+      placeholder: Windows 11 24H2, Windows 10 22H2, or Ubuntu 26.04 with GNOME 50
     validations:
       required: true
   - type: input
@@ -64,13 +64,16 @@ body:
         - label: "A laptop: the battery's items, unplugged, asleep and woken with an external monitor; Ctrl+wheel on a precision touchpad"
         - label: "A board whose CPU fan follows the load: the fan finder picks the CPU fan"
         - label: "A taskbar at the top, or a third-party one: the overlay sits on it where it is dropped"
+        - label: "Linux: an Intel or AMD GPU, a laptop's battery, another board's chip or an Arm64 PC, as thermi-cli sensors lists them and the overlay shows them on GNOME"
   - type: textarea
     id: dumps
     attributes:
       label: What the sensors read
       description: >-
-        Run `thermi-sensors --dump admin.json` in a terminal opened as administrator, and
-        `thermi-sensors --dump user.json` in a normal one, and attach both files.
+        On Windows, run `thermi-sensors --dump admin.json` in a terminal opened as administrator, and
+        `thermi-sensors --dump user.json` in a normal one, and attach both files. On Linux, run
+        `sudo /usr/lib/thermi/thermi-sensors --tree tree-sudo` and `/usr/lib/thermi/thermi-sensors --tree tree-user`, and
+        attach both folders in one archive, as `tar czf trees.tar.gz tree-sudo tree-user`.
     validations:
       required: true
   - type: textarea
@@ -92,4 +95,5 @@ body:
     attributes:
       label: Logs
       description: >-
-        If something went wrong, attach `thermi.log` and, for the settings window, `thermi-window.log`, from `%LOCALAPPDATA%\thermi`.
+        If something went wrong, attach `thermi.log` and, for the settings window, `thermi-window.log`, from
+        `%LOCALAPPDATA%\thermi` on Windows or `~/.local/state/thermi` on Linux.

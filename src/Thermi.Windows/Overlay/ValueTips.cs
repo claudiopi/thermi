@@ -1,6 +1,9 @@
 using System.Drawing;
 using System.Runtime.InteropServices;
 using Thermi.App.Gestures;
+using Thermi.App.Overlay;
+using Thermi.Core.Painting;
+using Thermi.Core.Placement;
 using Thermi.Windows.Painting;
 using Thermi.Windows.Win32;
 using Windows.Win32;
@@ -30,9 +33,6 @@ internal sealed class ValueTips : IDisposable
     // comctl32 version 5, which a process without its manifest loads, refuses version 6's longer structure.
     private static readonly uint ToolSize = (uint)Marshal.OffsetOf<TTTOOLINFOW>(nameof(TTTOOLINFOW.lpReserved));
 
-    // Between the tooltip and the overlay, so it reads as the overlay's and covers none of its pills.
-    private const int Gap = 6;
-
     // Room around the text at 100 %, as Windows 11's tooltips keep.
     private const int MarginAcross = 6;
     private const int MarginDown = 4;
@@ -51,13 +51,8 @@ internal sealed class ValueTips : IDisposable
     private readonly SUBCLASSPROC _placed;
     private bool? _dark;
 
-    // The drop whose quiet holds the tooltips, while it does, and the last one heard of, which holds them only once.
-    private DropQuiet? _quiet;
-    private long? _heard;
-
-    // A tooltip shows again only once no hush holds, so a drop's quiet ending mid-press, or a menu closing within it,
-    // frees nothing the others hold.
-    private Hush _hush;
+    // What holds the tooltips quiet, as every OS's overlay holds them.
+    private readonly TipQuiet _quiet = new();
 
     public unsafe ValueTips(HWND owner)
     {
@@ -119,7 +114,7 @@ internal sealed class ValueTips : IDisposable
         count = Math.Min(count, painted.Count);
         for (var at = 0; at < count; at++)
         {
-            var place = painted[at].Item;
+            var place = painted[at].Item.Rect();
             if (at >= _texts.Count)
             {
                 Send(PInvoke.TTM_ADDTOOLW, at, place, "");
@@ -178,7 +173,7 @@ internal sealed class ValueTips : IDisposable
     }
 
     /// <summary>Whether a tooltip may show now.</summary>
-    public bool Speaks => _hush == Hush.None;
+    public bool Speaks => _quiet.Speaks;
 
     /// <summary>
     /// Hides the tooltip and shows none while the overlay is pressed or dragged, its menu shows, which it would cover, or a
@@ -186,11 +181,8 @@ internal sealed class ValueTips : IDisposable
     /// </summary>
     public void Quiet(Hush why, bool quiet)
     {
-        _hush = quiet ? _hush | why : _hush & ~why;
-        if (!_tips.IsNull)
-        {
-            PInvoke.SendMessage(_tips, PInvoke.TTM_ACTIVATE, Speaks ? 1u : 0u, 0);
-        }
+        _quiet.Quiet(why, quiet);
+        Activate();
     }
 
     /// <summary>
@@ -199,44 +191,45 @@ internal sealed class ValueTips : IDisposable
     /// </summary>
     public unsafe void After(DropQuiet drop)
     {
-        if (drop.At == _heard || drop.Left <= TimeSpan.Zero)
+        if (_quiet.After(drop) is not { } wait)
         {
             return;
         }
 
-        (_heard, _quiet) = (drop.At, drop);
-        Quiet(Hush.Drop, true);
+        Activate();
         var track = new TRACKMOUSEEVENT { cbSize = (uint)sizeof(TRACKMOUSEEVENT), dwFlags = TRACKMOUSEEVENT_FLAGS.TME_LEAVE, hwndTrack = _owner };
         PInvoke.TrackMouseEvent(ref track);
-        Wake(drop.Left);
+        Wake(wait);
     }
 
     /// <summary>The quiet's timer woke the overlay: the tooltips show again once the clock says it has lasted, or it waits on.</summary>
     public void Woke()
     {
         PInvoke.KillTimer(_owner, QuietTimer);
-        if (_quiet is { Left: var left } && left > TimeSpan.Zero)
+        if (_quiet.Woke() is { } left)
         {
             Wake(left);
             return;
         }
 
-        Speak();
+        Activate();
     }
 
     public void Left()
     {
-        if (_quiet is not null)
+        if (_quiet.Left())
         {
             PInvoke.KillTimer(_owner, QuietTimer);
-            Speak();
+            Activate();
         }
     }
 
-    private void Speak()
+    private void Activate()
     {
-        _quiet = null;
-        Quiet(Hush.Drop, false);
+        if (!_tips.IsNull)
+        {
+            PInvoke.SendMessage(_tips, PInvoke.TTM_ACTIVATE, Speaks ? 1u : 0u, 0);
+        }
     }
 
     private void Wake(TimeSpan after) => PInvoke.SetTimer(_owner, QuietTimer, (uint)Math.Ceiling(after.TotalMilliseconds), null);
@@ -252,7 +245,7 @@ internal sealed class ValueTips : IDisposable
     }
 
     // Windows puts a tooltip under the pointer, or over it near the screen's foot, where it would cover the next pills: it
-    // goes whole above the overlay instead, or below it where the screen has no room above, as on a taskbar at the top.
+    // goes whole above the overlay instead, or below it where the screen has no room above, as every OS's overlay places it.
     private unsafe LRESULT Placed(HWND window, uint message, WPARAM wParam, LPARAM lParam, nuint id, nuint data)
     {
         if (message == PInvoke.WM_WINDOWPOSCHANGING
@@ -263,8 +256,7 @@ internal sealed class ValueTips : IDisposable
             var height = (pos->flags & SET_WINDOW_POS_FLAGS.SWP_NOSIZE) != SET_WINDOW_POS_FLAGS.SWP_NOSIZE
                 ? pos->cy
                 : (PInvoke.GetWindowRect(window, out var tip) ? tip.bottom - tip.top : 0);
-            var above = overlay.top - Gap - height;
-            pos->y = above >= ScreenTop(overlay) ? above : overlay.bottom + Gap;
+            pos->y = OverlayTips.Top(new PixelRect(overlay.left, overlay.top, overlay.right, overlay.bottom), height, ScreenTop(overlay));
         }
 
         return PInvoke.DefSubclassProc(window, message, wParam, lParam);
@@ -294,14 +286,4 @@ internal sealed class ValueTips : IDisposable
             PInvoke.SendMessage(_tips, message, 0, (nint)(&tool));
         }
     }
-}
-
-/// <summary>What holds an overlay's tooltips quiet.</summary>
-[Flags]
-internal enum Hush
-{
-    None = 0,
-    Press = 1,
-    Menu = 2,
-    Drop = 4,
 }

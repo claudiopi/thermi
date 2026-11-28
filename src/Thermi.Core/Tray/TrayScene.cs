@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Thermi.Core.Agents;
 using Thermi.Core.Editing;
 using Thermi.Core.Look;
 using Thermi.Core.Sensors;
@@ -47,6 +48,13 @@ public sealed record TrayIcon(Guid Id, string? ItemId, string? Text, Rgb Color, 
 {
     /// <summary>thermi's mark's state on its own icon; null on an item's.</summary>
     public MarkState? Mark { get; init; }
+
+    /// <summary>
+    /// The icon's name, the same on every start and unique among the icons, as a tray and <c>thermi preview</c> know each:
+    /// <see cref="TrayScene.ThermisId"/> for thermi's own, and an item's id after <see cref="AgentReads.ItemPrefix"/>, so no
+    /// item, whatever its id, takes thermi's.
+    /// </summary>
+    public string Name => ItemId is null ? TrayScene.ThermisId : AgentReads.ItemPrefix + ItemId;
 }
 
 /// <summary>
@@ -86,7 +94,8 @@ public sealed record Busiest(BusyProcess? Cpu, BusyProcess? Gpu);
 /// </summary>
 public static class TrayScene
 {
-    private const string ThermiName = "thermi";
+    /// <summary>The <see cref="TrayIcon.Name"/> of thermi's own icon.</summary>
+    public const string ThermisId = "thermi";
 
     public static IReadOnlyList<TrayIcon> Of(ThermiConfig config, TrayInput input)
     {
@@ -121,7 +130,7 @@ public static class TrayScene
     /// </summary>
     public static Guid IdOf(string? itemId, string exePath)
     {
-        var name = string.Concat(exePath.ToUpperInvariant(), "\n", itemId is null ? ThermiName : "item\n" + itemId);
+        var name = string.Concat(exePath.ToUpperInvariant(), "\n", itemId is null ? ThermisId : "item\n" + itemId);
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(name));
         hash[6] = (byte)((hash[6] & 0x0F) | 0x80);
         hash[8] = (byte)((hash[8] & 0x3F) | 0x80);

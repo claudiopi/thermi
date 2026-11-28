@@ -1,0 +1,37 @@
+<Project>
+
+  <!-- The settings window's page (docs/adr/0007-settings-window-in-webview2-and-react.md), in each host that shows it.
+       src/Thermi.Settings.Types writes the bridge's TypeScript and the agents' JSON Schemas (docs/agents/README.md) and
+       installs and builds the page, once for every host of a build; a host only takes its dist. On Windows the dist is
+       embedded, served to WebView2 from a virtual host; on Linux, where SettingsWebFiles is true, it is copied beside
+       thermi as web/, which the install's folder keeps and WebKitGTK is served from. -->
+
+  <PropertyGroup>
+    <SettingsWeb>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)Thermi.Settings.Web'))/</SettingsWeb>
+    <!-- The page's project is run at build time and never shipped, so thermi may be self-contained while it is not. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Built before this project's resources, never referenced: thermi holds none of its code. Without a processor or a
+         self-contained publish of its own, every host's reference is the same build of it. -->
+    <ProjectReference Include="$(MSBuildThisFileDirectory)Thermi.Settings.Types/Thermi.Settings.Types.csproj"
+                      ReferenceOutputAssembly="false" Private="false" GlobalPropertiesToRemove="TargetFramework;RuntimeIdentifier;SelfContained;PublishReadyToRun" />
+  </ItemGroup>
+
+  <Target Name="EmbedSettingsWeb" BeforeTargets="PrepareResources" Condition="'$(DesignTimeBuild)' != 'true' And '$(SettingsWebFiles)' != 'true'">
+    <ItemGroup>
+      <SettingsWebFile Include="$(SettingsWeb)dist/**/*" />
+      <EmbeddedResource Include="@(SettingsWebFile)" LogicalName="web/$([System.String]::Copy('%(RecursiveDir)').Replace('\', '/'))%(Filename)%(Extension)" WithCulture="false" Type="Non-Resx" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopySettingsWeb" BeforeTargets="PrepareResources" Condition="'$(DesignTimeBuild)' != 'true' And '$(SettingsWebFiles)' == 'true'">
+    <ItemGroup>
+      <SettingsWebFile Include="$(SettingsWeb)dist/**/*" />
+      <ContentWithTargetPath Include="@(SettingsWebFile)" TargetPath="web/%(RecursiveDir)%(Filename)%(Extension)"
+                             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
+</Project>

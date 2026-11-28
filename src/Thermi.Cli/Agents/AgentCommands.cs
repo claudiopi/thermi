@@ -81,13 +81,12 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
         AgentVerb.Read => ReadAsync(request, stop),
         AgentVerb.Sensors => SensorsAsync(request, stop),
         AgentVerb.Config => ConfigAsync(),
-        AgentVerb.Monitors =>
-            Task.FromResult(new AgentReply(AgentExit.Done, AgentJson.Write(new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])))),
+        AgentVerb.Monitors => Task.FromResult(Monitors()),
         AgentVerb.Looks => Task.FromResult(Looks()),
         AgentVerb.Edit => EditAsync(request.Text ?? "", stop),
         AgentVerb.Look => OneAtATimeAsync(() => LookAsync(request), stop),
         AgentVerb.FindCpuFan => FindCpuFanAsync(request.Switch == true, stop),
-        AgentVerb.StartWithWindows => Task.FromResult(StartWithWindows(request.Switch)),
+        AgentVerb.StartWithWindows => StartWithWindowsAsync(request.Switch, stop),
         AgentVerb.Watch or AgentVerb.Mcp => throw new ArgumentException($"{request.Verb} is served, not answered.", nameof(request)),
         _ => throw new ArgumentOutOfRangeException(nameof(request), request.Verb, "Unknown agent command."),
     };
@@ -168,17 +167,30 @@ internal sealed partial class AgentCommands(IAgentEnvironment environment, TimeP
         return new AgentReply(read.Problem is null ? AgentExit.Done : AgentExit.SettingsBroken, AgentJson.Write(answer), answer.Detail);
     }
 
+    // None, with why, is still an answer: monitors no overlay measured are no error of the command's.
+    private AgentReply Monitors()
+    {
+        var answer = new MonitorsAnswer([.. environment.Screens().Select(MonitorView.Of)])
+        {
+            Problem = environment.WhyNoScreens() is { } problem ? AgentStatus.Said(problem, environment.SensorsOnly(), environment.Os) : null,
+        };
+        return new AgentReply(AgentExit.Done, AgentJson.Write(answer));
+    }
+
     private AgentFacts Facts(Core.Tray.ServiceState state, bool taken, Snapshot? latest, ConfigProblem? settings) =>
         new(state, environment.Installed(), taken, latest, settings)
         {
             Overlay = environment.Overlay(),
             SensorsOnly = environment.SensorsOnly(),
             PerUser = environment.PerUser(),
+            Os = environment.Os,
+            OverlayCannotShow = environment.OverlayCannotShow(),
+            About = environment.About(),
         };
 
     private AgentReply Unread(Core.Tray.ServiceState state, bool taken, Snapshot? latest)
     {
-        var problem = AgentStatus.Unread(Facts(state, taken, latest, settings: null)) ?? AgentStatus.Said(AgentProblem.ServiceStale);
+        var problem = AgentStatus.Unread(Facts(state, taken, latest, settings: null)) ?? AgentStatus.Said(AgentProblem.ServiceStale, os: environment.Os);
         return new AgentReply(AgentExit.NoSensors, Error: $"{problem.Cause} {problem.Fix}");
     }
 

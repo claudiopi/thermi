@@ -1,7 +1,10 @@
 using System.Drawing;
 using System.Globalization;
+using Thermi.App.Overlay;
+using Thermi.App.Painting;
 using Thermi.App.SettingsFile;
 using Thermi.Core.Look;
+using Thermi.Core.Painting;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Translations;
@@ -28,9 +31,7 @@ internal sealed class OverlayWindow : IDisposable
     internal const WINDOW_EX_STYLE ExStyle =
         WINDOW_EX_STYLE.WS_EX_LAYERED | WINDOW_EX_STYLE.WS_EX_TOPMOST | WINDOW_EX_STYLE.WS_EX_TOOLWINDOW | WINDOW_EX_STYLE.WS_EX_NOACTIVATE;
 
-    // A glow's frames come about 30 times a second, from a timer of the overlay's own, only while it glows.
     private const nuint GlowTimer = 1;
-    private const uint GlowFrame = 33;
 
     private readonly int _index;
     private readonly Settings _settings;
@@ -40,12 +41,11 @@ internal sealed class OverlayWindow : IDisposable
     private readonly OverlayMouse _mouse = new();
     private readonly Topmost _topmost;
     private readonly ValueTips _tips;
-    private readonly CriticalGlow _glow;
     private readonly OverlayFade _fade;
     private readonly OverlayGestures _gestures;
 
-    // OLED care moves the overlay by how long it has run.
-    private readonly long _started;
+    // OLED care moves the overlay by how long it has run, and a critical value glows once.
+    private readonly OverlayClock _clock;
     public bool OnScreen { get; private set; }
     public bool Dragging => _mouse.Dragged is not null || _gestures.Drag is not null;
 
@@ -64,8 +64,7 @@ internal sealed class OverlayWindow : IDisposable
         _index = index;
         _settings = settings;
         _actions = actions;
-        _glow = new CriticalGlow(actions.Time);
-        _started = actions.Time.GetTimestamp();
+        _clock = new OverlayClock(actions.Time);
         Hwnd = TopLevelWindow.Create(ClassName, ExStyle, WINDOW_STYLE.WS_POPUP);
         _topmost = new Topmost(Hwnd);
         _tips = new ValueTips(Hwnd);
@@ -97,7 +96,7 @@ internal sealed class OverlayWindow : IDisposable
     /// <paramref name="dpi"/>, while it knows none.
     /// </summary>
     internal static float ScaleOf(uint dpi, OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
-        (float)((Snaps.ScreenOf(overlay, screens) is { } screen ? screen.Scale : dpi / 96.0) * Snaps.SizeShown(overlay, screens));
+        App.Window.OverlayPlaces.ScaleOf(dpi, overlay, screens);
 
     public void Dispose()
     {
@@ -154,7 +153,7 @@ internal sealed class OverlayWindow : IDisposable
             case PInvoke.WM_MOUSEWHEEL:
                 return _gestures.Wheel(wParam, _scene?.Screens ?? []);
             case PInvoke.WM_SETCURSOR:
-                return _gestures.CornerCursor(overlay, _painted, WindowPosition());
+                return _gestures.Cursor(overlay, _painted, WindowPosition());
             case PInvoke.WM_TIMER when wParam == OverlayFade.TimerId:
                 _fade.Now(overlay, _painted?.Scale, _scene?.WindowOpen == true, _gestures.Holds, OnScreen);
                 return true;
@@ -189,23 +188,23 @@ internal sealed class OverlayWindow : IDisposable
         // A pill held in a drag goes where the pointer takes it, whose monitor's scale the window gets as it crosses.
         IReadOnlyList<Screen> screens = heldAt is null ? scene.Screens : [];
         var overlays = scene.Config.Overlays.Select((each, index) => index == _index ? overlay : each).ToList();
-        var items = scene.WithProblem(texts, shown.Items);
+        var items = shown.WithProblem(scene.Problem, texts);
         var room = TaskbarRow.RoomOf(overlays, _index, screens, _actions.Shown());
         var scale = _painter.Within(items, look, ScaleOf(PInvoke.GetDpiForWindow(Hwnd), overlay, screens), room);
         scale = _painter.Fitting(items, look, scale, Snaps.Most(overlay, screens));
-        _glow.Update(items, scene.Animate);
+        var glow = _clock.Glow(items, scene.Animate);
 #pragma warning disable CA2000 // The painter reuses the bitmap while its size holds, and disposes it itself.
         var bitmap = shown.SensorsStopped
             ? _painter.PaintStopped(texts.Of(OverlayText.SensorsStopped), look, scale, items)
-            : _painter.Paint(items, look, scale, _glow.Glowing ? _glow.Of : null);
+            : _painter.Paint(items, look, scale, glow);
 #pragma warning restore CA2000
         marks.Draw(bitmap, shown.SensorsStopped ? [] : _painter.Places, items, scale);
         _gestures.Mark(bitmap, shown.SensorsStopped ? [] : _painter.Places, scale, look.Orientation == Orientation.Vertical, scene.Accent);
         OverlayGestures.HoldCorner(bitmap, overlay, scale);
         Glow();
         _painted = new PaintedOverlay(items, look, scale, bitmap.Size) { Stopped = shown.SensorsStopped };
-        var running = _actions.Time.GetElapsedTime(_started);
         Tips(scene, input, shown);
+        var running = _clock.Running;
         var at = heldAt ?? TaskbarRow.Locate(overlays, _index, scene.Screens, (bitmap.Width, bitmap.Height), _actions.Shown(), running) ?? WindowPosition();
         _picture.Show(Hwnd, bitmap, at, _fade.Alpha);
         _fade.Watch(overlay, scale, scene.WindowOpen, _gestures.Holds, OnScreen);
@@ -238,9 +237,9 @@ internal sealed class OverlayWindow : IDisposable
 
     private void Glow()
     {
-        if (_glow.Glowing)
+        if (_clock.Glowing)
         {
-            PInvoke.SetTimer(Hwnd, GlowTimer, GlowFrame, null);
+            PInvoke.SetTimer(Hwnd, GlowTimer, (uint)OverlayClock.Frame.TotalMilliseconds, null);
         }
         else
         {
@@ -266,6 +265,7 @@ internal sealed class OverlayWindow : IDisposable
                 Dropped(dropped);
                 return true;
             case MouseAction.Lost:
+                _gestures.Cancel();
                 _gestures.LetMouseGo();
                 Dropped(false);
                 return true;
@@ -290,7 +290,8 @@ internal sealed class OverlayWindow : IDisposable
         _gestures.Let();
         if (_painted is { } painted && _scene is { } scene)
         {
-            _gestures.Press(overlay, painted, scene.Screens, _painter.Places.Pressed(OnPicture(_actions.Cursor())), WindowPosition());
+            var (x, y) = OnPicture(_actions.Cursor());
+            _gestures.Press(overlay, painted, scene.Screens, _painter.Places.Pressed(x, y), WindowPosition());
         }
     }
 
@@ -314,6 +315,7 @@ internal sealed class OverlayWindow : IDisposable
     {
         if (_mouse.Cancel())
         {
+            _gestures.Cancel();
             _gestures.LetMouseGo();
             Dropped(false);
         }
@@ -338,14 +340,9 @@ internal sealed class OverlayWindow : IDisposable
             return;
         }
 
-        if (_pointed is { } left)
-        {
-            _actions.Select(new Select(_index + 1, left, SelectHow.PointOut));
-        }
-
+        _actions.Point(_index, item);
         if (item is not null)
         {
-            _actions.Select(new Select(_index + 1, item, SelectHow.PointIn));
             var track = new TRACKMOUSEEVENT { cbSize = (uint)sizeof(TRACKMOUSEEVENT), dwFlags = TRACKMOUSEEVENT_FLAGS.TME_LEAVE, hwndTrack = Hwnd };
             PInvoke.TrackMouseEvent(ref track);
         }
@@ -356,17 +353,17 @@ internal sealed class OverlayWindow : IDisposable
 
     /// <summary>Where a drop at a point of the screen joins this overlay, as <see cref="PaintedPlaces.JoinAt"/> says.</summary>
     internal DropTarget JoinAt(Position cursor, string? alone) =>
-        _painter.Places.JoinAt(_index, OnPicture(cursor), alone, _painted?.Look.Orientation == Orientation.Vertical);
+        OnPicture(cursor) is var (x, y) ? _painter.Places.JoinAt(_index, x, y, alone, _painted?.Look.Orientation == Orientation.Vertical) : default;
 
-    internal string? ItemAt(Position cursor) => _painter.Places.At(OnPicture(cursor))?.Id;
+    internal string? ItemAt(Position cursor) => OnPicture(cursor) is var (x, y) ? _painter.Places.At(x, y)?.Id : null;
 
     /// <summary>The opacity the overlay shows at, 255 for whole.</summary>
     internal byte Alpha => _fade.Alpha;
 
-    private PointF OnPicture(Position cursor)
+    private (double X, double Y) OnPicture(Position cursor)
     {
         var corner = WindowPosition();
-        return new PointF(cursor.X - corner.X, cursor.Y - corner.Y);
+        return (cursor.X - corner.X, cursor.Y - corner.Y);
     }
 
     private Position WindowPosition()

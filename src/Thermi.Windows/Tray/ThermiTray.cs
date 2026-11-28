@@ -1,8 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Gestures;
 using Thermi.App.SettingsFile;
-using Thermi.Core.Editing;
-using Thermi.Core.Look;
 using Thermi.Core.Placement;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -92,19 +91,10 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     /// <summary>"Notify me when critical": a fresh snapshot, once a second, and the notice of each item critical long enough.</summary>
     public void Critical(ThermiConfig config, Snapshot snapshot, bool fullScreen)
     {
-        var texts = Translations;
-        var numbers = Actions.Culture;
-        foreach (var (item, reading, notice) in _notifyMe.Add(config, snapshot, fullScreen))
+        foreach (var told in _notifyMe.Add(config, snapshot, fullScreen))
         {
-            var name = Names.Of(config, item, snapshot, texts);
-            var value = ReadingFormatter.Format(reading with { Value = notice.Value }, numbers, units: true, config.Temperature, item.Decimals, texts);
-            var length = LengthOf(notice.Length, texts, numbers);
-            _icons.Notify(
-                ThermiId,
-                texts.Format(numbers, notice.WhilePlaying ? HostText.CriticalWhilePlayingTitle : HostText.CriticalTitle, name),
-                notice.WhilePlaying
-                    ? texts.Format(numbers, HostText.CriticalWhilePlaying, name, value, length)
-                    : texts.Format(numbers, HostText.Critical, value, length));
+            var (title, text) = NoticeTexts.Of(told, config, snapshot, Translations, Actions.Culture);
+            _icons.Notify(ThermiId, title, text);
         }
     }
 
@@ -116,25 +106,16 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
             return;
         }
 
-        var config = Settings.Config;
-        if (icon.ItemId is null && what is PInvoke.NIN_SELECT or KeySelect)
+        TrayPress? press = what switch
         {
-            if (parts.Visibility.ClickIcon())
-            {
-                Actions.RequestPaint();
-            }
-            else
-            {
-                Menu(null);
-            }
-        }
-        else if (what == PInvoke.WM_CONTEXTMENU)
+            PInvoke.NIN_SELECT or KeySelect => TrayPress.Activate,
+            PInvoke.WM_CONTEXTMENU => TrayPress.Menu,
+            PInvoke.WM_LBUTTONDBLCLK => TrayPress.Twice,
+            _ => null,
+        };
+        if (press is { } pressed)
         {
-            Menu(icon.ItemId is null ? null : TrayScene.OverlayOf(config, icon.ItemId), fromTray: true, icon.ItemId);
-        }
-        else if (what == PInvoke.WM_LBUTTONDBLCLK && icon.ItemId is not null)
-        {
-            Actions.OpenSettings(TrayScene.OverlayOf(config, icon.ItemId), icon.ItemId);
+            Answer(icon.ItemId, TrayPresses.Of(icon.ItemId, pressed, parts.Visibility));
         }
         else if (what == PInvoke.NIN_BALLOONUSERCLICK && icon.ItemId is null && _notices.Showing is { } notice)
         {
@@ -186,51 +167,34 @@ internal sealed class ThermiTray(TrayParts parts, ILogger log) : IDisposable
     // closing it is "Got it".
     private void Tell(Notice notice, ThermiConfig config)
     {
-        var texts = Translations;
-        var numbers = Actions.Culture;
-        var hotkey = config.Hotkeys?.Toggle;
-        var one = notice.Overlays.Count == 1 ? ThermiMenus.NameOf(config, notice.Overlays[0], texts) : "";
-        var (title, text) = notice.Kind switch
-        {
-            NoticeKind.FirstRun => (texts.Of(HostText.FirstRunTitle), texts.Of(HostText.FirstRun)),
-            NoticeKind.FirstRunDriver => (texts.Of(HostText.FirstRunTitle), texts.Of(HostText.FirstRunDriver)),
-            NoticeKind.OverlaysHidden when config.Overlays.Count == 1 => (texts.Format(numbers, HostText.OverlayHiddenTitle, one),
-                hotkey is null ? texts.Of(HostText.OverlayHiddenByFlag) : texts.Format(numbers, HostText.OverlayHiddenByFlagHotkey, hotkey)),
-            NoticeKind.OverlaysHidden => (texts.Of(HostText.OverlaysHiddenTitle),
-                hotkey is null ? texts.Of(HostText.OverlaysHidden) : texts.Format(numbers, HostText.OverlaysHiddenHotkey, hotkey)),
-            NoticeKind.OverlayHidden => (texts.Format(numbers, HostText.OverlayHiddenTitle, one), texts.Of(HostText.OverlayHidden)),
-            NoticeKind.ClickThrough or NoticeKind.ClickThroughAll => (texts.Of(HostText.ClickThroughOnTitle), texts.Of(HostText.ClickThroughOnText)),
-            _ => throw new ArgumentOutOfRangeException(nameof(notice), notice.Kind, null),
-        };
+        var (title, text) = NoticeTexts.Of(notice, config, Translations, Actions.Culture);
         _icons.Notify(ThermiId, title, text);
+    }
+
+    private void Answer(string? item, TrayAnswer answer)
+    {
+        var overlay = TrayScene.OverlayOf(Settings.Config, item);
+        switch (answer)
+        {
+            case TrayAnswer.Paint:
+                Actions.RequestPaint();
+                break;
+            case TrayAnswer.Menu:
+                Menu(item is null ? null : overlay, fromTray: true, item);
+                break;
+            case TrayAnswer.Settings:
+                Actions.OpenSettings(overlay, item);
+                break;
+            case TrayAnswer.None:
+            default:
+                break;
+        }
     }
 
     private void Clicked(Notice notice)
     {
-        switch (notice.Kind)
-        {
-            case NoticeKind.FirstRun or NoticeKind.FirstRunDriver:
-                Actions.OpenSettings(0, null);
-                break;
-            case NoticeKind.OverlaysHidden:
-                parts.Visibility.HideOverlays = false;
-                break;
-            case NoticeKind.OverlayHidden:
-                Settings.Edit(config =>
-                    Actions.Settle(config, notice.Overlays.Aggregate(config, (current, at) => OverlayEdits.SetHidden(current, at, hidden: false).Config))
-                        .Config);
-                break;
-            case NoticeKind.ClickThrough or NoticeKind.ClickThroughAll:
-                Settings.Edit(config => Notices.Undo(config, notice));
-                break;
-            default:
-                break;
-        }
-
+        _ = NoticeChoices.Choose(
+            notice, NoticeChoices.Clicked(notice), notice, Settings, parts.Visibility, Actions.Settle, () => Actions.OpenSettings(0, null));
         Actions.RequestPaint();
     }
-
-    private static string LengthOf(TimeSpan length, Texts texts, IFormatProvider numbers) =>
-        length < TimeSpan.FromMinutes(1) ? texts.Format(numbers, HostText.Seconds, (int)Math.Round(length.TotalSeconds))
-        : texts.Format(numbers, UnitText.Minutes, (int)Math.Round(length.TotalMinutes));
 }

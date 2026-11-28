@@ -3,38 +3,6 @@ using Thermi.Core.Settings;
 
 namespace Thermi.Core.Placement;
 
-/// <summary>A rectangle in physical pixels of the whole desktop, as Windows gives it: its right and bottom edges lie just outside.</summary>
-public readonly record struct PixelRect(int Left, int Top, int Right, int Bottom)
-{
-    public int Width => Right - Left;
-
-    public int Height => Bottom - Top;
-
-    public long Area => (long)Width * Height;
-
-    public bool Overlaps(PixelRect other) => Left < other.Right && other.Left < Right && Top < other.Bottom && other.Top < Bottom;
-
-    public bool Contains(PixelRect other) => other.Left >= Left && other.Right <= Right && other.Top >= Top && other.Bottom <= Bottom;
-
-    public bool Contains(Position point) => point.X >= Left && point.X < Right && point.Y >= Top && point.Y < Bottom;
-
-    /// <summary>The pixels this and <paramref name="other"/> both cover.</summary>
-    public long Shared(PixelRect other) =>
-        (long)Math.Max(0, Math.Min(Right, other.Right) - Math.Max(Left, other.Left)) * Math.Max(0, Math.Min(Bottom, other.Bottom) - Math.Max(Top, other.Top));
-}
-
-/// <summary>
-/// A monitor as Windows reports it, <see cref="Scale"/> being its DPI over 96. <see cref="Taskbar"/> is null on a
-/// monitor without one, and <see cref="Tray"/> is the notification area on the main taskbar or the clock on another,
-/// null when it cannot be found from its window.
-/// </summary>
-public sealed record Screen(string Id, bool Primary, PixelRect Bounds, PixelRect Work, double Scale)
-{
-    public PixelRect? Taskbar { get; init; }
-
-    public PixelRect? Tray { get; init; }
-}
-
 /// <summary>Why a monitor's taskbar place floats in its work area: its taskbar is on a side, or it hides itself.</summary>
 public enum TaskbarFloat
 {
@@ -128,8 +96,9 @@ public static class Snaps
         ?? (screens.Count > 0 ? screens[0] : null);
 
     /// <summary>
-    /// The monitor an overlay shows on: its snap's, or the one its free position's top-left corner lies on, and else the
-    /// default snap's, as <see cref="Locate"/> places it; null with no monitor.
+    /// The monitor an overlay's settings put it on, before it is measured: its snap's, or the one its free position's
+    /// top-left corner lies on, and else the default snap's; null with no monitor. One that grew across two shows on the
+    /// monitor its box lies most on, as <see cref="Inside"/> places it.
     /// </summary>
     public static Screen? ScreenOf(OverlayConfig overlay, IReadOnlyList<Screen> screens) =>
         overlay.Snapped is null
@@ -137,6 +106,9 @@ public static class Snaps
         && screens.FirstOrDefault(screen => screen.Bounds.Contains(new PixelRect(free.X, free.Y, free.X + 1, free.Y + 1))) is { } under
             ? under
             : ScreenOf(overlay.Snapped ?? Default, screens);
+
+    /// <summary>The monitor a box shows on: the one it lies most on; null with no monitor.</summary>
+    public static Screen? ScreenOf(PixelRect box, IReadOnlyList<Screen> screens) => screens.MaxBy(screen => screen.Bounds.Shared(box));
 
     /// <summary>
     /// Where a press leaves the overlay with the cursor at <paramref name="cursor"/>: moved with the cursor once it is past
@@ -190,7 +162,7 @@ public static class Snaps
 
     private static IEnumerable<(SnapConfig Snap, Position At)> TaskbarMarks(Screen screen, int width, int height)
     {
-        if (TaskbarOf(screen) is not { } bar)
+        if (TaskbarOf(screen) is not { } bar || !BarParts.Fits(screen, bar, width))
         {
             yield break;
         }
@@ -256,7 +228,9 @@ public static class Snaps
                 .Select(each => each.Snap)
                 .FirstOrDefault()
             : null;
-        return mark ?? new SnapConfig(SnapSpot.Taskbar, screen.Primary ? null : screen.Id) { Offset = Along(bar, at.X - bar.Left, width) };
+        var along = bar.Left + Along(bar, at.X - bar.Left, width);
+        var offset = (BarParts.Beside(screen, bar, along, width) ?? along) - bar.Left;
+        return mark ?? new SnapConfig(SnapSpot.Taskbar, screen.Primary ? null : screen.Id) { Offset = offset };
     }
 
     private static int Along(PixelRect bar, int offset, int width) => Math.Clamp(offset, 0, Math.Max(0, bar.Width - width));
@@ -314,19 +288,25 @@ public static class Snaps
         };
     }
 
-    // Where it cannot sit on a taskbar (vertical overlay, side, hidden or no taskbar), the offset is from the monitor's left edge.
+    // Where it cannot sit on a taskbar (vertical overlay, side, hidden or no taskbar, or no room clear of its parts), the
+    // offset is from the monitor's left edge, and it sits beside the bar: below one at the top, as GNOME's top bar, else at
+    // the work area's bottom.
     private static Position OnTaskbar(Screen screen, int? offset, Orientation orientation, int width, int height)
     {
-        if (orientation == Orientation.Horizontal && TaskbarOf(screen) is { } bar)
+        if (orientation == Orientation.Horizontal
+            && TaskbarOf(screen) is { } bar
+            && BarParts.Beside(screen, bar, bar.Left + Along(bar, offset ?? (RightEnd(screen, bar) - width - bar.Left), width), width) is { } on)
         {
-            var along = Along(bar, offset ?? (RightEnd(screen, bar) - width - bar.Left), width);
-            return new Position(bar.Left + along, bar.Top + ((bar.Height - height) / 2));
+            return new Position(on, bar.Top + ((bar.Height - height) / 2));
         }
 
         var margin = Scaled(Margin, screen);
         var work = Clear(screen);
         var left = offset is { } kept ? screen.Bounds.Left + kept : work.Right - margin - width;
-        return new Position(Math.Clamp(left, work.Left, Math.Max(work.Left, work.Right - width)), Math.Max(work.Top, work.Bottom - margin - height));
+        var top = screen.Taskbar is { } above && above.Bottom <= work.Top && above.Height > 0
+            ? work.Top + margin
+            : Math.Max(work.Top, work.Bottom - margin - height);
+        return new Position(Math.Clamp(left, work.Left, Math.Max(work.Left, work.Right - width)), top);
     }
 
     /// <summary>
@@ -336,7 +316,7 @@ public static class Snaps
     public static Position Inside(Position free, IReadOnlyList<Screen> screens, int width, int height)
     {
         var box = new PixelRect(free.X, free.Y, free.X + width, free.Y + height);
-        var work = Clear(screens.MaxBy(screen => screen.Bounds.Shared(box))!);
+        var work = Clear(ScreenOf(box, screens)!);
         var x = Math.Max(work.Left, Math.Min(free.X, work.Right - width));
         var y = Math.Max(work.Top, Math.Min(free.Y, work.Bottom - height));
         return x == free.X && y == free.Y ? free : new Position(x, y);

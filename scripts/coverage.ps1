@@ -1,5 +1,25 @@
-# Dot-sourced by the check and the stats: the app's coverage from the Windows tests' reports, which each test process
-# writes of its own; a line or branch that any of them ran counts once.
+# Dot-sourced by the check and the stats: what each test project measures, and the app's coverage from the Windows and
+# Linux tests' reports, which each test process writes of its own; a line or branch that any of them ran counts once.
+
+# The assemblies each test project measures, each with the project it is built from, as the dashboard names it: thermi
+# and thermi-sensors are each OS's own. Thermi.Tests measures what it runs of the shared code and the tools, not the app,
+# which the Windows and Linux tests measure where they run it.
+$coverageMeasured = [ordered]@{
+    'Thermi.Tests' = [ordered]@{
+        'Thermi.Core' = 'Thermi.Core'; 'Thermi.Cli' = 'Thermi.Cli'; 'Thermi.Client' = 'Thermi.Client'; 'thermi-releases' = 'Thermi.Releases'
+    }
+    'Thermi.Windows.Tests' = [ordered]@{
+        thermi = 'Thermi.Windows'; 'thermi-sensors' = 'Thermi.Sensors.Windows'; 'Thermi.App' = 'Thermi.App'; 'Thermi.Trust' = 'Thermi.Trust'
+    }
+    'Thermi.Linux.Tests' = [ordered]@{ thermi = 'Thermi.Linux'; 'thermi-sensors' = 'Thermi.Sensors.Linux'; 'Thermi.App' = 'Thermi.App' }
+}
+
+# The code no test process measures, and why, so the dashboard's coverage lists every project its code table does.
+$coverageUnmeasured = [ordered]@{
+    'scripts' = 'not measured: each runs as a program of its own, in the check, the CI and some tests'
+    'Thermi.Gnome' = 'not measured: it runs inside GNOME Shell, a process of its own in the Linux tests'
+    'Thermi.Settings.Types' = 'not measured: it runs in the build; the page type-checks what it writes, and ContractTests read its schemas'
+}
 
 # Each module's lines and branches, merged from the reports each test project wrote under $Folder, and the modules each
 # project's reports measured.

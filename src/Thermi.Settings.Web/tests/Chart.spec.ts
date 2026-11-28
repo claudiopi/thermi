@@ -15,12 +15,14 @@ import {
   withGame,
   type Item,
 } from './fakeBridge';
-import { edge } from './edge';
+import { scrollbarsShown } from './edge';
 
 const itemIn = async (page: Page, id: string): Promise<Item> => itemOf(await settingsOf(page), id);
 
-// Edge draws its scrollbars here as the window does, where headless Edge would hide them.
-test.use({ launchOptions: { ...edge, ignoreDefaultArgs: ['--hide-scrollbars'] } });
+// The scrollbars show here as the window draws them. What these tests prove is what the lines hold, never a motion: with
+// Windows' animation effects off, as reduced motion, the catalog leaves at once, and no check waits on a busy browser's
+// frames to finish one. Each reads the fake once it has every answer, which it says itself, so none waits by time.
+test.use({ launchOptions: scrollbarsShown, reducedMotion: 'reduce' });
 
 // A207: the chart's knobs by keys, box and pointer, a push past the other line, a delete, and the chart once readings stop.
 test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
@@ -60,7 +62,7 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
         await page.keyboard.type(row.type);
         await page.keyboard.press(row.keys[0] === 'F2' ? 'Escape' : 'Enter');
       }
-      await expect.poll(lines).toEqual(row.expected);
+      expect(await lines()).toEqual(row.expected);
     });
   }
 
@@ -77,25 +79,25 @@ test('TheChartsKnobsWorkByPointerAndKeys', async ({ page }) => {
     for (const above of [10, 20]) {
       const before = await now();
       await page.mouse.move(box.x + box.width / 2, box.y - above);
-      await expect.poll(now).toBeGreaterThan(before);
+      expect(await now()).toBeGreaterThan(before);
     }
     await page.mouse.up();
-    await expect.poll(now).toBeGreaterThan(80);
+    expect(await now()).toBeGreaterThan(80);
     await page.keyboard.press('Control+Z');
-    await expect.poll(lines).toEqual({ warning: 80, critical: 91 });
+    expect(await lines()).toEqual({ warning: 80, critical: 91 });
   });
 
   await test.step('a click in the plot moves the nearest line', async () => {
     const plot = page.getByRole('slider', { name: text('UiText.ChartOf', text('MetricName.CpuTemperature')) });
     await plot.click({ position: { x: 40, y: 4 } });
-    await expect.poll(async () => (await itemIn(page, 'cpu.temperature')).threshold?.critical).not.toBe(91);
+    expect((await itemIn(page, 'cpu.temperature')).threshold?.critical).not.toBe(91);
     await page.keyboard.press('Control+Z');
   });
 
   await test.step('Delete turns the line off and leaves the focus on its Add', async () => {
     await critical.focus();
     await page.keyboard.press('Delete');
-    await expect.poll(lines).toEqual({ warning: 80 });
+    expect(await lines()).toEqual({ warning: 80 });
     await expect(page.getByRole('button', { name: text('UiText.AddCriticalLine') })).toBeFocused();
   });
 
@@ -119,11 +121,11 @@ test('AnFpsItemIsAddedAndItsLinesSetLow', async ({ page }) => {
   await page.keyboard.press('Control+N');
   const catalog = page.getByRole('dialog', { name: text('UiText.Catalog') });
   await catalog.getByRole('group', { name: fps.hardware }).getByRole('option', { name: startingWith(fps.name) }).click();
-  await expect(catalog).toBeHidden();
   const added = async (): Promise<Item | undefined> =>
     (await settingsOf(page)).overlays.flatMap((overlay) => overlay.items).find((item) => item.sensor === fps.id);
-  await expect.poll(async () => (await added())?.id).toBeDefined();
   const id = (await added())?.id ?? '';
+  expect(id).not.toBe('');
+  await expect(catalog).toBeHidden();
   expect((await added())?.threshold).toBeUndefined();
 
   const shown = await page.evaluate(async (item) => (await window.thermi?.view())?.items[item]?.value ?? null, id);
@@ -146,7 +148,7 @@ test('AnFpsItemIsAddedAndItsLinesSetLow', async ({ page }) => {
   await page.mouse.down();
   await page.mouse.move(from.x + from.width / 2, above.y - 40, { steps: 8 });
   await page.mouse.up();
-  await expect.poll(async () => (await added())?.threshold?.critical ?? 0).toBeGreaterThan(warned);
+  expect((await added())?.threshold?.critical ?? 0).toBeGreaterThan(warned);
   const lines = (await added())?.threshold;
   expect(lines?.critical ?? 0).toBeLessThanOrEqual(lines?.warning ?? 0);
 });
@@ -168,14 +170,14 @@ test('AFansLineStaysOnItsScale', async ({ page }) => {
   };
 
   await page.getByRole('button', { name: text('UiText.AddWarningLine') }).press('Enter');
-  await expect.poll(line).toBeGreaterThan(speed);
+  expect(await line()).toBeGreaterThan(speed);
   const added = await line();
   expect(added).toBeLessThan(speed * 1.5);
 
   await warning.press('ArrowUp');
-  await expect.poll(line).toBe(added + 50);
+  expect(await line()).toBe(added + 50);
   await warning.press('ArrowDown');
-  await expect.poll(line).toBe(added);
+  expect(await line()).toBe(added);
 
   const from = await middle();
   await page.mouse.move(from.x, from.y);

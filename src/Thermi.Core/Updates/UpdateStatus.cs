@@ -24,6 +24,9 @@ public enum UpdateLineKind
     Checking,
 
     NotChecked,
+
+    /// <summary>The system's package manager updates thermi, as on Linux, from the repository its packages added.</summary>
+    FromSystem,
 }
 
 /// <summary><see cref="Restart"/>: the version ready may switch now, if asked.</summary>
@@ -88,6 +91,7 @@ public static class UpdateStatus
             UpdateLineKind.NotChecked => texts.Of(WindowText.UpdatesNotChecked),
             UpdateLineKind.Checking => texts.Of(WindowText.UpdatesChecking),
             UpdateLineKind.CheckedNow => texts.Of(WindowText.UpdatesCheckedNow),
+            UpdateLineKind.FromSystem => texts.Of(WindowText.UpdatesFromSystem),
             _ => throw new ArgumentOutOfRangeException(nameof(line), line.Kind, null),
         };
         return line.Beta ? texts.Format(numbers, WindowText.UpdatesBeta, said) : said;

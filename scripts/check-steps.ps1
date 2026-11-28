@@ -80,7 +80,8 @@ function Write-Step([string]$Name, [int]$Code, [string[]]$Output, [double]$Secon
 # The same error repeated on many lines of a file is shown once, with a count.
 function Show-Errors([string[]]$Output) {
     $inFailure = $false
-    $errors = foreach ($line in $Output) {
+    # The test platform colors its lines, on the CI too: matched without the colors, or a failure hides among the skipped.
+    $errors = foreach ($line in $Output -replace '\x1b\[[0-9;]*m', '') {
         if ($line -match '^failed ') { $inFailure = $true; $line; continue }
         if ($line -notmatch '^\s') { $inFailure = $false }
         if (($inFailure -and $line -match '^\s{2}\S' -and $line -notmatch '^\s+from ') -or $line -match ' error ') { $line }
@@ -91,7 +92,7 @@ function Show-Errors([string[]]$Output) {
     }
     $seen = [ordered]@{}
     foreach ($line in $errors) {
-        $line = $line.Replace("$root\", '') -replace ' \[[^\]]*\.csproj\]$', ''
+        $line = $line.Replace("$root$([IO.Path]::DirectorySeparatorChar)", '') -replace ' \[[^\]]*\.csproj\]$', ''
         $key = $line -replace '\(\d+,\d+\)', ''
         if ($seen.Contains($key)) { $seen[$key].Count++ } else { $seen[$key] = @{ First = $line; Count = 1 } }
     }
@@ -130,24 +131,30 @@ function New-WindowsStep([string]$Name, [string]$Namespace, $Split, [string]$Run
         'load' { @(& $within $Split.Load | ForEach-Object { '--filter-class', $_ }) }
     }
     if ($Run -ne 'rest' -and -not $filters) { return }
-    # thermi, thermi-sensors and what they share beyond Core, measured where their tests run them; CsWin32's generated
-    # declarations are not thermi's code.
+    # thermi, thermi-sensors, what they share beyond Core and the checks they trust files with, measured where their tests
+    # run them; CsWin32's generated declarations are not thermi's code.
+    $measured = @($coverageMeasured['Thermi.Windows.Tests'].Keys | ForEach-Object { '--coverlet-include', "[$_]*" })
     New-Step $Name (@('dotnet', 'test', '--project', 'tests/Thermi.Windows.Tests', '-c', 'Release', '--no-build', '--results-directory', $appResults, '--',
-            '--coverlet', '--coverlet-include', '[thermi]*', '--coverlet-include', '[thermi-sensors]*', '--coverlet-include', '[Thermi.App]*',
-            '--coverlet-exclude', '[*]Windows.Win32.*',
+            '--coverlet') + $measured + @('--coverlet-exclude', '[*]Windows.Win32.*',
             '--coverlet-single-hit', '--coverlet-output-format', 'json', '--coverlet-file-prefix', "Thermi.Windows.Tests.$Run") + $filters + $Options)
 }
 
-# Each project Thermi.Tests measures against its floor, from the report its run just wrote.
+# Each project Thermi.Tests measures, from the report its run just wrote, against its floor if it has one, as the
+# dashboard shows them by project.
 function Assert-Coverage {
     $report = Get-ChildItem $results -Filter '*.cobertura.*' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
     $packages = if ($report) { ([xml](Get-Content $report.FullName)).coverage.packages.package }
     $shown = @()
     $measured = [ordered]@{}
-    $low = foreach ($name in $coverageFloors.Keys) {
-        $package = $packages | Where-Object name -eq $name
+    $low = foreach ($assembly in $coverageMeasured['Thermi.Tests'].GetEnumerator()) {
+        $name = $assembly.Value
+        $package = $packages | Where-Object name -eq $assembly.Key
         $rates = if ($package) { [double]$package.'line-rate', [double]$package.'branch-rate' } else { 0, 0 }
         $measured[$name] = @{ lines = 100 * $rates[0]; branches = 100 * $rates[1]; floor = $coverageFloors[$name] }
+        if (-not $coverageFloors[$name]) {
+            $shown += '{0}: lines {1:n0} %, branches {2:n0} %, shown' -f $name, ($rates[0] * 100), ($rates[1] * 100)
+            continue
+        }
         $shown += '{0}: lines {1:n0} %, branches {2:n0} %, floor {3} %' -f $name, ($rates[0] * 100), ($rates[1] * 100), $coverageFloors[$name]
         if ([Math]::Min($rates[0], $rates[1]) * 100 -lt $coverageFloors[$name]) {
             '  {0} coverage: lines {1:p0}, branches {2:p0}. Its gate is {3} %: add behavior tests for the new code.' -f
@@ -167,23 +174,35 @@ function Assert-Coverage {
 # -Partial shows what one CI job's runs measured, which need not hold it all, as the tests that run alone run in a job of
 # their own.
 function Show-AppCoverage([switch]$Partial) {
-    $coverage = Read-AppCoverage $appResults @($appReports.Keys)
-    foreach ($tests in $appReports.Keys) {
-        foreach ($name in $appReports[$tests]) {
-            if ($name -notin $coverage.Measured[$tests] -and -not $Partial) {
-                Write-Host ("FAIL app coverage: $tests did not measure $name. Coverlet leaves out an assembly the test process loaded " +
-                    'before the tests, as a [ModuleInitializer] that uses its types does.')
-                exit 1
-            }
+    $tests = 'Thermi.Windows.Tests'
+    $assemblies = $coverageMeasured[$tests]
+    $coverage = Read-AppCoverage $appResults @($tests)
+    foreach ($name in $assemblies.Keys) {
+        if ($name -notin $coverage.Measured[$tests] -and -not $Partial) {
+            Write-Host ("FAIL app coverage: $tests did not measure $name. Coverlet leaves out an assembly the test process loaded " +
+                'before the tests, as a [ModuleInitializer] that uses its types does.')
+            exit 1
         }
     }
 
     $modules = $coverage.Modules
-    $shown = foreach ($name in 'thermi', 'thermi-sensors', 'Thermi.App') {
-        if (-not $modules[$name]) { "$name not measured"; continue }
-        '{0} lines {1:n0} %, branches {2:n0} %' -f $name, (Get-Rate $modules[$name].Lines), (Get-Rate $modules[$name].Branches)
+    $shown = foreach ($name in $assemblies.Keys) {
+        if (-not $modules[$name]) { "$($assemblies[$name]) not measured"; continue }
+        '{0} lines {1:n0} %, branches {2:n0} %' -f $assemblies[$name], (Get-Rate $modules[$name].Lines), (Get-Rate $modules[$name].Branches)
     }
     $of = if ($Partial) { ' of the tests that run in parallel' } else { '' }
     Write-Host "info app coverage${of}: $($shown -join '; ')"
     Add-SummaryRow "app coverage$of" 'info' 0 $shown
+}
+
+# Shown, not gated: the share of the page's code its unit tests run, from the summary Vitest wrote. Its components run in
+# the page's tests, in a browser, which measure nothing.
+function Show-WebCoverage {
+    $summary = Join-Path $results 'coverage-web' 'coverage-summary.json'
+    if (-not (Test-Path $summary)) { return }
+    $total = (Get-Content $summary -Raw | ConvertFrom-Json).total
+    Save-Stats 'coverage-web' @{ lines = $total.lines.pct; branches = $total.branches.pct }
+    $shown = 'Thermi.Settings.Web lines {0:n0} %, branches {1:n0} %' -f $total.lines.pct, $total.branches.pct
+    Write-Host "info web coverage: $shown"
+    Add-SummaryRow 'web coverage' 'info' 0 $shown
 }

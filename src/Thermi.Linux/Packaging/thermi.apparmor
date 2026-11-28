@@ -1,0 +1,12 @@
+# thermi's AppArmor profile, which the .deb installs as /etc/apparmor.d/thermi (docs/adr/0019-linux.md). Ubuntu from 24.04
+# keeps a program AppArmor does not confine from the user namespace WebKit's sandbox makes, so the settings window would
+# never open. Unconfined, it confines nothing: it gives thermi, and what its window starts, that namespace back, as
+# Ubuntu's own profiles do for epiphany and Chrome.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile thermi /usr/lib/thermi/thermi flags=(unconfined) {
+  userns,
+
+  include if exists <local/thermi>
+}

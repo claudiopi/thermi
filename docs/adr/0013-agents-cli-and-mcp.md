@@ -41,3 +41,7 @@ Prior art: `hwinfo-mcp` (github.com/templarfelix/hwinfo-mcp, MIT, Go) is a read-
 
 - `docs/adr/0001-architecture.md`: "Whether the CLI and MCP need their own small console executable is decided when they are built" becomes: they run in `thermi-cli.exe`, a console apphost of the same `thermi.dll`.
 - `docs/adr/0003-sensor-service.md`: "a Windows session holds at most 4 of its 32 connections" becomes 8.
+
+## Note, 2026-11-28
+
+On Linux the sensor service is started by its socket (`docs/adr/0019-linux.md`), so a `thermi-cli` read starts it, as any client's does, even one a person stopped. "Nothing `thermi-cli` runs starts the service" holds on Windows; on Linux, `thermi-cli` still starts nothing itself, and its code reaches no unit's start, `pkexec` or `sudo`.
