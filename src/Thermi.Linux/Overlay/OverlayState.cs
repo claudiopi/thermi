@@ -12,9 +12,9 @@ namespace Thermi.Linux.Overlay;
 /// </summary>
 internal sealed record OverlayState(bool CanShow, IReadOnlyList<Screen> Screens)
 {
-    // A screen: its id, whether it is the primary one, its bounds, its work area and scale, then its taskbar, tray, centre
-    // and end, each a list of none or one.
-    private const string ScreenShape = "(sb(iiii)(iiii)da(iiii)a(iiii)a(iiii)a(iiii))";
+    // A screen: its id, whether it is the primary one, its bounds, its work area and scale, then its taskbar, tray, centre,
+    // end and start, each a list of none or one.
+    private const string ScreenShape = "(sb(iiii)(iiii)da(iiii)a(iiii)a(iiii)a(iiii)a(iiii))";
 
     /// <summary>The answer's arguments: whether the overlays can show, and the screens.</summary>
     public const string Arguments = $"ba{ScreenShape}";
@@ -39,7 +39,7 @@ internal sealed record OverlayState(bool CanShow, IReadOnlyList<Screen> Screens)
         RectVariant(screen.Bounds),
         RectVariant(screen.Work),
         GLib.Variant.NewDouble(screen.Scale),
-        .. new[] { screen.Taskbar, screen.Tray, screen.Centre, screen.End }.Select(rect =>
+        .. new[] { screen.Taskbar, screen.Tray, screen.Centre, screen.End, screen.Start }.Select(rect =>
             GLib.Variant.NewArray(GLib.VariantType.New("(iiii)"), rect is { } each ? [RectVariant(each)] : [])),
     ]);
 
@@ -73,6 +73,7 @@ internal sealed record OverlayState(bool CanShow, IReadOnlyList<Screen> Screens)
             Tray = Optional(6),
             Centre = Optional(7),
             End = Optional(8),
+            Start = Optional(9),
         };
     }
 

@@ -6,7 +6,8 @@ namespace Thermi.Linux.Gnome;
 /// <summary>
 /// The Shell's monitors as Core's <see cref="Screen"/>s. thermi's pixels are the stage's logical ones times the largest
 /// monitor scale, the pixels of the Shell's own screenshot, so a place saved in the settings means the same pixel on a
-/// monitor at 150 % as Windows' does; the top bar, or another desktop's panel on any edge, is the taskbar. Each monitor is named by its maker,
+/// monitor at 150 % as Windows' does; the top bar, or another desktop's panel on any edge, is the taskbar, and its left box,
+/// past which an overlay sits, as beside Windows' Start button, its start. Each monitor is named by its maker,
 /// model and serial, as Mutter's display config tells them, so a snap follows its monitor when the monitors swap places.
 /// </summary>
 internal sealed class ShellScreens(IReadOnlyList<ShellMonitor> monitors, IReadOnlyDictionary<(int X, int Y), string> names)
@@ -84,6 +85,7 @@ internal sealed class ShellScreens(IReadOnlyList<ShellMonitor> monitors, IReadOn
         {
             Taskbar = bar,
             Tray = On(monitor.End),
+            Start = On(monitor.Start),
             Centre = On(monitor.Centre),
             End = On(monitor.End),
         };

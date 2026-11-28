@@ -29,14 +29,14 @@ const XML = `<node><interface name="${SHELL}">
     <arg type="a(issbbbbb)" direction="in"/></method>
   <method name="Cursor"><arg type="u" direction="in"/><arg type="s" direction="in"/></method>
   <method name="Copy"><arg type="ay" direction="in"/></method>
-  <method name="Monitors"><arg type="a(ddddddbbdddd)" direction="out"/></method>
+  <method name="Monitors"><arg type="a(ddddddbbdddddd)" direction="out"/></method>
   <method name="Watch"><arg type="b" direction="in"/></method>
   <method name="Activation"><arg type="u" direction="in"/><arg type="s" direction="out"/></method>
   <signal name="Ready"><arg type="u"/></signal>
   <signal name="Pointer"><arg type="u"/><arg type="s"/><arg type="d"/><arg type="d"/><arg type="u"/><arg type="u"/>
     <arg type="u"/><arg type="d"/><arg type="d"/></signal>
   <signal name="Key"><arg type="u"/><arg type="s"/></signal>
-  <signal name="MonitorsChanged"><arg type="a(ddddddbbdddd)"/></signal>
+  <signal name="MonitorsChanged"><arg type="a(ddddddbbdddddd)"/></signal>
   <signal name="Chosen"><arg type="u"/><arg type="i"/></signal>
 </interface></node>`;
 
@@ -53,6 +53,10 @@ function modal(box) {
     const grab = global.stage.get_grab_actor();
     return Main.modalCount > 0 || (grab !== null && grab !== box);
 }
+
+// The top bar's boxes no overlay covers, in the order Monitors tells them: the clock, the system menu, and Activities
+// with what sits beside it.
+const keptBoxes = () => [Main.panel._centerBox, Main.panel._rightBox, Main.panel._leftBox];
 
 // GNOME 50 runs on Wayland alone, and no longer has the call that asks.
 const ON_X11 = Meta.is_wayland_compositor ? !Meta.is_wayland_compositor() : false;
@@ -77,7 +81,7 @@ export default class ThermiExtension extends Extension {
         Main.layoutManager.connectObject('monitors-changed', () => this._monitorsChanged(), this);
         global.display.connectObject('in-fullscreen-changed', () => this._monitorsChanged(), this);
         Main.layoutManager.panelBox.connectObject('notify::visible', () => this._monitorsChanged(), this);
-        [Main.panel._centerBox, Main.panel._rightBox].forEach(box => box.connectObject('notify::allocation', () => this._monitorsChanged(), this));
+        keptBoxes().forEach(box => box.connectObject('notify::allocation', () => this._monitorsChanged(), this));
         global.stage.connectObject('captured-event', (stage, event) => this._captured(event), this);
         this._service.emit_signal('Ready', new GLib.Variant('(u)', [this.Protocol]));
     }
@@ -87,7 +91,7 @@ export default class ThermiExtension extends Extension {
         Main.layoutManager.disconnectObject(this);
         global.display.disconnectObject(this);
         Main.layoutManager.panelBox.disconnectObject(this);
-        [Main.panel._centerBox, Main.panel._rightBox].forEach(box => box.disconnectObject(this));
+        keptBoxes().forEach(box => box.disconnectObject(this));
         global.stage.disconnectObject(this);
         Gio.bus_unwatch_name(this._watch);
         this._desktop.destroy();
@@ -140,11 +144,11 @@ export default class ThermiExtension extends Extension {
         this._answer(invocation, () => this._pointer.set(...args));
     }
 
-    // Each monitor, with the top bar's height on the one that shows it, and the left and right edges of the bar's centre box,
-    // the clock, and its right box, the system menu, which no overlay covers.
+    // Each monitor, with the top bar's height on the one that shows it, and the left and right edges of each of the bar's
+    // boxes no overlay covers.
     Monitors() {
         const panel = Main.layoutManager.panelBox;
-        const kept = [Main.panel._centerBox, Main.panel._rightBox].flatMap(box => {
+        const kept = keptBoxes().flatMap(box => {
             const [left] = box.get_transformed_position();
             const [width] = box.get_transformed_size();
             return [left, left + width];
@@ -154,7 +158,7 @@ export default class ThermiExtension extends Extension {
             return [
                 monitor.x, monitor.y, monitor.width, monitor.height, monitor.geometry_scale, bar ? panel.height : 0,
                 monitor.index === Main.layoutManager.primaryIndex, global.display.get_monitor_in_fullscreen(monitor.index),
-                ...bar ? kept : [0, 0, 0, 0],
+                ...bar ? kept : kept.map(() => 0),
             ];
         });
     }
@@ -251,7 +255,7 @@ export default class ThermiExtension extends Extension {
     }
 
     _monitorsChanged() {
-        this._emit('MonitorsChanged', '(a(ddddddbbdddd))', [this.Monitors()]);
+        this._emit('MonitorsChanged', '(a(ddddddbbdddddd))', [this.Monitors()]);
     }
 
     _emit(name, type, values) {

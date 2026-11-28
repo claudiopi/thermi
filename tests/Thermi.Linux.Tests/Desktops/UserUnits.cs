@@ -95,12 +95,15 @@ internal sealed partial class UserUnits
 
     /// <summary>
     /// A program of the desktop's, as its system monitor, that the units find first on their PATH: once started, it takes its
-    /// name on the session's bus, as the real one does, and holds it until the session ends. Nothing is installed.
+    /// name on the session's bus, as the real one does, and holds it until the session ends; but it ends at once where it
+    /// was handed what systemd hands thermi's unit alone, whose notices systemd would refuse and log (the final pass on
+    /// GNOME 46, 2026-11-27). Nothing is installed.
     /// </summary>
     public async Task AddProgramAsync(string program, string busName, CancellationToken cancel)
     {
         var path = Path.Combine(ProgramsOf(_session), program);
-        var code = "#!/usr/bin/env python3\nfrom gi.repository import Gio, GLib\n"
+        var code = "#!/usr/bin/env python3\nimport os, sys\nfrom gi.repository import Gio, GLib\n"
+            + "if any(name in os.environ for name in ('NOTIFY_SOCKET', 'WATCHDOG_PID', 'WATCHDOG_USEC')): sys.exit('The unit\\'s own.')\n"
             + $"Gio.bus_own_name(Gio.BusType.SESSION, '{busName}', Gio.BusNameOwnerFlags.NONE, None, None, None)\nGLib.MainLoop().run()\n";
         await File.WriteAllTextAsync(path, code, cancel).ConfigureAwait(false);
         File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);

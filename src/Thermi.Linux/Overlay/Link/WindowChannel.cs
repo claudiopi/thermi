@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Link;
+using Thermi.App.Logging;
 using Thermi.Cli.Commands;
 using Thermi.Core.Messages;
 using Thermi.Linux.Desktop;
@@ -18,6 +20,13 @@ namespace Thermi.Linux.Overlay.Link;
 /// </summary>
 internal sealed partial class WindowChannel : IWindowChannel, IDisposable
 {
+    // The window's last lines of its standard error its log keeps when it dies, and how long thermi waits for them past its end.
+    private const int SaidLines = 40;
+    private static readonly TimeSpan Drained = TimeSpan.FromSeconds(1);
+
+    // What systemd hands thermi's unit alone: it takes a notice from the unit's main process only, and logs any other's.
+    private static readonly string[] ServiceOnly = ["NOTIFY_SOCKET", "WATCHDOG_PID", "WATCHDOG_USEC"];
+
     private readonly Gio.DBusConnection _bus;
     private readonly ILogger _log;
     private readonly Gio.DBusProxy _owner;
@@ -48,6 +57,8 @@ internal sealed partial class WindowChannel : IWindowChannel, IDisposable
 
     /// <summary>Whether thermi runs under <c>--trace</c>, which the settings window it starts then runs under too.</summary>
     public bool Traced { get; init; }
+
+    public required TimeProvider Time { get; init; }
 
     /// <summary>thermi is opening the settings window, which ends its first start.</summary>
     public Action Opening { get; set; } = () => { };
@@ -83,7 +94,7 @@ internal sealed partial class WindowChannel : IWindowChannel, IDisposable
         args.AddRange(item is null ? [] : [ThermiCommandLine.ItemOption, item]);
         args.AddRange(sizeRow ? [ThermiCommandLine.SizeOption] : []);
 
-        // The window writes its events on the standard error it inherits, thermi's, so one reader hears both.
+        // The window writes its events on its standard error, which thermi passes on as its own, so one reader hears both.
         if (Traced)
         {
             args.Add(ThermiCommandLine.TraceOption);
@@ -112,35 +123,57 @@ internal sealed partial class WindowChannel : IWindowChannel, IDisposable
     }
 
     // A window that dies, as it opens or later, would otherwise leave the person a click that did nothing. A second
-    // request ends at once with 0, once the first window took it.
+    // request ends at once with 0, once the first window took it. One that dies in native code, as WebKit's sandbox
+    // aborts it, logs nothing of its own: what it last wrote on its standard error goes into its log, which the notice
+    // names.
     private async Task WindowAsync(string program, IEnumerable<string> args)
     {
-        using var window = await StartAsync(program, args).ConfigureAwait(false);
+        using var window = await StartAsync(program, args, isWindow: true).ConfigureAwait(false);
         if (window is null)
         {
             Post(Failed);
             return;
         }
 
+        var said = new ConcurrentQueue<string>();
+        var reading = PassOnAsync(window.StandardError, said);
         await window.WaitForExitAsync().ConfigureAwait(false);
-        if (window.ExitCode != 0)
+        try
         {
-            _log.WindowEnded(window.ExitCode);
+            // What the window wrote last is in the pipe already, unless a process it started holds the pipe on.
+            await reading.WaitAsync(Drained, Time).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException)
+        {
+            // What it said by then is enough to say why.
+        }
+
+        var code = window.ExitCode;
+        if (code != 0)
+        {
+            _log.WindowEnded(code);
+            InWindowLog(log => log.WindowDied(code, string.Join('\n', said)));
             Post(Failed);
         }
     }
 
     private async Task StartedAsync(string program)
     {
-        using var started = await StartAsync(program, []).ConfigureAwait(false);
+        using var started = await StartAsync(program, [], isWindow: false).ConfigureAwait(false);
     }
 
     // The program comes in front with the desktop's token for the click, and never with the one thermi was started with,
-    // long spent.
-    private async Task<Process?> StartAsync(string program, IEnumerable<string> args)
+    // long spent, nor with what systemd hands thermi's own unit. The window's standard error comes to thermi, which
+    // passes it on as its own.
+    private async Task<Process?> StartAsync(string program, IEnumerable<string> args, bool isWindow)
     {
-        var start = new ProcessStartInfo(program, args) { UseShellExecute = false };
+        var start = new ProcessStartInfo(program, args) { UseShellExecute = false, RedirectStandardError = isWindow };
         LaunchTokens.Set(start.Environment, await TokenAsync().ConfigureAwait(false));
+        foreach (var name in ServiceOnly)
+        {
+            start.Environment.Remove(name);
+        }
+
         try
         {
             return Process.Start(start);
@@ -148,8 +181,35 @@ internal sealed partial class WindowChannel : IWindowChannel, IDisposable
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
             _log.StartFailed(program, ex);
+            if (isWindow)
+            {
+                InWindowLog(log => log.StartFailed(program, ex));
+            }
+
             return null;
         }
+    }
+
+    // Each line on to thermi's own standard error, where the window's trace and GTK's warnings were always read, keeping
+    // the last few.
+    private static async Task PassOnAsync(StreamReader errors, ConcurrentQueue<string> said)
+    {
+        while (await errors.ReadLineAsync().ConfigureAwait(false) is { } line)
+        {
+            await Console.Error.WriteLineAsync(line).ConfigureAwait(false);
+            said.Enqueue(line);
+            while (said.Count > SaidLines && said.TryDequeue(out _))
+            {
+                // Only the last lines say why it ended.
+            }
+        }
+    }
+
+    // The window's own log, written by thermi once the window has ended, so the two never write it at once.
+    private void InWindowLog(Action<ILogger> write)
+    {
+        using var logs = ThermiLog.Create(ThermiLog.WindowPath, Time, trace: false);
+        write(logs.CreateLogger<WindowChannel>());
     }
 
     private async Task<string> TokenAsync()

@@ -17,7 +17,13 @@ internal sealed record ShellMonitor(double X, double Y, double Width, double Hei
     /// <summary>The room the panels keep along each of the monitor's edges, where a desktop tells them all; null for <see cref="Bar"/> alone.</summary>
     public PanelRoom? Room { get; init; }
 
-    /// <summary>The top bar's centre box, the clock, from its left edge to its right, on the stage; (0, 0) off the top bar.</summary>
+    /// <summary>
+    /// The top bar's left box, Activities and what extensions put beside it, from its left edge to its right, on the
+    /// stage; (0, 0) off the top bar.
+    /// </summary>
+    public (double Left, double Right) Start { get; init; }
+
+    /// <summary>The top bar's centre box, the clock, as <see cref="Start"/>.</summary>
     public (double Left, double Right) Centre { get; init; }
 
     /// <summary>The top bar's right box, the system menu, as <see cref="Centre"/>.</summary>

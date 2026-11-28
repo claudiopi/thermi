@@ -110,7 +110,7 @@ internal sealed class DesktopOverlay : IDisposable
         At = at;
         Box = new PixelRect(at.X, at.Y, at.X + Size.Width, at.Y + Size.Height);
         _fadeScale = scale * toThermi;
-        Next(overlay);
+        Next();
         Tips.Update(config, _index, scene.Input, drawn, Places);
         var sent = Send(picture, scene.Screens.Stage(at), Clicks(overlay, picture, scale));
         _ = Fade(overlay);
@@ -140,12 +140,10 @@ internal sealed class DesktopOverlay : IDisposable
     }
 
     // The overlay paints again for its own clock alone, a glow's next frame, as the readings' second paints it otherwise.
-    private void Next(OverlayConfig overlay)
+    private void Next()
     {
         _frame?.Dispose();
-        _frame = _clock.Glowing && _clock.Next(overlay) is { } next
-            ? _parts.Time.CreateTimer(_ => _parts.RequestPaint(), null, next, Timeout.InfiniteTimeSpan)
-            : null;
+        _frame = _clock.Glowing ? _parts.Time.CreateTimer(_ => _parts.RequestPaint(), null, OverlayClock.Frame, Timeout.InfiniteTimeSpan) : null;
     }
 
     /// <summary>
@@ -220,6 +218,8 @@ internal sealed class DesktopOverlay : IDisposable
         _frame?.Dispose();
         _frame = null;
         Pointer.Let();
+        // Its menu goes with it, without a word of its surface's.
+        Pointer.MenuClosed();
         Forget();
         return _parts.Call(_parts.Surfaces.Hide((uint)_index));
     }
@@ -272,8 +272,9 @@ internal sealed class DesktopOverlay : IDisposable
     }
 
     /// <summary>
-    /// The overlay as it last painted, afresh, without the marks of a drag or the open window, as "Copy as image" puts it on
-    /// the clipboard, in PNG; null before its first paint or while it stands for the stopped sensors.
+    /// The overlay as it last painted, afresh, in the look it painted in, which <see cref="EditLooks.Applied"/> gave the
+    /// open window's fade or a drag's background, as Windows' copy has it, but without the marks painted over it: as "Copy
+    /// as image" puts it on the clipboard, in PNG; null before its first paint or while it stands for the stopped sensors.
     /// </summary>
     public byte[]? Png()
     {

@@ -91,15 +91,20 @@ internal sealed class OverlayMenu(OverlayParts parts, Action exit, IReadOnlyList
         return new ShownMenu(all, rows, shown);
     }
 
-    /// <summary>The row at <paramref name="index"/> of the overlay's menu last shown was chosen.</summary>
-    public void Chosen(int index)
+    /// <summary>
+    /// The row at <paramref name="index"/> of the overlay's menu last shown was chosen; or, for -1, the menu of overlay
+    /// <paramref name="overlay"/> closed, chosen or not, which frees its tooltips, whichever menu shows by then.
+    /// </summary>
+    public void Chosen(uint overlay, int index)
     {
-        if (_shown.Overlay is { } overlay && overlay < overlays.Count)
+        if (index >= 0)
         {
-            overlays[overlay].Pointer.MenuClosed();
+            Choose(_shown, index);
         }
-
-        Choose(_shown, index);
+        else if (overlay < overlays.Count)
+        {
+            overlays[(int)overlay].Pointer.MenuClosed();
+        }
     }
 
     /// <summary>The row at <paramref name="index"/> of <paramref name="menu"/> was chosen.</summary>

@@ -134,7 +134,8 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
     {
         if (_shown.TryGetValue(id, out var shown))
         {
-            shown.Window.Menu(rows, anchor, side == MenuSide.Below ? Gtk.PositionType.Bottom : Gtk.PositionType.Top, row => Chosen(id, row), () => { });
+            var at = side == MenuSide.Below ? Gtk.PositionType.Bottom : Gtk.PositionType.Top;
+            shown.Window.Menu(rows, anchor, at, row => Chosen(id, row), () => Chosen(id, -1));
         }
 
         return Task.CompletedTask;

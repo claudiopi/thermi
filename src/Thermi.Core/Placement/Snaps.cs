@@ -235,7 +235,7 @@ public static class Snaps
     // Over a part of the taskbar no overlay covers, it goes beside that part, on the side nearer its middle where it fits.
     private static int Beside(Screen screen, PixelRect bar, int left, int width)
     {
-        foreach (var kept in new[] { screen.Centre, screen.End }.OfType<PixelRect>().ToList())
+        foreach (var kept in new[] { screen.Start, screen.Centre, screen.End }.OfType<PixelRect>().ToList())
         {
             if (left < kept.Right && left + width > kept.Left)
             {

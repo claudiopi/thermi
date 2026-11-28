@@ -45,7 +45,7 @@ internal sealed class ShellLink : IDisposable
         ["Ready"] = "(u)",
         ["Pointer"] = "(usdduuudd)",
         ["Key"] = "(us)",
-        ["MonitorsChanged"] = "(a(ddddddbbdddd))",
+        ["MonitorsChanged"] = "(a(ddddddbbdddddd))",
         ["Chosen"] = "(ui)",
     };
 
@@ -249,7 +249,7 @@ internal sealed class ShellLink : IDisposable
         _extensions.Dispose();
     }
 
-    /// <summary>The monitors in the extension's <c>a(ddddddbbdddd)</c>, as its <c>Monitors</c> answers and its signal sends them.</summary>
+    /// <summary>The monitors in the extension's <c>a(ddddddbbdddddd)</c>, as its <c>Monitors</c> answers and its signal sends them.</summary>
     public static List<ShellMonitor> MonitorsOf(GLib.Variant monitors) =>
         [.. Enumerable.Range(0, (int)monitors.NChildren()).Select(at => monitors.GetChildValue((nuint)at)).Select(each => new ShellMonitor(
             each.GetChildValue(0).GetDouble(),
@@ -263,6 +263,7 @@ internal sealed class ShellLink : IDisposable
         {
             Centre = (each.GetChildValue(8).GetDouble(), each.GetChildValue(9).GetDouble()),
             End = (each.GetChildValue(10).GetDouble(), each.GetChildValue(11).GetDouble()),
+            Start = (each.GetChildValue(12).GetDouble(), each.GetChildValue(13).GetDouble()),
         })];
 
     private Task<GLib.Variant> Own(string method, params GLib.Variant[] args) => Call(Shell, ObjectPath, Interface, method, args);

@@ -3,8 +3,8 @@ using System.Text.Json.Nodes;
 
 namespace Thermi.Linux.Tests.Desktops;
 
-/// <summary>A notification a program sent: when, on the system's monotonic clock, its program, summary, and buttons by id and label.</summary>
-internal sealed record SentNotice(double At, string App, string Summary, IReadOnlyList<string> Actions, IReadOnlyList<string> Labels, int Id);
+/// <summary>A notification a program sent: when, on the system's monotonic clock, its program, summary, text, and buttons by id and label.</summary>
+internal sealed record SentNotice(double At, string App, string Summary, string Text, IReadOnlyList<string> Actions, IReadOnlyList<string> Labels, int Id);
 
 /// <summary>
 /// The session's notifications as the test sees them. On GNOME the Shell is the desktop's notification server: the test
@@ -33,7 +33,7 @@ internal sealed class NoticeWatch
             said = None
             if interface == 'org.freedesktop.Notifications' and member == 'Notify':
                 app, _, _, summary, text, actions, _, _ = body.unpack()
-                said = {'app': app, 'summary': summary, 'actions': actions[0::2], 'labels': actions[1::2], 'id': 0}
+                said = {'app': app, 'summary': summary, 'text': text, 'actions': actions[0::2], 'labels': actions[1::2], 'id': 0}
             elif interface == 'org.gnome.Shell.Extensions' and member == 'InstallRemoteExtension':
                 said = {'install': body.unpack()[0]}
             elif interface == 'org.gnome.Shell.Extensions' and member == 'CheckForUpdates':
@@ -73,8 +73,9 @@ internal sealed class NoticeWatch
         def call(bus, sender, path, interface, method, args, invocation):
             if method == 'Notify':
                 state['next'] += 1
-                app, _, _, summary, _, actions, _, _ = args.unpack()
-                said = {'app': app, 'summary': summary, 'actions': actions[0::2], 'labels': actions[1::2], 'id': state['next'], 'at': time.monotonic()}
+                app, _, _, summary, text, actions, _, _ = args.unpack()
+                said = {'app': app, 'summary': summary, 'text': text, 'actions': actions[0::2], 'labels': actions[1::2], 'id': state['next'],
+                        'at': time.monotonic()}
                 print(json.dumps(said), flush=True)
                 invocation.return_value(GLib.Variant('(u)', (state['next'],)))
             elif method == 'GetCapabilities':
@@ -189,6 +190,7 @@ internal sealed class NoticeWatch
             (double)said["at"]!,
             (string)said["app"]!,
             (string)said["summary"]!,
+            (string)said["text"]!,
             [.. actions.Select(action => (string)action!)],
             [.. said["labels"]!.AsArray().Select(label => (string)label!)],
             (int)said["id"]!)

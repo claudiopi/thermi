@@ -29,7 +29,10 @@ internal interface IOverlaySurfaces : IDisposable
     /// <summary>A key on a picture a press holds, by its name: only Esc.</summary>
     Action<uint, string> Key { get; set; }
 
-    /// <summary>A row of the menu last shown was chosen: its overlay, and the row's place among the rows shown.</summary>
+    /// <summary>
+    /// A row of the menu last shown was chosen: its overlay, and the row's place among the rows shown; -1 as the menu
+    /// closes, chosen or not, which frees the overlay's tooltips.
+    /// </summary>
     Action<uint, int> Chosen { get; set; }
 
     /// <summary>Starts the surfaces, as thermi starts; <see cref="Arrived"/> follows once they show.</summary>

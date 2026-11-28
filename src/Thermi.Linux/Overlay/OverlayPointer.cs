@@ -70,11 +70,6 @@ internal sealed class OverlayPointer : IPressHost, IDisposable
         }
 
         var overlay = config.Overlays[_index];
-        if (pointer.Kind is "press" or "motion")
-        {
-            MenuClosed();
-        }
-
         Took(pointer, overlay, (cursor, corner), screens);
         Shape(pointer.Kind == "leave" ? PointerShape.Default : _press.Shape(overlay, Drawn, Scale, corner));
     }
@@ -139,7 +134,7 @@ internal sealed class OverlayPointer : IPressHost, IDisposable
         _press.Let();
     }
 
-    /// <summary>The menu the overlay opened closed, its row chosen or not: its tooltips may show again.</summary>
+    /// <summary>The menu the overlay opened closed, its row chosen or not, as its surface tells: its tooltips may show again.</summary>
     public void MenuClosed()
     {
         if (_menu)

@@ -1,12 +1,12 @@
 using Thermi.Core.Look;
 using Thermi.Core.Placement;
-using Thermi.Core.Settings;
 
 namespace Thermi.App.Overlay;
 
 /// <summary>
 /// An overlay's own clock on every OS, past its readings', on the injected clock: how long it has run, which OLED care
-/// moves it by, and its critical glow, whose frames come about 30 times a second only while it glows.
+/// moves it by, and its critical glow, whose frames come about 30 times a second only while it glows. OLED care steps
+/// on the readings' paint each second, as Windows' does, so it needs no wake of its own.
 /// </summary>
 internal sealed class OverlayClock(TimeProvider time)
 {
@@ -30,13 +30,4 @@ internal sealed class OverlayClock(TimeProvider time)
         _glow.Update(items, animate);
         return _glow.Glowing ? _glow.Of : null;
     }
-
-    /// <summary>
-    /// When the overlay paints again for its own clock alone, for a host that paints only when something changed: the
-    /// glow's next frame, or the next step of <paramref name="overlay"/>'s OLED care, or null for neither.
-    /// </summary>
-    public TimeSpan? Next(OverlayConfig overlay) =>
-        _glow.Glowing ? Frame
-        : overlay.Oled ? OledCare.Step - TimeSpan.FromTicks(Running.Ticks % OledCare.Step.Ticks)
-        : null;
 }

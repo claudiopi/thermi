@@ -58,8 +58,9 @@ public sealed class OverlayTipsTests
     }
 
     // No tooltip shows while a press or the menu holds the overlay, nor after a drop until the pointer leaves the overlay
-    // or 1.5 s pass, each drop once; once free, the value under the pointer shows its own after the usual wait. A
-    // click-through overlay shows none.
+    // or 1.5 s pass, each drop once; once free, the value under the pointer shows its own after the usual wait. A press
+    // or a menu forgets the value the pointer was on, as it may move unheard under them: the value it next moves on shows
+    // its own, never the pressed one's (the final pass on GNOME 46, 2026-11-27). A click-through overlay shows none.
     [Fact]
     public void NoTooltipShowsWhileHeldAfterADropOrClickingThrough()
     {
@@ -74,8 +75,11 @@ public sealed class OverlayTipsTests
         Pass(600);
         tips.Quiet(Hush.Press, false);
         Pass(500);
+        tips.Point(150, 20);
+        Pass(500);
         tips.Quiet(Hush.Menu, true);
         tips.Quiet(Hush.Menu, false);
+        tips.Point(50, 20);
         Pass(500);
         drop.Dropped();
         tips.After(drop);
@@ -95,30 +99,29 @@ public sealed class OverlayTipsTests
 
         var text = Text(input, 0);
         Assert.Equal(4, quiet);
-        Assert.Equal([text, null, text, null, text, null, text, null], host.Shown.Select(tip => tip?.Text));
+        Assert.Equal([Text(input, 1), null, text, null, text, null, text, null], host.Shown.Select(tip => tip?.Text));
         Assert.False(tips.Speaks);
     }
 
-    // A critical value's first glow paints a frame every 33 ms while it lasts, and OLED care moves the overlay every
-    // 3 minutes of its running; past both, the overlay's own clock wakes it for nothing.
+    // A critical value's first glow lasts its while, at full strength in its middle, and comes no more for it; the
+    // overlay's running, which OLED care moves it by, is the injected clock's.
     [Fact]
-    public void AnOverlaysOwnClockWakesItForTheGlowAndOledCare()
+    public void AnOverlaysOwnClockGlowsOnceAndCountsItsRunning()
     {
         var clock = new OverlayClock(_time);
-        var (oled, plain) = (new OverlayConfig { Oled = true }, new OverlayConfig());
         OverlayItem[] critical = [new("CPU", "90 °C", Level.Critical, "100 °C") { Id = "cpu" }];
 
         Pass(60_000);
         var glow = clock.Glow(critical, animate: true);
-        var (frame, stepping) = (clock.Next(plain), clock.Next(oled));
+        var glowing = clock.Glowing;
         Pass(300);
         var strength = glow?.Invoke("cpu");
         Pass(300);
 
-        Assert.Equal(((TimeSpan?)OverlayClock.Frame, (TimeSpan?)OverlayClock.Frame), (frame, stepping));
+        Assert.True(glowing);
         Assert.Equal(1, strength ?? 0, 3);
         Assert.Null(clock.Glow(critical, animate: true));
-        Assert.Equal((null, OledCare.Step - TimeSpan.FromMilliseconds(60_600)), (clock.Next(plain), clock.Next(oled)));
+        Assert.False(clock.Glowing);
         Assert.Equal(TimeSpan.FromMilliseconds(60_600), clock.Running);
     }
 

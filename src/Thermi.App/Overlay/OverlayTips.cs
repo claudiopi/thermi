@@ -119,11 +119,20 @@ internal sealed class OverlayTips(ITipsHost host, TimeSpan doubleClick) : IDispo
         }
     }
 
-    /// <summary>Holds the tooltips quiet for <paramref name="why"/>, or lets them go: a press, a drag or the menu.</summary>
+    /// <summary>
+    /// Holds the tooltips quiet for <paramref name="why"/>, or lets them go: a press, a drag or the menu. Held, they forget
+    /// the value the pointer was on, as a drag or a menu takes it where the overlay hears it not: once free, the value the
+    /// pointer next moves on shows its own, as Windows' tooltips wait for a move after a press.
+    /// </summary>
     public void Quiet(Hush why, bool quiet)
     {
         var spoke = Speaks;
         _quiet.Quiet(why, quiet);
+        if (quiet)
+        {
+            (_on, _popped) = (null, false);
+        }
+
         Heard(spoke);
     }
 
@@ -171,7 +180,7 @@ internal sealed class OverlayTips(ITipsHost host, TimeSpan doubleClick) : IDispo
         Heard(spoke);
     }
 
-    // Quiet, the tooltip hides; free again, the value under the pointer shows its own after the usual wait.
+    // Quiet, the tooltip hides; free again, the value the pointer is known to be on shows its own after the usual wait.
     private void Heard(bool spoke)
     {
         if (!Speaks)
@@ -228,7 +237,8 @@ internal sealed class OverlayTips(ITipsHost host, TimeSpan doubleClick) : IDispo
         wake = null;
     }
 
-    // One wait on the injected clock, which does nothing once stopped, even when its timer already fired.
+    // One wait on the injected clock, which does nothing once stopped, even when its timer already fired; one that ran
+    // let its timer go, so it is dropped as it is.
     private sealed class Wake : IDisposable
     {
         private readonly ITimer _timer;
@@ -249,7 +259,7 @@ internal sealed class OverlayTips(ITipsHost host, TimeSpan doubleClick) : IDispo
         {
             if (!_off)
             {
-                _off = true;
+                Dispose();
                 then();
             }
         }

@@ -16,8 +16,9 @@ export function refuseMenu(x, y, width, height, side, rows) {
     refuseRows(rows);
 }
 
-// Opens the menu in place of the one open; choosing a row calls chosen with its index. What it opens against draws
-// nothing and takes no click, so it stays out of the Shell's input region.
+// Opens the menu in place of the one open; choosing a row calls chosen with its index, and the menu closing, chosen or
+// not, with -1 before it. What it opens against draws nothing and takes no click, so it stays out of the Shell's input
+// region.
 export function openMenu(shown, [x, y, width, height], side, rows, chosen) {
     closeMenu(shown);
     if (!shown.anchor) {
@@ -33,6 +34,7 @@ export function openMenu(shown, [x, y, width, height], side, rows, chosen) {
     // A menu closes before its choice is sent, and is destroyed once it is.
     menu.connect('open-state-changed', (_, open) => {
         if (!open && menu === shown.menu && !shown.closing) {
+            chosen(-1);
             shown.closing = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                 shown.closing = 0;
                 return closeMenu(shown);

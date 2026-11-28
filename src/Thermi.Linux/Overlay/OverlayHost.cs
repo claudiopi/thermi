@@ -70,7 +70,7 @@ internal sealed class OverlayHost : IDisposable
         var arrival = new ExtensionArrival(_link, _notices, () => TextsOf(settings.Config), log, Post);
         _surfaces = SurfacesOf(kind, _link, arrival, log);
         _firstStart = start.FirstStart;
-        _channel = ChannelOf(bus, log, trace.On);
+        _channel = ChannelOf(bus, log, trace);
         _parts = new OverlayParts(settings, _link, _surfaces, time, CultureInfo.CurrentCulture, log)
         {
             Channel = _channel,
@@ -107,11 +107,12 @@ internal sealed class OverlayHost : IDisposable
         _ => new ShellSurfaces(link, arrival),
     };
 
-    private WindowChannel ChannelOf(Gio.DBusConnection bus, ILogger log, bool traced) => new(bus, log)
+    private WindowChannel ChannelOf(Gio.DBusConnection bus, ILogger log, TraceEvents trace) => new(bus, log)
     {
         Activation = _surfaces.ActivationAsync,
         Post = Post,
-        Traced = traced,
+        Traced = trace.On,
+        Time = trace.Time,
     };
 
     private Settings Settings => _parts.Settings;
@@ -137,7 +138,7 @@ internal sealed class OverlayHost : IDisposable
         _surfaces.Pointer += pointer => Safe(() => Pointer(pointer), Log.PointerFailed);
         _surfaces.Key += (overlay, key) => Safe(() => Key(overlay, key), Log.PointerFailed);
         _surfaces.Lost += overlay => Safe(() => Key(overlay, "Escape"), Log.PointerFailed);
-        _surfaces.Chosen += (_, row) => Safe(() => _menu.Chosen(row), Log.ChoiceFailed);
+        _surfaces.Chosen += (overlay, row) => Safe(() => _menu.Chosen(overlay, row), Log.ChoiceFailed);
         _links.Start(_firstStart);
         _feed.Received += (_, _) => Post(Record);
         Settings.Changed += (_, _) => Post(SettingsChanged);

@@ -1,5 +1,6 @@
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
+using Thermi.Linux.Overlay.Link;
 using Thermi.Linux.Tests.Desktops;
 using Thermi.Linux.Tray;
 using Thermi.Linux.Window;
@@ -59,6 +60,11 @@ public sealed partial class DesktopTests
         var failed = notices.NextAsync(ThermiNotices.OpenAgain, cancel);
         await notices.ClickAsync(await firstRun, "first-run", cancel);
         var told = await failed;
+        // The notice names the window's log, which holds why it died whatever it wrote there itself, as a window WebKit's
+        // sandbox aborts writes nothing (the final pass on GNOME 46, 2026-11-27).
+        var log = Path.Combine(session.Home, ".local", "state", "thermi", "thermi-window.log");
+        Assert.Contains(log, told.Text, StringComparison.Ordinal);
+        Assert.Contains($" ERR {typeof(WindowChannel).FullName}:", await File.ReadAllTextAsync(log, cancel), StringComparison.Ordinal);
         squatter.Kill();
         await squatter.WaitForExitAsync(cancel);
         var opened = Traced.NextAsync(thermi.Error, Traced.WindowShown, cancel);

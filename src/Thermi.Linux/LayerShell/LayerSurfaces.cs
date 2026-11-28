@@ -125,7 +125,11 @@ internal sealed class LayerSurfaces(ILogger log) : IOverlaySurfaces
                 anchor,
                 side == MenuSide.Below ? Gtk.PositionType.Bottom : Gtk.PositionType.Top,
                 row => Chosen(id, row),
-                () => LayerShellLibrary.SetKeyboard(window.Window, _held.Contains(id)));
+                () =>
+                {
+                    LayerShellLibrary.SetKeyboard(window.Window, _held.Contains(id));
+                    Chosen(id, -1);
+                });
         }
 
         return Task.CompletedTask;

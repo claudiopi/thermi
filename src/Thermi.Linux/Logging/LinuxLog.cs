@@ -46,6 +46,9 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Error, Message = "The settings window ended with code {Code}: its own log says why")]
     public static partial void WindowEnded(this ILogger logger, int code);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "The settings window ended with code {Code}; it last wrote on its standard error:\n{Said}")]
+    public static partial void WindowDied(this ILogger logger, int code, string said);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "The overlay could not be painted")]
     public static partial void PaintFailed(this ILogger logger, Exception error);
 

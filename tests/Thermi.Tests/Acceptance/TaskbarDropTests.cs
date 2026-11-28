@@ -23,12 +23,13 @@ public sealed class TaskbarDropTests
         Tray = new PixelRect(2210, 1392, 2560, 1440),
     };
 
-    // A second monitor at its right, its taskbar at the top as GNOME's top bar, its notification area starting at 4200 and
-    // a clock from 3420 to 3620 that no overlay covers.
+    // A second monitor at its right, its taskbar at the top as GNOME's top bar, its notification area starting at 4200, and
+    // Activities up to 2660 and a clock from 3420 to 3620 that no overlay covers.
     private static readonly Screen Side = new("side", false, new PixelRect(2560, 0, 4480, 1080), new PixelRect(2560, 40, 4480, 1080), 1)
     {
         Taskbar = new PixelRect(2560, 0, 4480, 40),
         Tray = new PixelRect(4200, 0, 4480, 40),
+        Start = new PixelRect(2560, 0, 2660, 40),
         Centre = new PixelRect(3420, 0, 3620, 40),
     };
 
@@ -42,7 +43,7 @@ public sealed class TaskbarDropTests
 
     // An overlay 550 × 38 dragged and dropped with its top-left corner at `drop`, with Alt held, or vertical, when it says
     // so. Where it lands: its snap and where it shows, or "free" where it is kept.
-    [Theory] // Rows: a mark's or an edge's reach at 96 and 97 px, each corner and taskbar, Alt on the taskbar, near a corner and off both
+    [Theory] // Rows: a mark's or an edge's reach at 96 and 97 px, each corner and taskbar, Alt on the taskbar, near a corner and off both, the top bar's start
     // On the taskbar, anywhere along it, over the app buttons or the notification area too, kept whole on it.
     [InlineData("300,1420", "Taskbar 300,1397")]
     [InlineData("2200,1397", "Taskbar 2010,1397")]
@@ -64,9 +65,11 @@ public sealed class TaskbarDropTests
     [InlineData("alt 1600,1397", "Taskbar 1600,1397")]
     [InlineData("alt 18,1336", "free 18,1336")]
     [InlineData("alt 1200,1300", "free 1200,1300")]
-    // A taskbar at the top of another monitor pulls from its edge 96 px below it, beside its clock on the nearer side; a
-    // vertical overlay never goes on one.
+    // A taskbar at the top of another monitor pulls from its edge 96 px below it, beside its clock on the nearer side, and
+    // its start's mark lies past Activities, never over it (the final pass on GNOME 46, 2026-11-27); a vertical overlay
+    // never goes on one.
     [InlineData("3300,136", "Taskbar 3628,1")]
+    [InlineData("2600,1", "Taskbar 2668,1")]
     [InlineData("vertical 1200,1397", "free 1200,1354")]
     public void ADropLandsWhereItIsLetGoOrOnAMarkInReach(string drop, string lands)
     {

@@ -25,13 +25,16 @@ public readonly record struct PixelRect(int Left, int Top, int Right, int Bottom
 /// <summary>
 /// A monitor as Windows reports it, <see cref="Scale"/> being its DPI over 96. <see cref="Taskbar"/> is null on a monitor without one,
 /// and <see cref="Tray"/> is the notification area on the main taskbar or the clock on another, null when it cannot be found from its
-/// window. <see cref="Centre"/> and <see cref="End"/> are parts of a taskbar no overlay covers, GNOME's clock and system menu.
+/// window. <see cref="Start"/>, <see cref="Centre"/> and <see cref="End"/> are parts of a taskbar no overlay covers, GNOME's
+/// Activities with what sits beside it, its clock and its system menu.
 /// </summary>
 public sealed record Screen(string Id, bool Primary, PixelRect Bounds, PixelRect Work, double Scale)
 {
     public PixelRect? Taskbar { get; init; }
 
     public PixelRect? Tray { get; init; }
+
+    public PixelRect? Start { get; init; }
 
     public PixelRect? Centre { get; init; }
 
