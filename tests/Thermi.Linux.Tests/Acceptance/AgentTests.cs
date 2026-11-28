@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Thermi.Core.Agents;
+using Thermi.Core.Bridge;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
+using Thermi.Linux.Gnome;
 using Thermi.Linux.Tests.Desktops;
 using Thermi.Tests.Contract;
 
@@ -39,7 +41,10 @@ public sealed class AgentTests
         OverSsh,
         FromTheOverlay,
 
-        /// <summary>Where no overlay can show: GNOME without thermi's extension, and Wayland with no surface thermi has.</summary>
+        /// <summary>
+        /// Where no overlay can show: GNOME without thermi's extension or before its Shell read it, and Wayland with no
+        /// surface thermi has.
+        /// </summary>
         CannotShow,
     }
 
@@ -175,14 +180,16 @@ public sealed class AgentTests
     }
 
     // On GNOME without thermi's extension, and in a Wayland session with neither GNOME Shell nor layer surfaces, where the
-    // overlay its sign-in started ended at once, status says the overlay cannot show there.
+    // overlay its sign-in started ended at once, status says the overlay cannot show there. On GNOME with the extension's
+    // files in place that the running Shell never read, as right after a package put them there, its fix is to sign in again.
     private static async Task CannotShowAsync(CancellationToken cancel)
     {
         await CannotShowOnAsync(DesktopKind.Gnome, extension: null, cancel);
+        await CannotShowOnAsync(DesktopKind.Gnome, extension: null, cancel, placed: true);
         await CannotShowOnAsync(DesktopKind.BareWayland, TestShell.Thermi, cancel);
     }
 
-    private static async Task CannotShowOnAsync(DesktopKind kind, string? extension, CancellationToken cancel)
+    private static async Task CannotShowOnAsync(DesktopKind kind, string? extension, CancellationToken cancel, bool placed = false)
     {
         await using var bare = await TestDesktop.StartAsync(kind, [new TestMonitor(1920, 1080)], extension, cancel);
         await SensorFeed.ServeAsync(bare.Session, SensorFeed.Desktop, cancel);
@@ -192,8 +199,19 @@ public sealed class AgentTests
             await thermi.WaitForExitAsync(cancel);
         }
 
+        if (placed)
+        {
+            var folder = Directory.CreateDirectory(Path.Combine(bare.Session.Variables["XDG_DATA_HOME"], "gnome-shell", "extensions", ShellLink.Uuid));
+            foreach (var file in Directory.EnumerateFiles(TestShell.Thermi))
+            {
+                File.Copy(file, Path.Combine(folder.FullName, Path.GetFileName(file)));
+            }
+        }
+
         var status = JsonNode.Parse((await bare.Session.RunAsync("thermi-cli", ["status", "--schema", "1"], cancel: cancel)).Out)!;
-        Assert.Contains(status["problems"]!.AsArray(), problem => (string?)problem!["code"] == "overlay-cannot-show");
+        var problem = Assert.Single(status["problems"]!.AsArray(), problem => (string?)problem!["code"] == "overlay-cannot-show")!;
+        var said = AgentStatus.Said(AgentProblem.OverlayCannotShow, os: HostOs.Linux, noOverlay: placed ? NoOverlayCause.SignInAgain : NoOverlayCause.Desktop);
+        Assert.Equal(said.Fix, (string?)problem["fix"]);
     }
 
     // Over SSH, with no display and no overlay, as where the sensors' package is alone: status answers as it does with no

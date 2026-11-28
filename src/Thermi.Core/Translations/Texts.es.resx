@@ -2548,6 +2548,12 @@
   <data name="AgentText.OverlayCannotShowFixLayerShell" xml:space="preserve">
     <value>Pedile a la persona que instale gtk4-layer-shell con su gestor de paquetes y que vuelva a iniciar thermi. No lo instales vos. Los sensores se siguen leyendo.</value>
   </data>
+  <data name="AgentText.OverlayCannotShowCauseSignIn" xml:space="preserve">
+    <value>El overlay todavía no puede mostrarse: la extensión de GNOME de thermi se instaló después de que la persona inició sesión, y GNOME Shell la lee recién al volver a iniciarla.</value>
+  </data>
+  <data name="AgentText.OverlayCannotShowFixSignIn" xml:space="preserve">
+    <value>Pedile a la persona que cierre sesión y vuelva a entrar. No reinicies GNOME Shell vos. Los sensores se siguen leyendo.</value>
+  </data>
   <data name="WindowText.UpdatesNotUpdating" xml:space="preserve">
     <value>Esta compilación no se actualiza sola</value>
   </data>

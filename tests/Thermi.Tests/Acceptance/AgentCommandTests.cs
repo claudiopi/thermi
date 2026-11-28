@@ -138,12 +138,14 @@ public sealed class AgentCommandTests : IDisposable
 
     // On Linux no frame is read, a CPU with no temperature lacks the kernel's module for it, as a virtual machine's always
     // does, and a session the overlay cannot show in says so, in status and in monitors, which no overlay measured; the
-    // missing module's cause and fix are Linux's own. An overlay that ended where gtk4-layer-shell is missing, so none
-    // runs to measure the monitors, has a cause and fix of its own: the desktop could show it once the library is there.
-    [Theory] // Rows: a desktop that shows the overlay, one that shows none, and one that lacks the library alone.
+    // missing module's cause and fix are Linux's own, as are GNOME's when its Shell reads thermi's extension only at the next
+    // sign-in. An overlay that ended where gtk4-layer-shell is missing, so none runs to measure the monitors, has a cause
+    // and fix of its own: the desktop could show it once the library is there.
+    [Theory] // Rows: a desktop that shows the overlay, one that shows none, one that lacks the library alone, and one to sign in again.
     [InlineData(true, null)]
     [InlineData(false, NoOverlayCause.Desktop)]
     [InlineData(true, NoOverlayCause.LayerShellMissing)]
+    [InlineData(true, NoOverlayCause.SignInAgain)]
     public async Task StatusOnLinuxSaysWhatLinuxLacks(bool cpuTemperature, NoOverlayCause? cannotShow)
     {
         var admin = TestRecordings.Read(TestRecordings.Admin);
@@ -158,7 +160,7 @@ public sealed class AgentCommandTests : IDisposable
         _rig.WhyNoScreens = cannotShow switch
         {
             null => null,
-            NoOverlayCause.Desktop => AgentProblem.OverlayCannotShow,
+            NoOverlayCause.Desktop or NoOverlayCause.SignInAgain => AgentProblem.OverlayCannotShow,
             NoOverlayCause.LayerShellMissing => AgentProblem.OverlayNotRunning,
             _ => throw new ArgumentOutOfRangeException(nameof(cannotShow)),
         };

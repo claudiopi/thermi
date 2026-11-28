@@ -44,6 +44,12 @@ public enum NoOverlayCause
 
     /// <summary>On Linux, gtk4-layer-shell is not installed, which thermi shows its overlays through off GNOME on Wayland.</summary>
     LayerShellMissing,
+
+    /// <summary>
+    /// On GNOME, thermi's extension is in place, as a package put it after the person signed in, and the running Shell reads
+    /// it only at the next sign-in.
+    /// </summary>
+    SignInAgain,
 }
 
 /// <summary>Each problem's cause and fix, as an agent reads them; the contract answers them in English.</summary>
@@ -82,6 +88,8 @@ public enum AgentText
     OverlayNotRunningFix,
     OverlayCannotShowCauseLayerShell,
     OverlayCannotShowFixLayerShell,
+    OverlayCannotShowCauseSignIn,
+    OverlayCannotShowFixSignIn,
 }
 
 /// <summary>A problem, with why it happens and what a person does about it; nothing an agent may do itself.</summary>
@@ -216,6 +224,8 @@ public static class AgentStatus
     {
         AgentProblem.OverlayCannotShow when noOverlay == NoOverlayCause.LayerShellMissing =>
             (AgentText.OverlayCannotShowCauseLayerShell, AgentText.OverlayCannotShowFixLayerShell),
+        AgentProblem.OverlayCannotShow when noOverlay == NoOverlayCause.SignInAgain =>
+            (AgentText.OverlayCannotShowCauseSignIn, AgentText.OverlayCannotShowFixSignIn),
         AgentProblem.ServiceStopped => (AgentText.ServiceStoppedCause, AgentText.ServiceStoppedFixLinux),
         AgentProblem.ServiceStale => (AgentText.ServiceStaleCause, AgentText.ServiceStaleFixLinux),
         AgentProblem.PipeTaken => (AgentText.PipeTakenCauseLinux, AgentText.PipeTakenFixLinux),
