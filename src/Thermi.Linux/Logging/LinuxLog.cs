@@ -13,6 +13,9 @@ internal static partial class LinuxLog
     [LoggerMessage(Level = LogLevel.Error, Message = "The monitors could not be read from the GNOME Shell extension")]
     public static partial void MonitorsFailed(this ILogger logger, Exception error);
 
+    [LoggerMessage(Level = LogLevel.Error, Message = "GTK's monitors were read on thread {Thread}, off its main loop: thermi may crash")]
+    public static partial void MonitorsReadOffLoop(this ILogger logger, int thread);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "The pointer or a key on an overlay could not be handled")]
     public static partial void PointerFailed(this ILogger logger, Exception error);
 

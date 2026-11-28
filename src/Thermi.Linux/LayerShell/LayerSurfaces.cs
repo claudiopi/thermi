@@ -391,5 +391,5 @@ internal sealed class LayerSurfaces(ILogger log, Gio.DBusConnection bus, TimePro
     }
 
     public IReadOnlyList<ShellMonitor> Monitors() =>
-        [.. GdkMonitors.Read(_monitors, monitor => _rooms.GetValueOrDefault(monitor), primary: null).Select(_plasma.Boxed)];
+        [.. GdkMonitors.Read(log, _monitors, monitor => _rooms.GetValueOrDefault(monitor), primary: null).Select(_plasma.Boxed)];
 }

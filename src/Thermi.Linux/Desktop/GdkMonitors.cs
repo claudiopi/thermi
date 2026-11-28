@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
 using Thermi.Core.Placement;
 using Thermi.Linux.Gnome;
+using Thermi.Linux.Logging;
 
 namespace Thermi.Linux.Desktop;
 
@@ -33,12 +35,23 @@ internal static class GdkMonitors
     /// <summary>
     /// The monitors, with the room the panels keep on each, the primary one, which a window covers full screen where
     /// <paramref name="fullScreen"/> says, none where it is null, and each one's EDID as <paramref name="edid"/> reads it,
-    /// the kernel's where it is null.
+    /// the kernel's where it is null. They are read on the main loop alone, as all of GTK is: one read beside it is logged.
     /// </summary>
     public static IReadOnlyList<ShellMonitor> Read(
-        IReadOnlyList<Gdk.Monitor> monitors, Func<Gdk.Monitor, PanelRoom> room, Gdk.Monitor? primary,
+        ILogger log, IReadOnlyList<Gdk.Monitor> monitors, Func<Gdk.Monitor, PanelRoom> room, Gdk.Monitor? primary,
         Func<Gdk.Monitor, bool>? fullScreen = null, Func<Gdk.Monitor, byte[]>? edid = null)
     {
+        // A thread takes GLib's context only while no other runs its loop, or while it runs the loop itself.
+        var context = GLib.MainContext.Default();
+        if (context.Acquire())
+        {
+            context.Release();
+        }
+        else
+        {
+            log.MonitorsReadOffLoop(Environment.CurrentManagedThreadId);
+        }
+
         var ids = MonitorIds.Unique([.. monitors.Select(monitor => (Name(monitor, edid ?? Edid), monitor.GetConnector() ?? ""))]);
         var first = primary ?? (monitors.Count > 0 ? monitors[0] : null);
         return [.. monitors.Select((monitor, at) =>

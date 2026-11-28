@@ -202,7 +202,7 @@ internal sealed class X11Surfaces(ILogger log) : IOverlaySurfaces
             return covered is var (x, y, width, height) && monitor.Geometry.ContainsPoint((int)(x + (width / 2)), (int)(y + (height / 2)));
         }
 
-        return [.. GdkMonitors.Read(GdkMonitors.All(), PanelStruts.Of(display), XWindows.Primary(display), FullScreen, XWindows.Edid)];
+        return [.. GdkMonitors.Read(log, GdkMonitors.All(), PanelStruts.Of(display), XWindows.Primary(display), FullScreen, XWindows.Edid)];
     }
 
     // The pointer anywhere, told only when it moved, as a Pointer on no overlay.

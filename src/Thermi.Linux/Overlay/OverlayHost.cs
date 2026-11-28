@@ -62,8 +62,7 @@ internal sealed class OverlayHost : IDisposable
         _bus = bus;
         _feed = feed;
         _trace = trace;
-        var kind = start.Kind;
-        _kind = kind;
+        var kind = _kind = start.Kind;
         var time = trace.Time;
         _link = new ShellLink(bus, log);
         _notices = new DesktopNotices(bus, log);
@@ -184,19 +183,21 @@ internal sealed class OverlayHost : IDisposable
         _overlays.ForEach(overlay => overlay.Forget());
         _desk.Arrived();
         _watching = false;
-        _ = Task.Run(async () =>
+        _ = TellMonitorsAsync();
+    }
+
+    // On the main loop, where layer surfaces and X11 read GTK's monitors; what the Shell's call fails to bring, its next change or arrival does.
+    private async Task TellMonitorsAsync()
+    {
+        try
         {
-            try
-            {
-                var monitors = await _surfaces.MonitorsAsync();
-                Post(() => Monitors(monitors));
-            }
-            catch (GLib.GException ex)
-            {
-                // The surfaces' next MonitorsChanged, or their next arrival, brings them.
-                Log.MonitorsFailed(ex);
-            }
-        });
+            var monitors = await _surfaces.MonitorsAsync().ConfigureAwait(false);
+            Post(() => Monitors(monitors));
+        }
+        catch (GLib.GException ex)
+        {
+            Log.MonitorsFailed(ex);
+        }
     }
 
     private void Monitors(IReadOnlyList<ShellMonitor> monitors)
