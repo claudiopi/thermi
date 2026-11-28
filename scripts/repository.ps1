@@ -241,6 +241,20 @@ function Undo-Version([hashtable]$Lever, [pscustomobject]$History) {
     Write-Offer $Lever $History ([pscustomobject]@{ lever = 'rollback'; version = $target; package = $package; packages = $packages })
 }
 
+# Another channel's rollback, its packages as they are in $Folder: the channel goes back to the same version under the
+# same higher number, which it must not have offered, nor any higher.
+function Undo-Promoted([hashtable]$Lever, [pscustomobject]$History, [pscustomobject]$Offer, [string]$Folder) {
+    $head = { param($package) [System.Management.Automation.SemanticVersion](($package -split '\.really')[0].Replace('~', '-')) }
+    if ($History.highest -and ($Offer.package -eq $History.highest -or (& $head $Offer.package) -lt (& $head $History.highest))) {
+        throw "$($Offer.package) is not above $($History.highest), which $($Lever.Channel) offered: a PC takes only a higher package."
+    }
+    $current = Get-Current $History
+    $packages = @(Add-Packed $Lever $Folder $Offer.package)
+    if ($current.version -and $current.version -ne $Offer.version) { $History.withdrawn = @($History.withdrawn) + $current.version }
+    $History.highest = $Offer.package
+    Write-Offer $Lever $History ([pscustomobject]@{ lever = 'rollback'; version = $Offer.version; package = $Offer.package; packages = $packages })
+}
+
 # The offer before the current one, offered again: the same packages, indexed and signed anew, as apt takes no Release
 # older than the one it holds.
 function Restore-Offer([hashtable]$Lever, [pscustomobject]$History) {
@@ -293,7 +307,8 @@ function Invoke-Lever([string]$Command, [hashtable]$Options, [hashtable]$Lever, 
             foreach ($package in $current.packages | Where-Object { $_.path -notlike 'tarballs/*' }) {
                 Copy-Item (Join-Path $Lever.Repository $package.path) $folder
             }
-            Publish-Version $Lever $history $current.version $folder $tarballs
+            if ($current.package -ne $current.version.Replace('-', '~')) { Undo-Promoted $Lever $history $current $folder }
+            else { Publish-Version $Lever $history $current.version $folder $tarballs }
         }
         'rollback' { Undo-Version $Lever $history }
         'disable' { Write-Offer $Lever $history ([pscustomobject]@{ lever = 'disable'; version = $null; package = $null; packages = @() }) }

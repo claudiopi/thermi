@@ -129,9 +129,10 @@ public sealed partial class PackageTests
         await using var pc = await Container.BootAsync(session, tool.Image, session.Home, cancel);
         var levers = new Levers(session, channel);
         // The build and a newer one, each published as the release workflow publishes a version from the packages it packed:
-        // the build as a release is, to stable, and the newer one as a merge is, to beta, then promoted.
+        // the build as a release is, to both channels, and the newer one as a merge is, to beta, then promoted.
         var (first, next) = (Built.PackedVersion(Built.Packages), Built.PackedVersion(Built.Newer));
         await levers.RunAsync(["publish", first, "--channel", "stable"], cancel);
+        await levers.RunAsync(["publish", first, "--channel", "beta"], cancel);
         levers.Snapshot();
         // The first version from the channel's own files, which adds the repository, then pointed at the channel the test serves.
         await pc.MustAsync($"{tool.Prepare()} && {tool.InstallFromChannel("thermi-sensors", first)} && {tool.Served()}", cancel);
@@ -150,7 +151,10 @@ public sealed partial class PackageTests
         // The old service is gone, though a client held it, and the process that serves now is the new version's.
         var serving = (await pc.MustAsync($"[ ! -e /proc/{before} ] && systemctl start thermi-sensors.service && {Serving}", cancel)).Trim();
         var serves = await pc.MustAsync($"/proc/{serving}/exe --version", cancel);
-        await levers.RunAsync(["rollback", "--channel", "stable"], cancel);
+        // Rolled back on beta, then promoted, as a bad version found on beta first leaves stable too: stable offers beta's
+        // packages of the version before, under the number they were packed again with.
+        await levers.RunAsync(["rollback", "--channel", "beta"], cancel);
+        await levers.RunAsync(["promote", "--from", "beta", "--to", "stable"], cancel);
         var rolledBack = await UpdatedAsync(pc, tool, cancel);
         // The version before, published under a higher number, so every PC takes it.
         var runs = await pc.MustAsync("/usr/lib/thermi/thermi-sensors --version", cancel);
