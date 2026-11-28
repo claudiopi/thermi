@@ -43,30 +43,53 @@ public sealed class OverlayTests
         var full = row is Shown.FullScreen or Shown.HiddenInFullScreen;
         var at = new Position(main.Visible.X + 200, main.Visible.Y + 200);
         var visibility = row == Shown.HiddenInFullScreen ? Visibility.HideInFullscreen : Visibility.Always;
-        await mac.WriteSettingsAsync(ThermiConfig.New with { Overlays = [OverlayConfig.First with { Position = at, Visibility = visibility }] }, cancel);
+        var overlay = OverlayConfig.First with { Position = at, Visibility = visibility };
+        await mac.WriteSettingsAsync(ThermiConfig.New with { Overlays = [overlay] }, cancel);
+        await mac.DockAsync("bottom", hides: false, cancel);
+        var picture = await mac.PreviewAsync(recording, main.Scale, cancel);
+        var (width, height) = ((int)(picture.Width / main.Scale), (int)(picture.Height / main.Scale));
+        // One overlay over the window, and another as the first paints, over the Dock, at the bottom of the monitor's frame.
+        var dock = new Position(main.Frame.X + ((main.Frame.Width - width) / 2), main.Frame.Y + main.Frame.Height - height);
+        await mac.WriteSettingsAsync(ThermiConfig.New with { Overlays = [overlay, overlay with { Position = dock }] }, cancel);
         var window = await Screen.ShowWindowAsync(mac.Session, (main.Visible.X, main.Visible.Y, 800, 600), full, cancel);
 
-        var picture = await mac.PreviewAsync(recording, main.Scale, cancel);
-        var area = (at.X, at.Y, (int)(picture.Width / main.Scale), (int)(picture.Height / main.Scale));
-        var before = await Screen.CaptureAsync(mac.Session, area, cancel);
+        (int X, int Y, int Width, int Height)[] areas = [(at.X, at.Y, width, height), (dock.X, dock.Y, width, height)];
+        var before = await CaptureAsync(mac, areas, cancel);
         var thermi = await mac.ShowThermiAsync([], cancel);
         await TestMac.PaintedAsync(thermi, cancel);
-        var screen = await Screen.CaptureAsync(mac.Session, area, cancel);
+        var screen = await CaptureAsync(mac, areas, cancel);
 
         if (row == Shown.HiddenInFullScreen)
         {
-            Assert.Equal(0, screen.Differing(before));
+            Assert.All(screen.Zip(before), pair => Assert.Equal(0, pair.First.Differing(pair.Second)));
             return;
         }
 
-        Assert.Equal(0, screen.Differing(picture));
-        // Where it draws nothing, the click is the window's, which keeps the focus; and thermi is an agent app.
+        Assert.All(screen, shown => Assert.Equal(0, shown.DifferingWhereDrawn(picture)));
+        await ClicksThroughAsync(mac, window, thermi, picture, at, main.Scale, cancel);
+    }
+
+    // Where it draws nothing, the click is the window's, which keeps the focus; and thermi is an agent app.
+    private static async Task ClicksThroughAsync(
+        TestMac mac, SessionProcess window, SessionProcess thermi, Picture picture, Position at, double scale, CancellationToken cancel)
+    {
         var (x, y) = picture.Nothing();
         var clicked = window.Error.NextAsync(line => line == "click", cancel);
-        await Input.ClickAsync(mac.Session, at.X + (int)(x / main.Scale), at.Y + (int)(y / main.Scale), cancel);
+        await Input.ClickAsync(mac.Session, at.X + (int)(x / scale), at.Y + (int)(y / scale), cancel);
         await clicked;
         Assert.Equal(window.Id, await Screen.FrontAsync(mac.Session, cancel));
         Assert.Equal("UIElement", await Screen.AppKindAsync(mac.Session, thermi.Id, cancel));
+    }
+
+    private static async Task<List<Picture>> CaptureAsync(TestMac mac, IEnumerable<(int X, int Y, int Width, int Height)> areas, CancellationToken cancel)
+    {
+        List<Picture> captured = [];
+        foreach (var area in areas)
+        {
+            captured.Add(await Screen.CaptureAsync(mac.Session, area, cancel));
+        }
+
+        return captured;
     }
 
     [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
@@ -95,7 +118,7 @@ public sealed class OverlayTests
 
         Assert.Equal(SnapSpot.TopRight, snapped.Snap?.Spot);
         Assert.Null(snapped.Position);
-        Assert.Equal(0, restarted.Differing(picture));
+        Assert.Equal(0, restarted.DifferingWhereDrawn(picture));
         await StaysInTheCornerAsync(mac, thermi, picture, (width, height), cancel);
     }
 
@@ -112,7 +135,7 @@ public sealed class OverlayTests
             await painted;
             var moved = (await mac.MonitorsAsync(cancel))[0].Visible;
             var there = await Screen.CaptureAsync(mac.Session, (moved.X + moved.Width - size.Width, moved.Y, size.Width, size.Height), cancel);
-            Assert.Equal(0, there.Differing(picture));
+            Assert.Equal(0, there.DifferingWhereDrawn(picture));
         }
     }
 
@@ -172,7 +195,10 @@ public sealed class OverlayTests
         await MenuReader.ChooseAsync(mac.Session, pid, thermis.FindIndex(row => row.Entry == MenuEntry.ShowOverlays), cancel);
         var back = await Screen.CaptureAsync(mac.Session, around, cancel);
         await ChooseAsync(mac, pid, pill, entries, MenuEntry.TaskManager, cancel);
-        return (before, hidden, back, await Screen.RunsAsync(mac.Session, "com.apple.ActivityMonitor", cancel));
+        var monitor = await Screen.RunsAsync(mac.Session, "com.apple.ActivityMonitor", cancel);
+        // Activity Monitor is no process of the session's, which leaves it running as it ends.
+        await mac.Session.RunAsync("killall", ["Activity Monitor"], cancel: cancel);
+        return (before, hidden, back, monitor);
     }
 
     // Killed, as a crash ends it, launchd starts the overlay's agent again, and one overlay shows.
