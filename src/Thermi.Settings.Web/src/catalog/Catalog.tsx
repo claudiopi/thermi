@@ -5,6 +5,7 @@ import { Button, Chips, Dropdown, Icon, Panel, SearchField, ToggleChip } from '.
 import { overlayName } from '../list/rows';
 import { useText, type TextKey } from '../texts/Texts';
 import { CatalogRows } from './CatalogRows';
+import { searchKey, type ListKey } from './searchKey';
 import { shownBy } from './shownBy';
 import { useCatalog } from './useCatalog';
 import './catalog.css';
@@ -30,9 +31,6 @@ const kindKey = (kind: SensorKind): TextKey => `SensorKind.${kind.charAt(0).toUp
 
 /** How long the search waits for the typing to stop before Narrator says the count, as the prototype. */
 const sayAfter = 500;
-
-/** The search's keys that act on the list: Down into it, Enter to add its first, Ctrl+Enter to add it and stay. */
-type ListKey = 'ArrowDown' | 'Enter' | 'Control+Enter';
 
 /**
  * The last catalog the C# side gave, so the list stays while the next search is read, and whether it answers this one:
@@ -169,19 +167,19 @@ function CatalogBody({ data, ask, onClose, onAdd, announce }: CatalogProps & { a
   };
   const handleSearchKey = (event: KeyboardEvent<HTMLInputElement>): void => {
     const key = event.key === 'Enter' && event.ctrlKey ? 'Control+Enter' : event.key;
-    const onList = key === 'ArrowDown' || ((key === 'Enter' || key === 'Control+Enter') && (!fresh || first !== undefined));
-    if (key === 'Escape' && typed !== '') {
+    const { act, waiting: left } = searchKey(key, typed, { fresh, first: first !== undefined }, waiting.current);
+    waiting.current = left;
+    if (act !== null) {
       event.preventDefault();
+    }
+    if (act === 'clear') {
       setTyped('');
-    } else if (onList) {
-      event.preventDefault();
-      if (!fresh) {
-        wait(key);
-      } else if (key === 'ArrowDown') {
-        goDown();
-      } else {
-        add(view, key);
-      }
+    } else if (act === 'wait' && left !== null) {
+      wait(left);
+    } else if (act === 'down') {
+      goDown();
+    } else if (act === 'add') {
+      add(view, key === 'Control+Enter' ? key : 'Enter');
     }
   };
   return (
