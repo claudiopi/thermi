@@ -104,8 +104,12 @@ internal sealed class PlasmaPanels : IDisposable
                 _log.PlasmaPanelsUnread(ex);
             }
         }
+        finally
+        {
+            // Whatever else a reading throws, the next one still reads.
+            _reading = false;
+        }
 
-        _reading = false;
         if (_owed)
         {
             _owed = false;
