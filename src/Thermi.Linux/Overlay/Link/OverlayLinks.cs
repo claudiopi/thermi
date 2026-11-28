@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Thermi.App.Overlay;
 using Thermi.Core.Look;
@@ -13,7 +14,8 @@ namespace Thermi.Linux.Overlay.Link;
 /// What links the running overlay to the rest of the session, past its surfaces: the settings window, whose messages it
 /// hears and answers; a second start of thermi, which hands it the request to open the window, as Windows' does; the
 /// desktop's look, which it follows as the settings portal says it changes, and on KDE Plasma as its config files do;
-/// systemd's watchdog, told each second; and the package that updates thermi, which it hands over to.
+/// systemd's watchdog, told each second, and its SIGTERM at sign-out, which ends the overlay as "Exit thermi" does; and the
+/// package that updates thermi, which it hands over to.
 /// </summary>
 internal sealed partial class OverlayLinks : IDisposable
 {
@@ -29,6 +31,7 @@ internal sealed partial class OverlayLinks : IDisposable
     private DesktopPortal? _portal;
     private ProgramFolder? _folder;
     private OverlayHandOver? _handOver;
+    private PosixSignalRegistration? _terminated;
 
     /// <summary>The links of the overlay that <paramref name="quit"/> ends, whose pointers say whether a drag is under way.</summary>
     public OverlayLinks(Gio.DBusConnection bus, OverlayParts parts, Action quit, Func<bool> dragging)
@@ -61,11 +64,12 @@ internal sealed partial class OverlayLinks : IDisposable
     }
 
     /// <summary>
-    /// The overlay's loop runs: it looks for the window, follows the desktop's look, tells the watchdog, and watches its
-    /// program's files for an update.
+    /// The overlay's loop runs: it looks for the window, follows the desktop's look, tells the watchdog, ends on SIGTERM,
+    /// and watches its program's files for an update.
     /// </summary>
     public void Start(bool firstStart)
     {
+        _terminated = Termination.QuitsOn(_quit);
         _parts.Window.Start(firstStart);
         var folder = _folder = new ProgramFolder(_parts.Time, _parts.Log);
         var idle = new SessionIdle(_bus);
@@ -132,6 +136,7 @@ internal sealed partial class OverlayLinks : IDisposable
 
     public void Dispose()
     {
+        _terminated?.Dispose();
         _portal?.Dispose();
         _watches.ForEach(watch => watch.Dispose());
         _watchdog.Dispose();

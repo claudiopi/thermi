@@ -22,7 +22,7 @@ namespace Thermi.Linux.Window;
 /// <c>thermi settings</c> on Linux: the window, its page in WebKitGTK, on a thread of its own that GTK keeps. One window
 /// exists: GTK's application, by its id on the session's bus, hands a second request's arguments to the first, which
 /// comes to the front on the overlay or item asked, and the second ends. Closing the window ends its process, WebKit's
-/// own with it.
+/// own with it, and SIGTERM closes it so too.
 /// </summary>
 internal static class WindowProcess
 {
@@ -97,8 +97,16 @@ internal static class WindowProcess
         return code;
     }
 
-    // GTK's loop, on the thread that made the window, with the bridge's turns posted to it.
+    // GTK's loop, on the thread that made the window, until it closes or SIGTERM closes it.
     private static int Run(
+        Gtk.Application app, PageStart start, Settings settings, (IReadOnlyList<string> Args, bool Trace, WindowUpdates Updates) asked, Action read)
+    {
+        using var terminated = Termination.QuitsOn(app.Quit);
+        return Show(app, start, settings, asked, read);
+    }
+
+    // The window and its page, with the bridge's turns posted to GTK's loop.
+    private static int Show(
         Gtk.Application app, PageStart start, Settings settings, (IReadOnlyList<string> Args, bool Trace, WindowUpdates Updates) asked, Action read)
     {
         read();

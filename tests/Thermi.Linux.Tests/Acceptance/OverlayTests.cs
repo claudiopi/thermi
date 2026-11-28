@@ -1,9 +1,11 @@
+using System.Globalization;
 using Thermi.Core.Placement;
 using Thermi.Core.Settings;
 using Thermi.Core.Tray;
 using Thermi.Linux.Gnome;
 using Thermi.Linux.Tests.Desktops;
 using Thermi.Linux.Tests.Desktops.X11;
+using Thermi.Linux.Tray;
 
 namespace Thermi.Linux.Tests.Acceptance;
 
@@ -19,6 +21,14 @@ public sealed partial class OverlayTests
 
     // Where an overlay dragged on the window is let go: below the other overlay, and away from every snap's reach.
     private static readonly Position Free = new(400, 750);
+
+    // Ends a process with SIGTERM, as systemd does, and returns once it ended, which its pidfd, opened first, says.
+    private const string Terminate = """
+        import os, select, signal, sys
+        process = os.pidfd_open(int(sys.argv[1]))
+        signal.pidfd_send_signal(process, signal.SIGTERM)
+        select.select([process], [], [])
+        """;
 
     public enum GnomeCase
     {
@@ -326,6 +336,34 @@ public sealed partial class OverlayTests
         await quitting.WaitForExitAsync(cancel);
         Assert.Equal(0, quitting.ExitCode);
         Assert.Equal("dead", await units.SystemctlAsync(["show", "-p", "SubState", "--value", "thermi.service"], cancel));
+        await SignedOutAsync(desktop, units, notices, cancel);
+    }
+
+    // Signed out, the session's graphical target stops, and SIGTERM ends the window, then the overlay, each as its own
+    // quit does: no notice that the window failed, and the unit ends with no failure, which leaves it stopped.
+    private static async Task SignedOutAsync(TestDesktop desktop, UserUnits units, NoticeWatch notices, CancellationToken cancel)
+    {
+        var shown = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
+        var running = await units.StartWaitingAsync(cancel);
+        await shown;
+        // A second start hands the overlay the request, and the window opens as the overlay's own process.
+        var opened = Traced.NextAsync(units.Trace, Traced.WindowShown, cancel);
+        await desktop.Session.RunAsync(Built.Program("thermi"), [], cancel: cancel);
+        await opened;
+        var overlay = int.Parse(await units.SystemctlAsync(["show", "-p", "MainPID", "--value", "thermi.service"], cancel), CultureInfo.InvariantCulture);
+        var window = ProcessTree.Under(overlay).Single(pid => File.ReadAllText($"/proc/{pid}/cmdline").Split('\0') is [_, "settings", ..]);
+        Assert.Equal(0, (await desktop.Session.RunAsync("python3", ["-c", Terminate, $"{window}"], cancel: cancel)).Exit);
+        // The overlay tells of a window's error once it read the window's last lines, a second at most after its end.
+        await Traced.NextAsync(units.Trace, Traced.Paint, cancel, count: 3);
+        await notices.SyncAsync(cancel);
+        await units.SystemctlAsync(["stop", "graphical-session.target"], cancel);
+        await running.WaitForExitAsync(cancel);
+
+        Assert.Equal(0, notices.Count(ThermiNotices.OpenAgain));
+        Assert.Equal(
+            ("0", "success"),
+            (await units.SystemctlAsync(["show", "-p", "ExecMainStatus", "--value", "thermi.service"], cancel),
+                await units.SystemctlAsync(["show", "-p", "Result", "--value", "thermi.service"], cancel)));
     }
 
     // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts; the tree is read once a menu shows.
