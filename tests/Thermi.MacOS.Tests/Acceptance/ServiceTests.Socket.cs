@@ -27,7 +27,11 @@ public sealed partial class ServiceTests
         Client.Person or Client.AnotherUsersServer => session.RunAsync("thermi-cli", ["read", "--schema", "1"], cancel: cancel),
         Client.OverSsh => session.RunAsync(
             "ssh",
-            ["-o", "BatchMode=yes", "localhost", "env", $"THERMI_SENSORS_SOCKET={session.Socket}", Built.Program("thermi-cli"), "read", "--schema", "1"],
+            [
+                "-o", "BatchMode=yes", "localhost",
+                $"export HOME='{session.Home}' TMPDIR='{session.Temporary}' LANG=en_US.UTF-8 THERMI_SENSORS_SOCKET='{session.Socket}'; "
+                    + $"'{Built.Program("thermi-cli")}' read --schema 1",
+            ],
             cancel: cancel),
         Client.Writer => session.RunAsync("python3", [Path.Combine(session.Temporary, "writer.py"), session.Socket], cancel: cancel),
         Client.NamedSocket => session.RunAsync(
