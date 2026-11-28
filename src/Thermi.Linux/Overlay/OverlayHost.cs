@@ -85,7 +85,7 @@ internal sealed class OverlayHost : IDisposable
             JoinAt = (onto, cursor, alone) => onto < _overlays.Count ? _overlays[onto].JoinAt(cursor, alone) : default,
             Trace = Traced,
         };
-        _links = new OverlayLinks(bus, _parts);
+        _links = new OverlayLinks(bus, _parts, _loop.Quit, () => _overlays.Exists(overlay => overlay.Pointer.Holds));
         _menu = new OverlayMenu(_parts, _loop.Quit, _overlays, () => _screens);
         _desk = new ThermiDesk(bus, _parts, _menu, _notices, trace, feed, start)
         {
@@ -119,9 +119,9 @@ internal sealed class OverlayHost : IDisposable
     private ILogger Log => _parts.Log;
 
     /// <summary>
-    /// Runs until "Exit thermi", from the menu or from the settings window's <c>quit</c>, which only the person's own session
-    /// bus reaches: 0, or 0 at once when another overlay of the session runs, which opens the settings window, as a second
-    /// start does on Windows.
+    /// Runs until "Exit thermi", from the menu or the settings window's <c>quit</c>, which only the person's own session bus
+    /// reaches, with 0, or until it hands over to an update, with its own code; 0 at once when another overlay of the session
+    /// runs, which opens the settings window, as a second start does on Windows.
     /// </summary>
     public int Run()
     {
@@ -154,7 +154,7 @@ internal sealed class OverlayHost : IDisposable
         _loop.Run();
         _bus.UnexportActionGroup(exported);
         _overlays.ForEach(overlay => _ = overlay.Hide());
-        return 0;
+        return _links.ExitCode;
     }
 
     public void Dispose()

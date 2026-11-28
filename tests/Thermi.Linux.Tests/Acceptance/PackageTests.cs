@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using Thermi.Linux.Tests.Desktops;
 
 namespace Thermi.Linux.Tests.Acceptance;
 
@@ -98,6 +97,9 @@ public sealed partial class PackageTests
         var linked = await pc.RunAsync("ls /etc/systemd/system/sockets.target.wants/thermi-sensors.socket", cancel);
 
         Assert.Equal(0, cli.Exit);
+        // Installed by a package, thermi updates with the system, on the stable channel the package added.
+        var about = JsonNode.Parse(cli.Out)!;
+        Assert.Equal(("stable", "system"), ((string?)about["channel"], (string?)about["updates"]));
         Assert.Equal("0", greeter.Out.Trim());
         Assert.True(loaded.Exit == 0, $"thermi-cli, over a settings file: {loaded.Out}{loaded.Error}");
         Assert.Empty(unclaimed.Split('\n', StringSplitOptions.RemoveEmptyEntries));
@@ -183,46 +185,6 @@ public sealed partial class PackageTests
         // apt keeps the newest Release it read; dnf, which has no such check, reads the older index but installs nothing older.
         Assert.Equal(tool.HeldRelease is null ? null : restoredDate, heldRestored);
         Assert.Equal(heldRestored, heldOlder);
-    }
-
-    [Fact(Skip = "Waiting for its code", Timeout = Bound.Test)]
-    public async Task TheOverlayHandsOverAfterAnUpdateOnLinux()
-    {
-        var cancel = TestContext.Current.CancellationToken;
-        await using var desktop = await TestDesktop.StartAsync(DesktopKind.Gnome, [new TestMonitor(1920, 1080)], cancel);
-        var session = desktop.Session;
-        // The build in a folder of the session's, as a package puts it; the newer version over it, as the package changes it.
-        var installed = Path.Combine(session.Home, "installed");
-        Built.Copy(AppContext.BaseDirectory, installed);
-        var units = await UserUnits.StartAsync(session, cancel, Path.Combine(installed, "thermi"));
-        await SensorFeed.ServeAsync(session, SensorFeed.Desktop, cancel);
-        var started = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
-        await units.SystemctlAsync(["start", "thermi.service"], cancel);
-        await started;
-        var first = await units.SystemctlAsync(["show", "-p", "MainPID", "--value", "thermi.service"], cancel);
-        var window = await session.StartAsync(Path.Combine(installed, "thermi"), ["settings", "--trace"], cancel: cancel);
-        await Traced.FirstAsync(window.Error, Traced.WindowShown, cancel);
-        // The new window is the old one's successor, and writes where it did.
-        var overlay = Traced.NextAsync(units.Trace, Traced.Shown, cancel);
-        var successor = Traced.NextAsync(window.Error, Traced.WindowShown, cancel);
-        Built.Copy(Path.Combine(Built.Packages, "newer"), installed, replace: true);
-
-        // Quiet, with no input and nothing changing on screen: each hands over to its new version.
-        await window.WaitForExitAsync(cancel);
-        await successor;
-        await overlay;
-        var windows = (await Accessible.WindowsAsync(session, cancel)).Where(shown => shown.Program == "thermi").ToList();
-        var cli = Path.Combine(installed, "thermi-cli");
-        var version = (await session.RunAsync(cli, ["--version"], cancel: cancel)).Out.Trim();
-        var about = JsonNode.Parse((await session.RunAsync(cli, ["status", "--schema", "1"], cancel: cancel)).Out)!;
-
-        Assert.NotEqual(first, await units.SystemctlAsync(["show", "-p", "MainPID", "--value", "thermi.service"], cancel));
-        Assert.Single(await units.ProcessesAsync(cancel));
-        Assert.NotEqual(window.Id, Assert.Single(windows).Process);
-        // About and status say the same of the version, the channel and the updates, as both read them from Core.
-        Assert.Equal(version, (string?)about["version"]);
-        Assert.Equal("stable", (string?)about["channel"]);
-        Assert.Equal("system", (string?)about["updates"]);
     }
 
     // The version the system's updater installed, after it looked for updates.

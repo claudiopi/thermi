@@ -17,6 +17,10 @@ StartLimitBurst=5
 ExecStart=/usr/bin/thermi
 Restart=on-failure
 RestartSec=2
+# After a package changed thermi's files, the overlay ends with 75 at a quiet moment and starts again from them: a
+# hand-over, no failure.
+SuccessExitStatus=75
+RestartForceExitStatus=75
 # A loop that hangs, painting nothing and answering no one, misses the second its watchdog hears, and the overlay is
 # killed and started again, as a crash is.
 WatchdogSec=30

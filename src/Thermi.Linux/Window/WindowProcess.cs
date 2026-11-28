@@ -14,6 +14,7 @@ using Thermi.Core.Messages;
 using Thermi.Core.Translations;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Sensors;
+using Thermi.Linux.Updates;
 
 namespace Thermi.Linux.Window;
 
@@ -28,17 +29,31 @@ internal static class WindowProcess
     /// <summary>The window's id on the session's bus and the desktop's, which its launcher's file is named after.</summary>
     public const string Id = "io.github.claudiopi.thermi";
 
+    /// <summary>
+    /// Shows the window until it closes; one that closed to hand over to an update starts its successor from the program it
+    /// ran, which the package replaced since, as it ends.
+    /// </summary>
     public static async Task<int> RunAsync(SettingsRequest request, IReadOnlyList<string> args, TimeProvider time)
     {
         using var logs = ThermiLog.Create(ThermiLog.WindowPath, time, request.Trace, request.Trace ? Console.Error : null);
         var log = logs.CreateLogger("Thermi.Ui");
         var sensors = new SocketFeed(time, logs.CreateLogger<SocketFeed>());
-        return await ThermiLog.RunLoggedAsync(log, () => ShowAsync(request, args, sensors, time, log));
+        var program = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "thermi");
+        await WindowUpdates.WaitForPredecessorAsync(time);
+        var updates = new WindowUpdates();
+        var code = await ThermiLog.RunLoggedAsync(log, () => ShowAsync(request, (args, updates), sensors, time, log));
+        if (updates.HandsOver)
+        {
+            WindowUpdates.StartSuccessor(program, args, log);
+        }
+
+        return code;
     }
 
     // The settings are read before the window opens, for its language and its overlays, and every write that waits goes
     // out once it has closed. The sensors are read only while it is open. GTK registers, runs and ends on one thread.
-    private static async Task<int> ShowAsync(SettingsRequest request, IReadOnlyList<string> args, SocketFeed sensors, TimeProvider time, ILogger log)
+    private static async Task<int> ShowAsync(
+        SettingsRequest request, (IReadOnlyList<string> Args, WindowUpdates Updates) asked, SocketFeed sensors, TimeProvider time, ILogger log)
     {
         WebKit.Module.Initialize();
         using var store = new ConfigStore(ConfigStore.DefaultPath, time, DesktopLooks.RunsInstalled);
@@ -63,8 +78,9 @@ internal static class WindowProcess
             {
                 var app = Gtk.Application.New(Id, Gio.ApplicationFlags.HandlesCommandLine);
                 code = !app.Register(null) || app.GetIsRemote()
-                    ? app.Run(["thermi", .. args])
-                    : Run(app, start, settings, (args, request.Trace), () => reading = Task.Run(() => sensors.RunAsync(stop.Token), stop.Token));
+                    ? app.Run(["thermi", .. asked.Args])
+                    : Run(app, start, settings, (asked.Args, request.Trace, asked.Updates),
+                        () => reading = Task.Run(() => sensors.RunAsync(stop.Token), stop.Token));
             }
 #pragma warning disable CA1031 // Not handled: thrown again on the caller's thread, which a thread's own failure would never reach.
             catch (Exception ex)
@@ -82,16 +98,17 @@ internal static class WindowProcess
     }
 
     // GTK's loop, on the thread that made the window, with the bridge's turns posted to it.
-    private static int Run(Gtk.Application app, PageStart start, Settings settings, (IReadOnlyList<string> Args, bool Trace) asked, Action read)
+    private static int Run(
+        Gtk.Application app, PageStart start, Settings settings, (IReadOnlyList<string> Args, bool Trace, WindowUpdates Updates) asked, Action read)
     {
         read();
         SettingsWindow.Serve(WebKit.WebContext.GetDefault());
         var editor = new WindowEditor(settings, Turn.Post, start.Log, start.Time);
         var chart = new ChartHistory(start.Time);
         using var host = new LinuxHost(start.Log);
+        using var follow = asked.Updates.Follow(app, host, start.Time, start.Log);
         using var bridge = new PageBridge(host, start, editor, chart, Turn.Post);
-        var trace = asked.Trace ? new TraceEvents(start.Time, Console.Error) : null;
-        using var window = new SettingsWindow(app, bridge, host, start.Log, trace, start.Item);
+        using var window = new SettingsWindow(app, bridge, host, start.Log, asked.Trace ? new TraceEvents(start.Time, Console.Error) : null, start.Item);
         editor.Changed += (_, _) => window.Theme(editor.Config.WindowTheme);
         window.Theme(editor.Config.WindowTheme);
         using var link = new WindowEnd(chart, editor, bridge.Pick, bridge.Tell, start.Time, host.Tell);

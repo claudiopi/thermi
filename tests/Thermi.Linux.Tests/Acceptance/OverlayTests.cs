@@ -356,7 +356,7 @@ public sealed partial class OverlayTests
     }
 
     // A right-click on the first overlay's first pill, which sits at its left, where every overlay starts; the tree is read once a menu shows.
-    private static async Task<(string Program, int Entries)> OpenMenuAsync(TestDesktop desktop, CancellationToken cancel)
+    internal static async Task<(string Program, int Entries)> OpenMenuAsync(TestDesktop desktop, CancellationToken cancel)
     {
         await desktop.Input.ClickAsync(Scene.OnWindow.X + 8, Scene.OnWindow.Y + 8, cancel, button: 3);
         return Assert.Single(await Accessible.OpenMenusAsync(desktop.Session, cancel));
@@ -372,5 +372,5 @@ public sealed partial class OverlayTests
         await Accessible.ChooseAsync(desktop, IndexOf(rows, entry), cancel);
     }
 
-    private static int IndexOf(IReadOnlyList<MenuRow> rows, MenuEntry entry) => rows.ToList().FindIndex(row => row.Entry == entry);
+    internal static int IndexOf(IReadOnlyList<MenuRow> rows, MenuEntry entry) => rows.ToList().FindIndex(row => row.Entry == entry);
 }

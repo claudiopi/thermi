@@ -1,8 +1,10 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Thermi.App.Overlay;
 using Thermi.Core.Look;
 using Thermi.Linux.Desktop;
 using Thermi.Linux.Gnome;
+using Thermi.Linux.Updates;
 using Thermi.Linux.Window;
 
 namespace Thermi.Linux.Overlay.Link;
@@ -10,22 +12,33 @@ namespace Thermi.Linux.Overlay.Link;
 /// <summary>
 /// What links the running overlay to the rest of the session, past its surfaces: the settings window, whose messages it
 /// hears and answers; a second start of thermi, which hands it the request to open the window, as Windows' does; the
-/// desktop's look, which it follows as the settings portal says it changes, and on KDE Plasma as its config files do; and
-/// systemd's watchdog, told each second.
+/// desktop's look, which it follows as the settings portal says it changes, and on KDE Plasma as its config files do;
+/// systemd's watchdog, told each second; and the package that updates thermi, which it hands over to.
 /// </summary>
 internal sealed partial class OverlayLinks : IDisposable
 {
+    /// <summary>The exit code the overlay's unit starts it again on, as after a crash, and counts as no failure.</summary>
+    public const int HandOverCode = 75;
+
     private readonly Gio.DBusConnection _bus;
     private readonly OverlayParts _parts;
     private readonly Watchdog _watchdog;
+    private readonly Func<bool> _dragging;
+    private readonly Action _quit;
     private readonly List<Gio.FileMonitor> _watches = [];
     private DesktopPortal? _portal;
+    private ProgramFolder? _folder;
+    private OverlayHandOver? _handOver;
 
-    public OverlayLinks(Gio.DBusConnection bus, OverlayParts parts)
+    /// <summary>The links of the overlay that <paramref name="quit"/> ends, whose pointers say whether a drag is under way.</summary>
+    public OverlayLinks(Gio.DBusConnection bus, OverlayParts parts, Action quit, Func<bool> dragging)
     {
-        (_bus, _parts) = (bus, parts);
+        (_bus, _parts, _quit, _dragging) = (bus, parts, quit, dragging);
         _watchdog = new Watchdog(parts.Log);
     }
+
+    /// <summary>The overlay's exit code: 0, or <see cref="HandOverCode"/> once it ended to hand over to an update.</summary>
+    public int ExitCode => _handOver?.HandedOver == true ? HandOverCode : 0;
 
     /// <summary>
     /// Asks the overlay already running in this session to open the settings window, with the desktop's token this start
@@ -47,10 +60,16 @@ internal sealed partial class OverlayLinks : IDisposable
         }
     }
 
-    /// <summary>The overlay's loop runs: it looks for the window, follows the desktop's look, and tells the watchdog.</summary>
+    /// <summary>
+    /// The overlay's loop runs: it looks for the window, follows the desktop's look, tells the watchdog, and watches its
+    /// program's files for an update.
+    /// </summary>
     public void Start(bool firstStart)
     {
         _parts.Window.Start(firstStart);
+        var folder = _folder = new ProgramFolder(_parts.Time, _parts.Log);
+        var idle = new SessionIdle(_bus);
+        _handOver = new OverlayHandOver(() => folder.SinceChange, () => (idle.SinceInput(), idle.Locked()), _quit, _parts.Log);
         _portal = new DesktopPortal(_bus, Looked, _parts.Log);
         Watch();
         Looked();
@@ -73,8 +92,12 @@ internal sealed partial class OverlayLinks : IDisposable
         }
     }
 
-    /// <summary>The overlay's second: the watchdog hears its loop runs.</summary>
-    public void Tick() => _watchdog.Tell();
+    /// <summary>The overlay's second: the watchdog hears its loop runs, and an update settled hands over at a quiet one.</summary>
+    public void Tick()
+    {
+        _watchdog.Tell();
+        _handOver?.Tick(_dragging(), _parts.Visibility.HideOverlays);
+    }
 
     /// <summary>A message of the settings window's, as <see cref="OverlayObject"/> took it; one that does not read is dropped.</summary>
     public void Heard(string payload)
@@ -112,6 +135,7 @@ internal sealed partial class OverlayLinks : IDisposable
         _portal?.Dispose();
         _watches.ForEach(watch => watch.Dispose());
         _watchdog.Dispose();
+        _folder?.Dispose();
     }
 
     private void Looked()

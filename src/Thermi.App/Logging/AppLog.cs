@@ -17,6 +17,9 @@ internal static partial class AppLog
     [LoggerMessage(Level = LogLevel.Error, Message = "Reading the sensors failed")]
     public static partial void SensorsFailed(this ILogger logger, Exception error);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "A package changed thermi's files: the overlay hands over to them at this quiet moment")]
+    public static partial void HandingOver(this ILogger logger);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "The sensors' connection was lost after {Seconds} s without readings: {Reason}")]
     public static partial void SensorsLost(this ILogger logger, double seconds, string reason);
 

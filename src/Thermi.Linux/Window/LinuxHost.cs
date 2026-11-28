@@ -50,7 +50,11 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _link = bus is null ? null : new Gnome.ShellLink(bus, log) { StateChanged = () => Turn.Post(Changed) };
         _extension = ExtensionOf();
         _screens = new WindowScreens(bus, _link, Turn.Post, () => DesktopChanged?.Invoke(), log);
-        _overlay = new OverlayLink(bus, () => DesktopChanged?.Invoke());
+        _overlay = new OverlayLink(bus, () =>
+        {
+            DesktopChanged?.Invoke();
+            OverlayChanged?.Invoke();
+        });
         _objects = bus is null ? null : new BusObjects(bus, Turn.Post, log);
     }
 
@@ -61,6 +65,9 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
 
     /// <summary>Runs when the desktop changed its scheme, accent or contrast, or the extension came or went.</summary>
     public Action? DesktopChanged { get; set; }
+
+    /// <summary>Runs on GTK's loop when the overlay started or ended.</summary>
+    public Action? OverlayChanged { get; set; }
 
     public HostDesktop Desktop =>
         new(HostOs.Linux, _portal.Accent, _extension, _portal.HighContrast, HostDesktop.BarOf(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")),

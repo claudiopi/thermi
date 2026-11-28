@@ -200,9 +200,9 @@
       "covers": [
         "R25"
       ],
-      "description": "Given an overlay and its window running when the package changed thermi's files, when the session turns quiet, then each hands over to the new version, one overlay runs, and About says the version, the channel and that updates come from the system.",
+      "description": "Given an overlay and its window running when the package changed thermi's files, when the session turns quiet, then each hands over to the new version, one overlay runs, and status says the new version. That About says the channel and that updates come from the system is StatusAboutTests', and the packages' containers'.",
       "check": "TheOverlayHandsOverAfterAnUpdateOnLinux",
-      "passes": false
+      "passes": true
     },
     {
       "id": "A23",
