@@ -191,7 +191,7 @@
         "R25",
         "R26"
       ],
-      "description": "Given clean Ubuntu and Fedora containers with thermi installed from a repository the levers wrote, when a newer version is published to its channel, rolled back, disabled, served signed by another key, restored to the offer before, and served as a copy of its first offer, of an older version than the PC's, then the system's update takes the newer version, which a new process of the service runs, then the one before, then nothing new; refuses the repository not signed by thermi, keeping its version and naming the signature; takes the restored offer, whose index apt holds as its newest; and keeps its version from the older copy, apt keeping the newer index it holds.",
+      "description": "Given clean Ubuntu and Fedora containers with thermi installed from a repository the levers wrote, when a newer version is published to beta and promoted to its channel, from a folder holding none of its tarballs, rolled back, disabled, served signed by another key, restored to the offer before, and served as a copy of its first offer, of an older version than the PC's, then the system's update takes the newer version, which a new process of the service runs, then the one before, then nothing new; refuses the repository not signed by thermi, keeping its version and naming the signature; takes the restored offer, whose index apt holds as its newest; and keeps its version from the older copy, apt keeping the newer index it holds.",
       "check": "UpdatesComeFromThermisRepository",
       "passes": true
     },

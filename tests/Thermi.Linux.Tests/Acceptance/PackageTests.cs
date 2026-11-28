@@ -126,7 +126,8 @@ public sealed partial class PackageTests
         await File.WriteAllTextAsync(Path.Combine(session.Home, "hold.py"), Holder, cancel);
         await using var pc = await Container.BootAsync(session, tool.Image, session.Home, cancel);
         var levers = new Levers(session, channel);
-        // The build and a newer one, each published as the release workflow publishes a version from the packages it packed.
+        // The build and a newer one, each published as the release workflow publishes a version from the packages it packed:
+        // the build as a release is, to stable, and the newer one as a merge is, to beta, then promoted.
         var (first, next) = (Built.PackedVersion(Built.Packages), Built.PackedVersion(Built.Newer));
         await levers.RunAsync(["publish", first, "--channel", "stable"], cancel);
         levers.Snapshot();
@@ -140,7 +141,9 @@ public sealed partial class PackageTests
             cancel);
         var before = (await pc.MustAsync(Serving, cancel)).Trim();
 
-        await levers.RunAsync(["publish", next, "--channel", "stable"], cancel, Built.Newer);
+        await levers.RunAsync(["publish", next, "--channel", "beta"], cancel, Built.Newer);
+        levers.Unfetched(next);
+        await levers.RunAsync(["promote", "--from", "beta", "--to", "stable"], cancel);
         var newer = await UpdatedAsync(pc, tool, cancel);
         // The old service is gone, though a client held it, and the process that serves now is the new version's.
         var serving = (await pc.MustAsync($"[ ! -e /proc/{before} ] && systemctl start thermi-sensors.service && {Serving}", cancel)).Trim();
@@ -262,6 +265,12 @@ public sealed partial class PackageTests
             await session.RunAsync("gpgconf", ["--homedir", keys, "--kill", "all"], cancel: cancel);
             await RunAsync(["sign", "--key", foreign, "--channel", "stable"], cancel);
         }
+
+        /// <summary>
+        /// A version's tarballs gone from the channel's folder, as <c>scripts/channel-sync.ps1</c> leaves it for the release
+        /// workflow's levers: it fetches only those a rollback would pack again.
+        /// </summary>
+        public void Unfetched(string version) => Directory.Delete(Path.Combine(channel, "tarballs", version), recursive: true);
 
         // A copy of the channel's indexes as served now, as a mirror that stops following it keeps.
         private string Copy => Path.Combine(session.Home, "snapshot");

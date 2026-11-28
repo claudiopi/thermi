@@ -209,14 +209,15 @@ function Save-History([hashtable]$Lever, [pscustomobject]$History) {
 
 function Get-Current([pscustomobject]$History) { @($History.states)[-1] }
 
-function Publish-Version([hashtable]$Lever, [pscustomobject]$History, [string]$Version, [string]$Folder) {
+# $Served are tarballs the repositories' folder serves already, under tarballs/<version>, which the offer names as they are.
+function Publish-Version([hashtable]$Lever, [pscustomobject]$History, [string]$Version, [string]$Folder, [object[]]$Served = @()) {
     $parsed = [System.Management.Automation.SemanticVersion]$Version
     $before = @($History.published | Where-Object { [System.Management.Automation.SemanticVersion]$_ -ge $parsed })
     if ($before) { throw "$Version is not newer than $($before[0]), which $($Lever.Channel) published: a PC takes only a newer version." }
     $package = $Version.Replace('-', '~')
     $packages = @(Add-Packed $Lever $Folder $package)
     $packages += @(Get-ChildItem $Folder -File -Filter "thermi-$Version-linux-*.tar.gz" |
-            ForEach-Object { Add-Package $Lever.Repository $_.FullName "tarballs/$Version" })
+            ForEach-Object { Add-Package $Lever.Repository $_.FullName "tarballs/$Version" }) + $Served
     $History.published = @($History.published) + $Version
     $History.highest = $package
     Write-Offer $Lever $History ([pscustomobject]@{ lever = 'publish'; version = $Version; package = $package; packages = $packages })
@@ -286,8 +287,13 @@ function Invoke-Lever([string]$Command, [hashtable]$Options, [hashtable]$Lever, 
             if (-not $current.version) { throw "$($Options['from'] ?? 'beta') offers no version to promote." }
             $folder = Join-Path $Lever.Private 'promote'
             New-Item -ItemType Directory -Force $folder | Out-Null
-            foreach ($package in $current.packages) { Copy-Item (Join-Path $Lever.Repository $package.path) $folder }
-            Publish-Version $Lever $history $current.version $folder
+            # A version's tarballs are every channel's, and a lever's folder holds only those a rollback reads
+            # (channel-sync.ps1): stable names beta's as they are, and copies only the packages.
+            $tarballs = @($current.packages | Where-Object { $_.path -like 'tarballs/*' })
+            foreach ($package in $current.packages | Where-Object { $_.path -notlike 'tarballs/*' }) {
+                Copy-Item (Join-Path $Lever.Repository $package.path) $folder
+            }
+            Publish-Version $Lever $history $current.version $folder $tarballs
         }
         'rollback' { Undo-Version $Lever $history }
         'disable' { Write-Offer $Lever $history ([pscustomobject]@{ lever = 'disable'; version = $null; package = $null; packages = @() }) }
