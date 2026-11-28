@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Thermi.Client;
 
 namespace Thermi.MacOS.Tests;
 
@@ -8,9 +7,10 @@ namespace Thermi.MacOS.Tests;
 /// and agents' plists, and the socket thermi and <c>thermi-cli</c> read, which the test serves; none of them the person's.
 /// Every process a macOS test starts starts here, with the session's environment alone and nothing of the test process's
 /// but its PATH, after the build's programs, and where .NET runs from; a repo rule holds it. A home of its own keeps
-/// nothing off the screen or out of the person's launchd, so what shows there or loads an agent starts only in a session
-/// made for tests (<see cref="OnScreen"/>), and anywhere else the test skips. Ending the session ends all it started, takes
-/// out of launchd every agent loaded from its home, and deletes its folders.
+/// nothing off the screen or out of the person's launchd, so a plain session starts only what <see cref="PlainSession"/>
+/// lets it, and all else starts only in a session made for tests (<see cref="OnScreen"/>): anywhere else the test skips,
+/// and on the CI, whose runner is one, it fails. Ending the session ends all it started, takes out of launchd every agent
+/// loaded from its home, and deletes its folders.
 /// </summary>
 internal sealed class OwnSession : IAsyncDisposable
 {
@@ -19,13 +19,6 @@ internal sealed class OwnSession : IAsyncDisposable
     /// the user the tests run as, which no person's own account sets.
     /// </summary>
     public const string MadeForTests = "THERMI_TEST_SESSION";
-
-    /// <summary>What the tests' own program, started in a session, takes to answer as a program of the person's that reads through the SDK.</summary>
-    public const string SdkStatus = "--sdk-status";
-
-    // thermi, which AppKit connects to the window server even to paint a preview, and the Mac's own tools a test drives the
-    // screen, launchd and the Dock with: the preferences defaults writes are the user's, whatever the session's home.
-    private static readonly string[] OnTheScreen = ["thermi", "launchctl", "open", "screencapture", "osascript", "defaults", "killall"];
 
     private readonly DirectoryInfo _folder;
     private readonly bool _onScreen;
@@ -81,12 +74,15 @@ internal sealed class OwnSession : IAsyncDisposable
     }
 
     /// <summary>
-    /// A session that may show thermi on the screen and load its agents into launchd: only in a session made for tests, and
-    /// anywhere else the test skips.
+    /// A session that may start anything, thermi on the screen and its agents in launchd among it: only in a session made
+    /// for tests. Anywhere else the test skips, but on the CI, whose runner is one, it fails: a job whose every such test
+    /// skipped would pass.
     /// </summary>
     public static OwnSession OnScreen()
     {
-        Assert.SkipUnless(ForTests, $"It shows thermi or loads its agents, which only a session made for tests may: {MadeForTests} names its user.");
+        var why = $"It shows thermi or loads its agents, which only a session made for tests may: {MadeForTests} names its user.";
+        Assert.True(ForTests || Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true", why);
+        Assert.SkipUnless(ForTests, why);
         return new OwnSession(onScreen: true);
     }
 
@@ -96,9 +92,10 @@ internal sealed class OwnSession : IAsyncDisposable
     /// </summary>
     public SessionProcess Start(string program, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null)
     {
-        if (!_onScreen && OnTheScreen.Contains(Path.GetFileName(program), StringComparer.Ordinal))
+        string[] arguments = [.. args];
+        if (!_onScreen && !PlainSession.MayStart(program, arguments, AppContext.BaseDirectory.TrimEnd('/'), Path.Combine(Built.Root, "scripts")))
         {
-            throw new InvalidOperationException($"{program} shows on the screen or loads agents: start it in a session of OwnSession.OnScreen().");
+            throw new InvalidOperationException($"{program} could show on the screen or load agents: start it in a session of OwnSession.OnScreen().");
         }
 
         var start = new ProcessStartInfo(program)
@@ -109,7 +106,7 @@ internal sealed class OwnSession : IAsyncDisposable
             RedirectStandardError = true,
             WorkingDirectory = Home,
         };
-        foreach (var arg in args)
+        foreach (var arg in arguments)
         {
             start.ArgumentList.Add(arg);
         }
@@ -131,16 +128,9 @@ internal sealed class OwnSession : IAsyncDisposable
     }
 
     /// <summary>Runs <paramref name="program"/> in the session to its end: its exit code, and what it wrote to each stream.</summary>
-    public async Task<Ran> RunAsync(
-        string program, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null, CancellationToken cancel = default)
-    {
-        var process = Start(program, args, environment);
-        process.Input.Close();
-        var output = process.Out.ToEndAsync(cancel);
-        var error = process.Error.ToEndAsync(cancel);
-        await process.WaitForExitAsync(cancel).ConfigureAwait(false);
-        return new Ran(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
-    }
+    public Task<Ran> RunAsync(
+        string program, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null, CancellationToken cancel = default) =>
+        Start(program, args, environment).ToEndAsync(cancel);
 
     /// <summary>
     /// The person's two launchd domains thermi's agents load into: their graphical session's, <c>gui/&lt;uid&gt;</c>, the
@@ -152,38 +142,13 @@ internal sealed class OwnSession : IAsyncDisposable
         return ($"gui/{uid}", $"user/{uid}");
     }
 
-    /// <summary>
-    /// What a program of the person's reads through the SDK, <c>new ThermiClient()</c>, which finds <c>thermi-cli</c> on the
-    /// session's PATH and starts it with the session's environment: the tests' own program, started in the session with
-    /// <see cref="SdkStatus"/>, reads it and says the service's state and whether an overlay runs.
-    /// </summary>
-    public async Task<(string Service, bool Overlay)> SdkStatusAsync(CancellationToken cancel)
-    {
-        var read = await RunAsync(Built.Program("Thermi.MacOS.Tests"), [SdkStatus], cancel: cancel).ConfigureAwait(false);
-        var said = read.Out.Trim().Split(' ');
-        return read.Exit == 0 && said.Length == 2 ? (said[0], bool.Parse(said[1])) : throw new InvalidOperationException($"The SDK did not read: {read.Error}");
-    }
-
-    /// <summary>The tests' own program as <see cref="SdkStatusAsync"/> starts it: the SDK's status, on one line.</summary>
-    public static async Task<int> AnswerAsTheSdkAsync()
-    {
-        var status = await new ThermiClient().StatusAsync().ConfigureAwait(false);
-        await Console.Out.WriteLineAsync($"{status.Service} {status.Overlay}").ConfigureAwait(false);
-        return 0;
-    }
+    /// <summary>What a program of the person's reads through the SDK, as the tests' own program in the session says it (<see cref="TheSdk"/>).</summary>
+    public async Task<(string Service, bool Overlay)> SdkStatusAsync(CancellationToken cancel) =>
+        TheSdk.Said(await RunAsync(Built.Program("Thermi.MacOS.Tests"), [TheSdk.Status], cancel: cancel).ConfigureAwait(false));
 
     public async ValueTask DisposeAsync()
     {
-        foreach (var process in Enumerable.Reverse(_started))
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-
-            await process.WaitForExitAsync().ConfigureAwait(false);
-            process.Dispose();
-        }
+        await EndStartedAsync().ConfigureAwait(false);
 
         // launchd starts again an agent loaded from the session's home, after the session as before it.
         var agents = Path.Combine(Home, "Library", "LaunchAgents");
@@ -196,8 +161,27 @@ internal sealed class OwnSession : IAsyncDisposable
                 await RunAsync("launchctl", ["bootout", gui, plist]).ConfigureAwait(false);
                 await RunAsync("launchctl", ["bootout", user, plist]).ConfigureAwait(false);
             }
+
+            await EndStartedAsync().ConfigureAwait(false);
         }
 
         _folder.Delete(recursive: true);
+    }
+
+    // Each process the session started ends, the last started first, and lets go of what it held.
+    private async Task EndStartedAsync()
+    {
+        foreach (var process in Enumerable.Reverse(_started))
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+
+            await process.WaitForExitAsync().ConfigureAwait(false);
+            process.Dispose();
+        }
+
+        _started.Clear();
     }
 }

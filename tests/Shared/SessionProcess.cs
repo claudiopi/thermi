@@ -41,6 +41,16 @@ internal sealed class SessionProcess
         }
     }
 
+    /// <summary>Its end, with its input closed: its exit code, and what it wrote to each stream.</summary>
+    public async Task<Ran> ToEndAsync(CancellationToken cancel)
+    {
+        Input.Close();
+        var output = Out.ToEndAsync(cancel);
+        var error = Error.ToEndAsync(cancel);
+        await WaitForExitAsync(cancel).ConfigureAwait(false);
+        return new Ran(ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
+    }
+
     public void Kill() => _process.Kill(entireProcessTree: true);
 
     /// <summary>The line it writes first on its standard output, as a program says it is ready; it fails with what it said once it ended first.</summary>

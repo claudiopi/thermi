@@ -20,9 +20,9 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        if (args is [OwnSession.SdkStatus])
+        if (args is [TheSdk.Status])
         {
-            return await OwnSession.AnswerAsTheSdkAsync().ConfigureAwait(false);
+            return await TheSdk.AnswerAsync().ConfigureAwait(false);
         }
 
         if (args is [Window.PortalTests.Watch])
