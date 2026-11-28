@@ -17,8 +17,14 @@ internal static class BoardReader
     private const string Motherboard = "Motherboard";
     private const string HidName = "HID Sensors";
 
-    /// <summary>A temperature in degrees, or null for one no sensor reads, as the SMC's 0 or its -127 for a sensor not there.</summary>
-    public static double? Celsius(double? value) => value is > 0 and < 150 ? value : null;
+    // Degrees below which a reading is no sensor's.
+    private const double Coldest = 5;
+
+    /// <summary>
+    /// A temperature in degrees, or null for one no sensor reads: the SMC answers a key of a sensor the chip lacks with a
+    /// value near 0, as a Mac mini M4's GPU keys read 0.8 and -4.5, or with -127, and no chip that runs is that cold.
+    /// </summary>
+    public static double? Celsius(double? value) => value is >= Coldest and < 150 ? value : null;
 
     public static IEnumerable<RawSensor> Read(SmcValues smc, IReadOnlyList<HidReading> hid)
     {

@@ -18,6 +18,7 @@ internal static class DriveReader
     private const string Device = MacJson.Child + "BSD Name";
     private const string Product = MacJson.Parent + "Device Characteristics/Product Name";
     private const string Location = MacJson.Parent + "Protocol Characteristics/Physical Interconnect Location";
+    private const string DiskImage = "Disk Image";
     private const double NanosecondsPerSecond = 1e9;
 
     private static readonly string[] Keys = [Statistics, Device, Product, Location];
@@ -27,7 +28,7 @@ internal static class DriveReader
         var sensors = new List<RawSensor>();
         foreach (var drive in mac.Registry(Driver, Keys))
         {
-            if (MacJson.Text(drive[Device]) is not { } device || MacJson.Text(drive[Location]) == "File" || drive[Statistics] is not JsonObject statistics)
+            if (MacJson.Text(drive[Device]) is not { } device || Image(drive) || drive[Statistics] is not JsonObject statistics)
             {
                 continue;
             }
@@ -51,4 +52,8 @@ internal static class DriveReader
 
         return sensors;
     }
+
+    // macOS's disk images say they are, by their product's name, and one in a file by where it connects too; some tell
+    // only the first.
+    private static bool Image(JsonObject drive) => MacJson.Text(drive[Location]) == "File" || MacJson.Text(drive[Product]) == DiskImage;
 }
