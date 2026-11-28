@@ -14,8 +14,9 @@ public sealed class OwnSessionTests
         Ran seen;
         try
         {
-            seen = await session.RunAsync("env", [], cancel: cancel);
+            seen = await session.RunAsync("printenv", [], cancel: cancel);
             Assert.Throws<InvalidOperationException>(() => session.Start("launchctl", ["list"]));
+            Assert.Throws<InvalidOperationException>(() => session.Start("/bin/sh", ["-c", "launchctl list"]));
         }
         finally
         {

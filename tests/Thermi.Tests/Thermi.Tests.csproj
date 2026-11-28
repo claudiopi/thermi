@@ -24,6 +24,11 @@
     <Compile Include="..\Thermi.Windows.Tests\ListLogger.cs" Link="Shared\ListLogger.cs" />
   </ItemGroup>
 
+  <!-- What the macOS tests' plain session may start, which the repo's rules ask on every OS, as only a Mac runs those tests. -->
+  <ItemGroup>
+    <Compile Include="..\Thermi.MacOS.Tests\PlainSession.cs" Link="Rules\PlainSession.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Include="Recordings\*.json;Recordings\Trees\*.json;Recordings\*.jsonl;Configs\*.json;Golden\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

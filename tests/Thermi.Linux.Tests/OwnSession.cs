@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using Thermi.Client;
 
 namespace Thermi.Linux.Tests;
 
@@ -17,9 +16,6 @@ internal sealed class OwnSession : IAsyncDisposable
 {
     /// <summary>The Wayland display's name, a socket in <see cref="RuntimeFolder"/> that the session's compositor makes.</summary>
     public const string WaylandDisplay = "wayland-thermi";
-
-    /// <summary>What the tests' own program, started in a session, takes to answer as a program of the person's that reads through the SDK.</summary>
-    public const string SdkStatus = "--sdk-status";
 
     private const UnixFileMode OwnerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
 
@@ -200,35 +196,12 @@ internal sealed class OwnSession : IAsyncDisposable
 
     /// <summary>Runs <paramref name="program"/> in the session to its end: its exit code, and what it wrote to each stream.</summary>
     public async Task<Ran> RunAsync(
-        string program, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null, CancellationToken cancel = default)
-    {
-        var process = await StartAsync(program, args, environment, cancel).ConfigureAwait(false);
-        process.Input.Close();
-        var output = process.Out.ToEndAsync(cancel);
-        var error = process.Error.ToEndAsync(cancel);
-        await process.WaitForExitAsync(cancel).ConfigureAwait(false);
-        return new Ran(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
-    }
+        string program, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null, CancellationToken cancel = default) =>
+        await (await StartAsync(program, args, environment, cancel).ConfigureAwait(false)).ToEndAsync(cancel).ConfigureAwait(false);
 
-    /// <summary>
-    /// What a program of the person's reads through the SDK, <c>new ThermiClient()</c>, which finds <c>thermi-cli</c> on the
-    /// session's PATH and starts it with the session's environment: the tests' own program, started in the session with
-    /// <see cref="SdkStatus"/>, reads it and says the service's state and whether an overlay runs.
-    /// </summary>
-    public async Task<(string Service, bool Overlay)> SdkStatusAsync(CancellationToken cancel)
-    {
-        var read = await RunAsync(Built.Program("Thermi.Linux.Tests"), [SdkStatus], cancel: cancel).ConfigureAwait(false);
-        var said = read.Out.Trim().Split(' ');
-        return read.Exit == 0 && said.Length == 2 ? (said[0], bool.Parse(said[1])) : throw new InvalidOperationException($"The SDK did not read: {read.Error}");
-    }
-
-    /// <summary>The tests' own program as <see cref="SdkStatusAsync"/> starts it: the SDK's status, on one line.</summary>
-    public static async Task<int> AnswerAsTheSdkAsync()
-    {
-        var status = await new ThermiClient().StatusAsync().ConfigureAwait(false);
-        await Console.Out.WriteLineAsync($"{status.Service} {status.Overlay}").ConfigureAwait(false);
-        return 0;
-    }
+    /// <summary>What a program of the person's reads through the SDK, as the tests' own program in the session says it (<see cref="TheSdk"/>).</summary>
+    public async Task<(string Service, bool Overlay)> SdkStatusAsync(CancellationToken cancel) =>
+        TheSdk.Said(await RunAsync(Built.Program("Thermi.Linux.Tests"), [TheSdk.Status], cancel: cancel).ConfigureAwait(false));
 
     public async ValueTask DisposeAsync()
     {
