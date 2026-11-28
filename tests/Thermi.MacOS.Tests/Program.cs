@@ -6,7 +6,7 @@ using System.Runtime.Versioning;
 
 // The Mac's one screen, pointer, keyboard, Dock, preferences and launchd for its user, with the agents' fixed labels, are
 // every test's at once, which no session of a test's own holds apart: one test runs at a time.
-[assembly: CollectionBehavior(DisableTestParallelization = true)]
+[assembly: Xunit.v3.Parallelization(Mode = Xunit.Sdk.ParallelMode.None)]
 
 namespace Thermi.MacOS.Tests;
 
