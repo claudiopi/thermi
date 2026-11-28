@@ -74,6 +74,7 @@ public sealed partial class RepoRulesTests
     // The files of the macOS projects that call no macOS-only API, and why each stays there all the same.
     private static readonly Dictionary<string, string> NeedNoMacOSApi = new(StringComparer.Ordinal)
     {
+        ["Thermi.MacOS.Cli/Agents/LaunchAgents.cs"] = "the plists of thermi's LaunchAgents, which only a Mac's launchd reads",
         ["Thermi.MacOS.Cli/Agents/MacAgentEnvironment.cs"] = "the Mac's answers to the agents' commands, each through a file of its project that calls macOS",
         ["Thermi.MacOS.Cli/Sensors/MacSocketFeed.cs"] = "the service's socket in the person's Library, trusted when the Mac's kernel says the person serves it",
         ["Thermi.Sensors.MacOS/Reading/BatteryReader.cs"] = "a MacBook's battery, as only a Mac's registry holds it, in AppleSmartBattery",

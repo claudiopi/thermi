@@ -19,8 +19,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <!-- thermi register and unregister, which the app's first start and the cask run, write the agents as thermi-cli reads
-       them: the files are thermi-cli's, built into both, so neither program loads the other. -->
+  <!-- thermi register writes the agents' plists as thermi-cli writes and reads them, and loads them as the person whose id
+       thermi-cli asks: the files are thermi-cli's, built into both, so neither program loads the other. -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
     <Compile Include="..\Thermi.MacOS.Cli\Agents\LaunchAgents.cs" Link="Agents\LaunchAgents.cs" />
     <Compile Include="..\Thermi.MacOS.Cli\Native\User.cs" Link="Native\User.cs" />

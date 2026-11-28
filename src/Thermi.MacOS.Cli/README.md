@@ -4,7 +4,7 @@
 
 | Folder | What lives there |
 | --- | --- |
-| `Agents` | The Mac's environment for the agents' commands, and the two LaunchAgents that `thermi register` writes and loads, which `thermi` builds in too. |
+| `Agents` | The Mac's environment for the agents' commands, and the plists of the two LaunchAgents, which `thermi` builds in too, to write and load them on `thermi register`. |
 | `Native` | The one call declared by hand, libSystem's `geteuid`: the person this process acts as. |
 | `Sensors` | The service's socket, read only when the person serves it. |
 

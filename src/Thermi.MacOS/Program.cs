@@ -1,4 +1,4 @@
-using Thermi.MacOS.Cli.Agents;
+using Thermi.MacOS.Agents;
 
 namespace Thermi.MacOS;
 
@@ -11,7 +11,7 @@ internal static class Program
 {
     private static async Task<int> Main(string[] args)
     {
-        if (await LaunchAgents.RunAsync(args, Console.Error, TimeProvider.System, CancellationToken.None) is { } registered)
+        if (await Registration.RunAsync(args, Console.Error, TimeProvider.System, CancellationToken.None) is { } registered)
         {
             return registered;
         }
