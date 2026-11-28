@@ -95,7 +95,7 @@
     {
       "id": "A14",
       "covers": ["R18"],
-      "description": "Given the page with the macOS bridge, when the service is stopped and thermi-cli is not on the PATH, then the window offers macOS's two fixes, no driver bar, and every text in each translation.",
+      "description": "Given the page with the macOS bridge, when the service is stopped and thermi-cli is not on the PATH, then the window offers macOS's two fixes, no driver bar, and the start at login as Open at login.",
       "check": "TheWindowOffersTheMacsFixes",
       "passes": false
     },

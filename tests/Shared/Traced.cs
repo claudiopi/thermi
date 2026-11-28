@@ -26,7 +26,7 @@ internal sealed partial record Traced(double At, string Event, string About)
     /// <summary>The overlays went off the screen: Hide overlays, or the toggle hotkey.</summary>
     public const string Hidden = "hidden";
 
-    /// <summary>One change of the settings is saved and on screen, wherever it came from; a notch of Ctrl and the wheel is one.</summary>
+    /// <summary>One change of the settings is saved and on screen, wherever it came from; a notch of the wheel that resizes is one.</summary>
     public const string EditApplied = "edit-applied";
 
     /// <summary>A hold lifted a pill or an item, which follows the pointer from now on.</summary>

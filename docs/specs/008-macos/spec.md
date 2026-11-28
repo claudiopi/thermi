@@ -29,9 +29,11 @@ thermi runs on Macs with Apple silicon, all of it but FPS: a service reads the s
 
 - R9. Each overlay shows above every window and the Dock, where it was placed, on every Space, and above an app full screen as its "When to show" says, as on Windows: shown by default, hidden with "Hide in full screen". Clicks pass through it where it draws nothing, and everywhere when it is click-through. It never takes the focus from the app in front, and shows in neither the Dock nor ⌘-Tab.
 - R10. The overlay shows what it shows on Windows, by Core's layout and looks: every style, level, missing value and "Sensors stopped", sharp on a Retina monitor and on one that is not. `thermi preview` writes the same picture.
+  Release check: The macOS tests on the test Mac.
   Exception: With no driver to install on macOS, a value never reads "Driver" in place of "–".
 - R11. An overlay is dragged to its place, snaps to a corner of its monitor's visible frame, beside the menu bar and the Dock, and stays there across restarts and monitor changes, and when the Dock moves or hides.
   Release check: Sign-in on macOS.
+  Release check: The macOS tests on the test Mac.
   Exception: No overlay snaps onto the menu bar: the front app's menus fill it from the left and macOS places the status items from the right, so a window there covers one or the other. The values go there as menu bar items instead (R19).
 - R12. A right-click or a Control-click opens the overlay's menu of Core's entries, as a menu of macOS's own. Each entry does what it does on Windows, and Undo takes it back; "Task Manager" opens Activity Monitor.
 - R13. The desktop gestures of spec 002 work: a drag moves an overlay and merges it into another; a hold lifts a pill or an item to join it elsewhere or make it an overlay; Esc puts everything back; ⌘ and the wheel, or a pinch on a trackpad, resize, as Ctrl and the wheel do on Windows. Fade near the pointer fades as on Windows.
@@ -59,6 +61,7 @@ thermi runs on Macs with Apple silicon, all of it but FPS: a service reads the s
 ### Agents
 
 - R22. Every command and MCP tool of spec 003 answers on macOS with the same JSON and schemas: `status` says whether the service is installed and serving and whether an overlay runs; `monitors` gives the Mac's monitors with their visible frames, as the running overlay places its overlays on them, and with none running says so, so `thermi-cli` needs no window server; `start-with-windows` keeps its name, as the contract does, and sets Open at login; `find-cpu-fan` loads every core at the lowest priority that still reaches the performance cores, as macOS keeps a background thread on the efficiency cores. The .NET SDK finds `thermi-cli` on macOS.
+  Release check: The macOS tests on the test Mac.
   Exception: The service is started by its socket (R7), so a `thermi-cli` read starts it, as any client's does, even one a person stopped, where spec 003's R4 says nothing `thermi-cli` does starts it; `thermi-cli` still starts nothing itself.
 
 ### FPS
@@ -76,7 +79,7 @@ thermi runs on Macs with Apple silicon, all of it but FPS: a service reads the s
 | `src/Thermi.Core` | Apple silicon's sensor names in `SensorMap`, by chip family, the texts of macOS's own in every translation, and the fixes and menu entries macOS offers. |
 | `src/Thermi.Settings.Web` | The page, unchanged but for macOS's texts and fixes; its Playwright tests already run on WebKit. |
 | `tests/Thermi.Tests` | Mac recordings and their snapshots, from a Mac mini M4 on macOS 26, and from a virtual machine of the CI's, which has no SMC. |
-| `Thermi.MacOS.Tests` | The reader from recordings, the socket and the agents' plists, the CLI on macOS, and the window and the overlay in a session made for tests, read back through the screen's capture: on the CI's macOS runner, or a test Mac's user of its own; anywhere else they skip, so no test touches the person's desktop. |
+| `Thermi.MacOS.Tests` | The reader from recordings, the socket and the agents' plists, the CLI on macOS, and the window and the overlay in a session made for tests, read back through the screen's capture: on the CI's macOS runner, or a test Mac's user of its own; anywhere else they skip, so no test touches the person's desktop, and on the CI they fail instead, so a job never passes on skips. The rows that need a Retina monitor or a second one, which the CI's runner lacks, skip there and pass on the test Mac (T27). |
 | `.github/workflows/ci.yml` | A macOS job, required by `CI gate`: Core's tests and the macOS tests, the page on WebKit, and the app built, signed ad hoc, packed and opened. |
 | `docs/RELEASES.md` | The macOS checks, run on the test Mac, a Mac mini M4 on macOS 26, signed in as a user of its own for tests. |
 
