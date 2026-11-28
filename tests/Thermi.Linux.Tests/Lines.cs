@@ -99,13 +99,33 @@ internal sealed class Lines
         ? $"{_program} {said}. Its last lines on stderr:\n{Last()}"
         : $"{_program} {said}. Its last lines on stdout:\n{Last()}\nand on stderr:\n{_errors.Last()}");
 
+    // A run of the same event, as the paint a trace says each second, is told as its first and last lines, so what came
+    // before the run shows too.
     private string Last()
     {
+        var told = new List<string>();
         lock (_lock)
         {
-            return string.Join('\n', _said.TakeLast(Shown));
+            var at = _said.Count - 1;
+            while (at >= 0 && told.Count < Shown)
+            {
+                var from = at;
+                while (from > 0 && Said(_said[from - 1]) == Said(_said[at]))
+                {
+                    from--;
+                }
+
+                told.Add(at - from < 2 ? _said[at] : $"{_said[from]}\n... {at - from - 1} more like it\n{_said[at]}");
+                at = (at - from < 2 ? at : from) - 1;
+            }
         }
+
+        told.Reverse();
+        return string.Join('\n', told);
     }
+
+    // What a line says, without the time a trace's line starts with.
+    private static string Said(string line) => Traced.Of(line) is { } traced ? $"{traced.Event} {traced.About}" : line;
 
     // What came before counts only when the test asks for it, and is read under the same lock as the lines that come.
     private Task<string> ArmAsync(Func<string, bool> match, int count, List<string> past, string what, CancellationToken cancel)
