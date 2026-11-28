@@ -55,14 +55,28 @@ public static class TaskbarRow
     /// to nothing where the room shrank by itself, as when the notification area grew: the one before it is then held back
     /// over the app buttons. Null off a taskbar or alone on it, whatever its size, so an overlay alone need not measure
     /// itself to know it has all the room.
+    /// While the settings window is open, which widens an overlay by its alert-only items, <paramref name="closed"/> is its
+    /// size with the window closed: on a taskbar with parts, as GNOME's top bar, one that sits in a room between them at
+    /// that size keeps to that room, alone there too, at any width it leaves, so the window never moves it off its bar.
     /// </summary>
     public static Func<(int Width, int Height), int?>? RoomOf(
-        IReadOnlyList<OverlayConfig> overlays, int index, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown) =>
-        Shared(overlays, index, screens, shown)
-            ? size => Room(overlays, index, screens, size, shown) is { } room
-                ? Math.Max(room, (int)Math.Ceiling(size.Width / Math.Max(1, Snaps.SizeShown(overlays[index], screens))))
+        IReadOnlyList<OverlayConfig> overlays,
+        int index,
+        IReadOnlyList<Screen> screens,
+        IReadOnlyList<PixelRect?> shown,
+        (int Width, int Height)? closed = null)
+    {
+        var held = Held(overlays[index], screens, closed);
+        return Shared(overlays, index, screens, shown) || held is not null
+            ? size => Room(overlays, index, screens, size, shown, held) is { } room
+                ? Math.Max(room, held is null ? (int)Math.Ceiling(size.Width / Math.Max(1, Snaps.SizeShown(overlays[index], screens))) : 1)
                 : null
             : null;
+    }
+
+    /// <summary>Whether an overlay snapped onto a horizontal taskbar shows at <paramref name="box"/> off it, where no room on it holds it.</summary>
+    public static bool Beside(OverlayConfig overlay, IReadOnlyList<Screen> screens, PixelRect box) =>
+        Snaps.OnTaskbar(overlay, screens) is var (_, bar) && !box.Overlaps(bar);
 
     /// <summary>
     /// The settings after an edit or a gesture, with each overlay it pushed along a taskbar given the place it shows at as
@@ -86,9 +100,11 @@ public static class TaskbarRow
     /// Each overlay's box as its own window fits it, each in its turn: one grown past the room the others leave on its
     /// taskbar shows smaller, the others not yet fitted counted as they showed, <paramref name="shown"/>, or at their own
     /// size. With each one's own size; null for a hidden one, whose window shows nowhere and takes no room from the others.
+    /// While the settings window is open, <paramref name="closed"/> measures each as it shows with the window closed, as
+    /// <see cref="RoomOf"/> keeps it to its room by that size.
     /// </summary>
     public static (List<PixelRect?> Fitted, List<PixelRect?> Natural) Fitted(
-        IReadOnlyList<OverlayConfig> overlays, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown, OverlayFit fit)
+        IReadOnlyList<OverlayConfig> overlays, IReadOnlyList<Screen> screens, IReadOnlyList<PixelRect?> shown, OverlayFit fit, OverlayFit? closed = null)
     {
         var natural = overlays.Select((overlay, at) => overlay.Hidden ? null : (PixelRect?)fit(at, null)).ToList();
         var sizes = natural.Select((size, at) => size is null ? null : shown.ElementAtOrDefault(at) ?? size).ToList();
@@ -96,7 +112,8 @@ public static class TaskbarRow
         {
             if (sizes[at] is not null)
             {
-                sizes[at] = RoomOf(overlays, at, screens, sizes) is { } room ? fit(at, room) : natural[at];
+                var shut = closed?.Invoke(at, null) is { } box ? (box.Width, box.Height) : ((int, int)?)null;
+                sizes[at] = RoomOf(overlays, at, screens, sizes, shut) is { } room ? fit(at, room) : natural[at];
             }
         }
 
@@ -157,11 +174,26 @@ public static class TaskbarRow
                 || (Shared(after, at, screens, sizes) && Room(after, at, screens, (box.Width, box.Height), sizes) < box.Width)));
     }
 
-    // None for one that shows beside the taskbar, where its parts leave it no room.
+    // Where an overlay sits at its size with the window closed, on a taskbar with parts, in the room between them it lies in.
+    private static (PixelRect Box, (int Left, int Right) Lane)? Held(OverlayConfig overlay, IReadOnlyList<Screen> screens, (int Width, int Height)? closed) =>
+        closed is var (width, height)
+        && Snaps.OnTaskbar(overlay, screens) is var (screen, bar)
+        && BarParts.Any(screen)
+        && Snaps.Locate(overlay, screens, width, height) is { } at
+        && BarParts.Lane(screen, bar, Box(at, (width, height))) is { } lane
+            ? (Box(at, (width, height)), lane)
+            : null;
+
+    // None for one that shows beside the taskbar, where its parts leave it no room, but one held in its room.
     private static int? Room(
-        IReadOnlyList<OverlayConfig> overlays, int index, IReadOnlyList<Screen> screens, (int Width, int Height) size, IReadOnlyList<PixelRect?> shown)
+        IReadOnlyList<OverlayConfig> overlays,
+        int index,
+        IReadOnlyList<Screen> screens,
+        (int Width, int Height) size,
+        IReadOnlyList<PixelRect?> shown,
+        (PixelRect Box, (int Left, int Right) Lane)? held = null)
     {
-        if (Row(overlays, index, screens, size, shown) is not var (screen, bar, row))
+        if (Row(overlays, index, screens, size, shown, held) is not var (screen, bar, row))
         {
             return null;
         }
@@ -193,22 +225,23 @@ public static class TaskbarRow
         int index,
         IReadOnlyList<Screen> screens,
         (int Width, int Height) size,
-        IReadOnlyList<PixelRect?> shown)
+        IReadOnlyList<PixelRect?> shown,
+        (PixelRect Box, (int Left, int Right) Lane)? held = null)
     {
         if (Snaps.OnTaskbar(overlays[index], screens) is not var (screen, bar))
         {
             return null;
         }
 
-        var sizes = Enumerable.Range(0, overlays.Count)
-            .Select(at => at == index ? size : at < shown.Count && shown[at] is { } box ? (box.Width, box.Height) : ((int Width, int Height)?)null)
-            .ToList();
-        var placed = Enumerable.Range(0, overlays.Count)
-            .Where(at => sizes[at] is not null && On(overlays[at], screens, screen))
-            .Select(at => (At: at, Box: Box(Snaps.Locate(overlays[at], screens, sizes[at]!.Value.Width, sizes[at]!.Value.Height)!, sizes[at]!.Value)))
-            .Select(each => (each.At, each.Box, Lane: BarParts.Lane(screen, bar, each.Box)))
-            .ToList();
-        if (placed.Find(each => each.At == index).Lane is not var (left, right))
+        var placed = Placed(overlays, index, screens, size, shown, (screen, bar));
+        var own = placed.FindIndex(each => each.At == index);
+        if (held is var (from, lane) && placed[own].Lane != lane)
+        {
+            // Held in its room, it grows from where it sits with the window closed.
+            placed[own] = (index, Box(new Position(from.Left, from.Top), size), lane);
+        }
+
+        if (placed[own].Lane is not var (left, right))
         {
             return null;
         }
@@ -223,6 +256,24 @@ public static class TaskbarRow
             .ThenBy(each => each.At)
             .ToList();
         return (screen, bar with { Left = left, Right = right }, row);
+    }
+
+    // Each overlay on the taskbar, overlay index at size and the others as they show, where it shows and in which room.
+    private static List<(int At, PixelRect Box, (int Left, int Right)? Lane)> Placed(
+        IReadOnlyList<OverlayConfig> overlays,
+        int index,
+        IReadOnlyList<Screen> screens,
+        (int Width, int Height) size,
+        IReadOnlyList<PixelRect?> shown,
+        (Screen Screen, PixelRect Bar) on)
+    {
+        var sizes = Enumerable.Range(0, overlays.Count)
+            .Select(at => at == index ? size : at < shown.Count && shown[at] is { } box ? (box.Width, box.Height) : ((int Width, int Height)?)null)
+            .ToList();
+        return [.. Enumerable.Range(0, overlays.Count)
+            .Where(at => sizes[at] is not null && On(overlays[at], screens, on.Screen))
+            .Select(at => (At: at, Box: Box(Snaps.Locate(overlays[at], screens, sizes[at]!.Value.Width, sizes[at]!.Value.Height)!, sizes[at]!.Value)))
+            .Select(each => (each.At, each.Box, BarParts.Lane(on.Screen, on.Bar, each.Box)))];
     }
 
     private static PixelRect Box(Position at, (int Width, int Height) size) => new(at.X, at.Y, at.X + size.Width, at.Y + size.Height);

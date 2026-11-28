@@ -11,12 +11,15 @@ internal static class BarParts
     /// <summary>Whether an overlay that wide fits in a room of the taskbar.</summary>
     public static bool Fits(Screen screen, PixelRect bar, int width) => Beside(screen, bar, bar.Left, width) is not null;
 
+    /// <summary>Whether the taskbar tells parts, as GNOME's top bar does and Windows' does not.</summary>
+    public static bool Any(Screen screen) => Parts(screen).Any();
+
     /// <summary>
     /// The room an overlay showing at <paramref name="box"/> lies in: the whole taskbar where it has no parts, and null off
     /// the taskbar, as for one beside it.
     /// </summary>
     public static (int Left, int Right)? Lane(Screen screen, PixelRect bar, PixelRect box) =>
-        !Parts(screen).Any() ? (bar.Left, bar.Right)
+        !Any(screen) ? (bar.Left, bar.Right)
         : box.Overlaps(bar) ? Gaps(screen, bar).Where(gap => box.Left >= gap.Left && box.Right <= gap.Right).Select(gap => ((int, int)?)gap).FirstOrDefault()
         : null;
 
@@ -26,7 +29,7 @@ internal static class BarParts
     /// buttons end.
     /// </summary>
     public static int? Beside(Screen screen, PixelRect bar, int left, int width) =>
-        !Parts(screen).Any() ? left
+        !Any(screen) ? left
         : Gaps(screen, bar)
             .Where(gap => gap.Right - gap.Left >= width)
             .Select(gap => (int?)Math.Clamp(left, gap.Left, gap.Right - width))
