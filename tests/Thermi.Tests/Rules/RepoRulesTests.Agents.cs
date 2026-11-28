@@ -69,7 +69,7 @@ public sealed partial class RepoRulesTests
         @"\bElevated\w*|runas|ServiceController|IServiceManager|WindowsServices|DriverParts|InstallDriver|StartSensors\.(?!Service\b)\w+|\bShellExecute"
             + @"|starts:\s*true|pkexec|\bsudo\b|systemd-run|SystemdRun|LinuxFixes|""(?:re)?start"""
             + @"|with administrator privileges|AuthorizationExecuteWithPrivileges|SMJobBless|\bkickstart\b"
-            + @"|\blaunchctl\s+(bootstrap|load)\b|""(bootstrap|load)""|""(/usr/bin/)?open""",
+            + @"|\blaunchctl\s+(?:bootstrap|load)\b|""(?:bootstrap|load)""|""(?:/usr/bin/)?open""",
         RegexOptions.None,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex Elevating();
