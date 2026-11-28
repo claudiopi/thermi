@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-namespace Thermi.Linux.Tests;
+namespace Thermi.Tests.Shared;
 
 /// <summary>
 /// What a program writes on one of its streams, read as it comes, so a pipe that fills never stops the program: each line

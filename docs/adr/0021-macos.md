@@ -1,6 +1,6 @@
 # 0021. thermi on macOS: IOKit as the person, launchd agents, AppKit through .NET's bindings, and an app that updates itself
 
-**Status**: Proposed
+**Status**: Accepted
 
 ## Context
 

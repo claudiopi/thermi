@@ -1,9 +1,9 @@
 using System.Diagnostics;
 
-namespace Thermi.Linux.Tests;
+namespace Thermi.Tests.Shared;
 
 /// <summary>
-/// A program an <see cref="OwnSession"/> started and keeps running: both its output streams are read as they come
+/// A program a test's own session started and keeps running: both its output streams are read as they come
 /// (<see cref="Lines"/>), so it never stops on a full pipe, and its input is the test's to write.
 /// </summary>
 internal sealed class SessionProcess

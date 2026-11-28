@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace Thermi.Linux.Tests;
+namespace Thermi.Tests.Shared;
 
 /// <summary>
 /// A line thermi writes on its standard error under <c>--trace</c> once a thing a test waits for has happened: its time on

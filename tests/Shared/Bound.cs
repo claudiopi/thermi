@@ -1,12 +1,12 @@
 using System.Globalization;
 
-namespace Thermi.Linux.Tests;
+namespace Thermi.Tests.Shared;
 
 /// <summary>
-/// How long a Linux test, and each of its helpers' waits, may take: a line a program never writes, or a program that never
-/// ends, would otherwise hang the whole run, and the container a test holds, forever. A helper's wait runs out first and
-/// fails saying what it waited for and the program's last lines on stderr; each test's own bound, which a repo rule asks
-/// of every async Linux test, ends what no helper waits for.
+/// How long a Linux or macOS test, and each of its helpers' waits, may take: a line a program never writes, or a program
+/// that never ends, would otherwise hang the whole run, and the container or the session a test holds, forever. A helper's
+/// wait runs out first and fails saying what it waited for and the program's last lines on stderr; each test's own bound,
+/// which a repo rule asks of every async test of theirs, ends what no helper waits for.
 /// </summary>
 internal static class Bound
 {

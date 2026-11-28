@@ -1,6 +1,6 @@
 # 008. thermi on macOS
 
-**Status**: draft
+**Status**: approved
 
 **Budget**: 44 .NET and 1 page cases
 
