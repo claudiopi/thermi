@@ -24,7 +24,7 @@ internal static class Launchd
           <key>Label</key><string>LABEL</string>
           <key>ProgramArguments</key>
           <array><string>PROGRAM</string><string>--replay</string><string>RECORDING</string></array>
-          <key>LimitLoadToSessionType</key><string>Background</string>
+          <key>LimitLoadToSessionType</key><string>Background</string>ENVIRONMENT
           <key>Sockets</key>
           <dict><key>Listener</key><dict><key>SockPathName</key><string>SOCKET</string><key>SockPathMode</key><integer>384</integer></dict></dict>
         </dict>
@@ -65,7 +65,8 @@ internal static class Launchd
         var text = Service.Replace("LABEL", ServiceLabel, StringComparison.Ordinal)
             .Replace("PROGRAM", SecurityElement.Escape(Built.Program("thermi-sensors")), StringComparison.Ordinal)
             .Replace("RECORDING", SecurityElement.Escape(Built.Recording(recording)), StringComparison.Ordinal)
-            .Replace("SOCKET", SecurityElement.Escape(session.Socket), StringComparison.Ordinal);
+            .Replace("SOCKET", SecurityElement.Escape(session.Socket), StringComparison.Ordinal)
+            .Replace("ENVIRONMENT", DotnetOf(session), StringComparison.Ordinal);
         await File.WriteAllTextAsync(plist, text, cancel).ConfigureAwait(false);
         var (_, user) = await session.DomainsAsync(cancel).ConfigureAwait(false);
         var loaded = await session.RunAsync("launchctl", ["bootstrap", user, plist], cancel: cancel).ConfigureAwait(false);
@@ -74,6 +75,13 @@ internal static class Launchd
             throw new InvalidOperationException($"launchd did not load the service: {loaded.Error}");
         }
     }
+
+    // launchd starts an agent with none of the session's environment, and the build's programs need .NET, which a Mac may
+    // hold where only DOTNET_ROOT says.
+    private static string DotnetOf(OwnSession session) =>
+        session.Variables.TryGetValue("DOTNET_ROOT", out var dotnet)
+            ? $"<key>EnvironmentVariables</key><dict><key>DOTNET_ROOT</key><string>{SecurityElement.Escape(dotnet)}</string></dict>"
+            : "";
 
     /// <summary>
     /// The service taken out of launchd, as the person stops a LaunchAgent: a signal would end its process alone, which

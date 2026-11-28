@@ -170,12 +170,12 @@ public sealed partial class ServiceTests
         // updates; the overlay kept alive when it fails, and not once it exits with 0, as Exit thermi does.
         Assert.Equal((0, 0, 0), (registered.Exit, unregistered.Exit, off.Exit));
         Assert.NotNull(service);
-        Assert.Contains("Background", service, StringComparison.Ordinal);
+        Assert.Contains("spawn type = background", service, StringComparison.Ordinal);
         Assert.Contains("sensors.sock", service, StringComparison.Ordinal);
         Assert.Contains("run interval = 14400 seconds", service, StringComparison.Ordinal);
         Assert.NotNull(overlay);
-        Assert.Contains("Aqua", overlay, StringComparison.Ordinal);
-        Assert.Contains("successful exit => false", overlay, StringComparison.Ordinal);
+        Assert.Contains("spawn type = interactive", overlay, StringComparison.Ordinal);
+        Assert.Contains("successful exit => 0", overlay, StringComparison.Ordinal);
         // Unregister takes both out of launchd and their plists away, and keeps the person's settings.
         Assert.DoesNotContain(gone, printed => printed is not null);
         Assert.Empty(left);

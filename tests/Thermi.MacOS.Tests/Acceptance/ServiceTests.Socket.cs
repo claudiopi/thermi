@@ -29,7 +29,7 @@ public sealed partial class ServiceTests
             "ssh",
             [
                 "-o", "BatchMode=yes", "localhost",
-                $"export HOME='{session.Home}' TMPDIR='{session.Temporary}' LANG=en_US.UTF-8 THERMI_SENSORS_SOCKET='{session.Socket}'; "
+                $"export {string.Join(' ', session.Variables.Select(variable => $"{variable.Key}='{variable.Value}'"))}; "
                     + $"'{Built.Program("thermi-cli")}' read --schema 1",
             ],
             cancel: cancel),
