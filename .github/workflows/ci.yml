@@ -242,12 +242,19 @@ jobs:
         run: |
           sudo launchctl enable system/com.openssh.sshd
           sudo launchctl bootstrap system /System/Library/LaunchDaemons/ssh.plist || true
-          mkdir -p -m 700 ~/.ssh
+          # Remote Login admits only the members of this group, where it is set to some users alone.
+          if dscl . -read /Groups/com.apple.access_ssh > /dev/null 2>&1; then
+            sudo dseditgroup -o edit -a "$USER" -t user com.apple.access_ssh
+          fi
+          # sshd reads a key only from a home and a folder no one else may write.
+          chmod go-w ~
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           ssh-keygen -q -t ed25519 -N "" -f ~/.ssh/id_ed25519
           cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
           chmod 600 ~/.ssh/authorized_keys
           for _ in $(seq 20); do ssh-keyscan -t ed25519 localhost >> ~/.ssh/known_hosts 2>/dev/null && break; sleep 1; done
-          ssh -o BatchMode=yes localhost true
+          ssh -o BatchMode=yes localhost true || { ssh -v -o BatchMode=yes localhost true; exit 1; }
       - run: pwsh -NoProfile -File scripts/check.ps1 -Ci -Part MacOS
       # thermi-sensors as the app ships it, and what it reads on this virtual Mac, which tests/Thermi.Tests/Recordings/Mac
       # keeps as the macOS VM's recording, scrubbed as every recording is.
@@ -255,6 +262,7 @@ jobs:
         name: Record this Mac
         run: |
           dotnet publish src/Thermi.Sensors.MacOS -c Release -r osx-arm64 --self-contained -o artifacts/mac/thermi-sensors
+          mkdir -p artifacts/mac/recording
           artifacts/mac/thermi-sensors/thermi-sensors --raw artifacts/mac/recording/macos-vm --dump artifacts/mac/recording/macos-vm.json --seconds 5
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
