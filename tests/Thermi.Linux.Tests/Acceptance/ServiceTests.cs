@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Thermi.Core.Sensors;
 using Thermi.Core.Settings;
@@ -74,6 +75,9 @@ public sealed partial class ServiceTests
             Assert.Equal(Missing(tree, Metrics.CpuFan, second) ? null : Kernel(root, second, "nct6798", "fan2"), readings[Metrics.CpuFan.Id].Usable);
             Assert.DoesNotContain(now.Sensors, sensor => sensor.Type == "Temperature" && sensor.Value <= -40);
             VirtualAdaptersAreApart(was, now);
+            Assert.Equal(
+                Drives(root, second),
+                now.Sensors.Where(sensor => sensor.HardwareType == "Storage").Select(SensorMap.DeviceIdOf).Distinct(StringComparer.Ordinal).Count());
         }
     }
 
@@ -227,6 +231,24 @@ public sealed partial class ServiceTests
         Assert.NotEmpty(now.VirtualAdapters ?? []);
         Assert.All(now.VirtualAdapters ?? [], adapter => Assert.Contains(adapter, adapters));
         Assert.True(adapters.Except(now.VirtualAdapters ?? [], StringComparer.Ordinal).Any(), "No adapter was real.");
+    }
+
+    // The drives of a second of the tree, which the disk metrics may follow: those in /sys/block but the kernel's virtual
+    // ones, as loop devices, and the ones it calls removable, as a virtual machine's DVD drive, which is listed first.
+    private static int Drives(string root, int second)
+    {
+        var folder = Path.Combine(root, $"{second}");
+        var links = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(folder, "links.json")))!;
+        bool Removable(string drive)
+        {
+            var file = Path.Combine(folder, $"{drive[1..]}/removable");
+            return File.Exists(file) && File.ReadAllText(file).Trim() == "1";
+        }
+
+        return links.Count(link => link.Key.StartsWith("/sys/block/", StringComparison.Ordinal)
+            && link.Key.Count(character => character == '/') == 3
+            && !link.Value.StartsWith("/sys/devices/virtual/", StringComparison.Ordinal)
+            && !Removable(link.Key));
     }
 
     // A chip's sensor as its hwmon files hold it in a second of the tree, by the label of its input, or by the input's own

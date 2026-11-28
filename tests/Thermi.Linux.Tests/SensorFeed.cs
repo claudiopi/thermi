@@ -14,7 +14,7 @@ internal static class SensorFeed
     /// <summary>The same desktop as a plain user, who reads no energy counters.</summary>
     public const string PlainUser = "ryzen-5900x-rtx-3060-user";
 
-    /// <summary>A virtual machine with no <c>hwmon</c> at all.</summary>
+    /// <summary>A virtual machine with no <c>hwmon</c> at all, and a DVD drive.</summary>
     public const string VirtualMachine = "vm-no-hwmon";
 
     public static Task<SessionProcess> ServeAsync(OwnSession session, string tree, CancellationToken cancel) =>

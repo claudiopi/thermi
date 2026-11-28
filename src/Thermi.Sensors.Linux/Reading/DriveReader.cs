@@ -6,7 +6,8 @@ namespace Thermi.Sensors.Linux.Reading;
 /// <summary>
 /// Each physical drive in <c>/sys/block</c>, its activity and speeds from <c>/proc/diskstats</c> and its
 /// temperatures from its <c>hwmon</c> chip, as NVMe's, all under one device, the drive's own under <c>/sys/devices</c>. A
-/// drive under <c>/sys/devices/virtual</c>, as a loop device or a RAM disk, is none.
+/// drive under <c>/sys/devices/virtual</c>, as a loop device or a RAM disk, is none, nor is one the kernel calls removable,
+/// as an optical drive or a card reader, so the disk metrics follow only the PC's own drives.
 /// </summary>
 internal sealed class DriveReader
 {
@@ -66,7 +67,9 @@ internal sealed class DriveReader
 
     private static Drive? DriveOf(IKernel kernel, string name)
     {
-        if (kernel.Resolve($"{Block}/{name}") is not { } real || real.StartsWith("/sys/devices/virtual/", StringComparison.Ordinal))
+        if (kernel.Resolve($"{Block}/{name}") is not { } real
+            || real.StartsWith("/sys/devices/virtual/", StringComparison.Ordinal)
+            || kernel.Read($"{Block}/{name}/removable")?.Trim() == "1")
         {
             return null;
         }
