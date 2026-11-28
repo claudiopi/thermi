@@ -44,7 +44,7 @@
         "R8",
         "R10"
       ],
-      "description": "Given a headless GNOME Shell of the test's own with the extension, a window under the overlay and a recorded feed, when thermi runs (a table of a monitor at 100 % and at 150 %, X11 and Wayland, a window full screen on the overlay's monitor, sensors stopped), then the screen shows, at the overlay's place and above the window and the top bar, the picture thermi preview paints for the same snapshot and scale; a click where it draws nothing reaches the window; and with the full-screen window it shows nothing.",
+      "description": "Given a headless GNOME Shell of the test's own with the extension, a window under the overlay and a recorded feed, when thermi runs (a table of a monitor at 100 % and at 150 %, X11 and Wayland, a window full screen on the overlay's monitor, sensors stopped, an overlay that hides in full screen with its corner on another monitor), then the screen shows, at the overlay's place and above the window and the top bar, the picture thermi preview paints for the same snapshot and scale; a click where it draws nothing reaches the window; over the full-screen window it shows still, and one that hides in full screen shows nothing on the monitor that holds most of it.",
       "check": "TheOverlayShowsAboveEveryWindowOnGnome",
       "passes": true
     },

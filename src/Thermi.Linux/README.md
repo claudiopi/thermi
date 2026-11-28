@@ -42,7 +42,7 @@ Under `--trace`, each event is one line on the standard error, `<seconds on CLOC
 | `lifted` | A hold lifted a value or a pill, and its ghost is on screen under the pointer. |
 | `faded` | An overlay with Fade, opaque until then, is on screen fainter as the pointer nears it: its surface's opacity, never a new picture. |
 
-Notices are the desktop's own freedesktop `Notify`, also on GNOME, where the Shell serves it; a test matches their buttons by action id, never by text.
+Notices are the desktop's own freedesktop `Notify`, also on GNOME, where the Shell serves it; a test matches their buttons by action id, never by text. Every notice also takes `default`, a click on the notice past its buttons, which does what a click on Windows' does.
 
 | Notice | Action ids |
 | --- | --- |

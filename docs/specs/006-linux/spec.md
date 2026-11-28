@@ -29,7 +29,7 @@ thermi runs on Linux, all of it but FPS: a service reads the sensors the kernel 
 
 ### The overlay
 
-- R8. On GNOME Shell 46 to 51, on Wayland and X11, each overlay shows above every window and the top bar, where it was placed, and hides while a window fills its monitor full screen. Clicks pass through it where it draws nothing, and everywhere when it is click-through.
+- R8. On GNOME Shell 46 to 51, on Wayland and X11, each overlay shows above every window and the top bar, where it was placed, and above a window that fills its monitor full screen as its "When to show" says, as on Windows: shown by default, hidden with "Hide in full screen". Clicks pass through it where it draws nothing, and everywhere when it is click-through.
 - R17. On KDE Plasma 6, Hyprland and Sway, on Wayland, each overlay shows above every window and the panels, where it was placed, and a full-screen window covers it. Clicks pass through it as on GNOME. On a Wayland desktop with neither GNOME Shell nor layer surfaces, `thermi` shows no overlay and says why once.
   Exception: No layer-shell protocol tells a program which monitor shows a window full screen, so covering the overlay is left to the compositor.
 - R24. On X11 desktops, as Cinnamon, Xfce, MATE and KDE Plasma's X11 session, each overlay shows above every window and the panels, off the taskbar and the window switcher, and a full-screen window in front covers it. Clicks pass through it as on GNOME.
