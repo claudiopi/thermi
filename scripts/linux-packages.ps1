@@ -9,7 +9,7 @@ staged as the packages install it: thermi-sensors' tree, with thermi-cli and the
 src/Thermi.Sensors.Linux/Packaging; thermi's, with the overlay's launcher, its user unit and launcher's entry from
 src/Thermi.Linux/Packaging, the icons of src/Thermi.Windows/thermi.ico and the GNOME Shell extension of src/Thermi.Gnome.
 The tarball, thermi-<version>-linux-<processor>.tar.gz, is both trees and, in packaging/, each package's nfpm.yaml and
-scripts; nfpm (scripts/nfpm.ps1) packs each package from it with them, and signs the .rpm, which dnf checks
+scripts, and the .deb's AppArmor profile; nfpm (scripts/nfpm.ps1) packs each package from it with them, and signs the .rpm, which dnf checks
 (docs/adr/0019-linux.md). A rollback packs a tarball again with the packaging it holds, as that version shipped.
 
 .PARAMETER Version
@@ -135,7 +135,8 @@ function New-Trees([string]$Rid, [string]$Files) {
         foreach ($file in 'LICENSE', 'THIRD-PARTY-NOTICES.md') { Copy-Text (Join-Path $root $file) (Join-Path $doc $file) }
     }
     foreach ($package in $packages) {
-        Get-ChildItem (Join-Path $root 'src' $package.Project 'Packaging') -File | Where-Object { $_.Name -eq 'nfpm.yaml' -or $_.Extension -eq '.sh' } |
+        Get-ChildItem (Join-Path $root 'src' $package.Project 'Packaging') -File |
+            Where-Object { $_.Name -eq 'nfpm.yaml' -or $_.Extension -in '.sh', '.apparmor' } |
             ForEach-Object { Copy-Text $_.FullName (Join-Path $Files 'packaging' $package.Project $_.Name) }
     }
     # The build host's umask, which a package does not keep.

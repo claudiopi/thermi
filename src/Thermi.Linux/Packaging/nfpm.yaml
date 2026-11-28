@@ -37,6 +37,11 @@ contents:
   - src: ${THERMI_FILES}/thermi/usr/share/doc/thermi/
     dst: /usr/share/doc/thermi/
     type: tree
+  # Ubuntu's restriction of user namespaces, which WebKit's sandbox makes, wants it; no other format's distribution has it.
+  - src: ${THERMI_FILES}/packaging/Thermi.Linux/thermi.apparmor
+    dst: /etc/apparmor.d/thermi
+    type: config
+    packager: deb
 
 scripts:
   postinstall: ${THERMI_STAGE}/scripts/thermi/postinstall.sh

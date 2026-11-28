@@ -84,6 +84,7 @@ public sealed partial class PackageTests
         var files = (await pc.MustAsync($"{tool.Files("thermi-sensors")} && {tool.Files("thermi")}", cancel)).Split('\n');
         var signed = await pc.RunAsync(tool.SignedRepository(), cancel);
         var arm64 = await pc.RunAsync(tool.Arm64(), cancel);
+        var profile = await pc.RunAsync(tool.AppArmor(), cancel);
         // Installed again with the network cut, once its libraries are on the PC, it downloads nothing.
         await pc.MustAsync(tool.Remove(), cancel);
         var left = await pc.RunAsync("systemctl is-active thermi-sensors.socket thermi-sensors.service || true; pgrep -x thermi-sensors || true", cancel);
@@ -111,6 +112,7 @@ public sealed partial class PackageTests
         Assert.Equal("active", listens.Out.Trim());
         Assert.True(signed.Exit == 0, $"No signed repository of thermi's: {signed.Error}");
         Assert.True(arm64.Exit == 0, $"No arm64 package of the same version: {arm64.Error}");
+        Assert.True(profile.Exit == 0, $"thermi's AppArmor profile: {profile.Out}{profile.Error}");
         // A purge, or a removal where the package manager has none, leaves each person's settings and no socket to listen.
         Assert.Equal("{}", kept.Out.Trim());
         Assert.NotEqual(0, linked.Exit);

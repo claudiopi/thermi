@@ -169,6 +169,13 @@ public sealed partial class PackageTests
             _ => "! ls /etc/pacman.d/thermi* 2>/dev/null",
         };
 
+        // The .deb's AppArmor profile, a conffile, as AppArmor's own parser reads it to load it, which Ubuntu's restriction
+        // of user namespaces wants for WebKit's sandbox; the other formats' distributions have none, and their packages none.
+        public string AppArmor() => Format == "deb"
+            ? $"dpkg-query -W -f '${{Conffiles}}' thermi | grep -q ' /etc/apparmor.d/thermi ' && {Container.Installs(Image, "apparmor")}"
+                + " && apparmor_parser -Q -K /etc/apparmor.d/thermi"
+            : "! test -e /etc/apparmor.d/thermi";
+
         // The same build packed for arm64 too, at the same version; Arch's PKGBUILD builds for both.
         public string Arm64() => Format switch
         {
