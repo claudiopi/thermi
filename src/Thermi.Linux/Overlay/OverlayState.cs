@@ -5,10 +5,10 @@ using Thermi.Linux.Gnome;
 namespace Thermi.Linux.Overlay;
 
 /// <summary>
-/// What the running overlay tells agents: whether its overlays can show on this desktop now, and its monitors as Core's
-/// <see cref="Screen"/>s, in thermi's pixels, as it places the overlays on them. It is the answer of the
-/// <see cref="OverlayObject"/>'s <see cref="OverlayObject.State"/>, which Gio alone asks: so <c>thermi-cli</c> asks it
-/// with no GTK and no display, as over SSH, and every desktop answers the same way.
+/// What the running overlay tells agents and the settings window's map: whether its overlays can show on this desktop now,
+/// and its monitors as Core's <see cref="Screen"/>s, in thermi's pixels, as it places the overlays on them. It is the
+/// answer of the <see cref="OverlayObject"/>'s <see cref="OverlayObject.State"/>, which Gio alone asks: so
+/// <c>thermi-cli</c> asks it with no GTK and no display, as over SSH, and every desktop answers the same way.
 /// </summary>
 internal sealed record OverlayState(bool CanShow, IReadOnlyList<Screen> Screens)
 {
@@ -21,10 +21,10 @@ internal sealed record OverlayState(bool CanShow, IReadOnlyList<Screen> Screens)
 
     /// <summary>What this session's overlay tells, or null where none runs, or one of another shape answers.</summary>
     public static OverlayState? Ask() =>
-        SessionBus.Call(ShellLink.Name, OverlayObject.Path, OverlayObject.Name, OverlayObject.State) is { } answer
-        && answer.GetTypeString() == $"({Arguments})"
-            ? Of(answer)
-            : null;
+        SessionBus.Call(ShellLink.Name, OverlayObject.Path, OverlayObject.Name, OverlayObject.State) is { } answer ? Read(answer) : null;
+
+    /// <summary>The overlay's answer to <see cref="OverlayObject.State"/>, or null where one of another shape answered.</summary>
+    public static OverlayState? Read(GLib.Variant answer) => answer.GetTypeString() == $"({Arguments})" ? Of(answer) : null;
 
     public GLib.Variant Variant() => GLib.Variant.NewTuple(
     [

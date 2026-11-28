@@ -71,10 +71,13 @@ public sealed partial class GestureTests
         Assert.NotNull(cornered.Snap!.Monitor);
         Assert.Null(cornered.Position);
         // Off GNOME's extension the settings window's map names the monitors as the overlay does, so a spot picked on it is
-        // the overlay's: on GNOME the map waits on the Shell, which a test's program does not.
+        // the overlay's, with the panel it measured, which a Wayland compositor tells it alone: on GNOME the map waits on
+        // the Shell, which a test's program does not.
         if (row != Desktop.Gnome)
         {
-            Assert.Contains(cornered.Snap.Monitor, mapped.Out.Split('\n'));
+            var map = mapped.Out.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Split(' ')).ToList();
+            Assert.Contains(cornered.Snap.Monitor, map.Select(line => line[0]));
+            Assert.Contains(map, line => line[1] == bool.TrueString);
         }
 
         Assert.Equal(SnapSpot.Taskbar, onPanel.Snap?.Spot);
@@ -150,8 +153,9 @@ public sealed partial class GestureTests
     }
 
     /// <summary>
-    /// The tests' own program as <see cref="TheOverlayIsDraggedAndStaysOnGnome"/> starts it in a desktop's session: the ids of
-    /// the monitors the settings window's map draws without GNOME's extension, one a line.
+    /// The tests' own program as <see cref="TheOverlayIsDraggedAndStaysOnGnome"/> starts it in a desktop's session: the
+    /// monitors the settings window's map draws without GNOME's extension once the running overlay answered, one a line, each
+    /// its id and whether it has a bar.
     /// </summary>
     public static int SayWindowMap()
     {
@@ -162,9 +166,18 @@ public sealed partial class GestureTests
             return 1;
         }
 
-        foreach (var screen in new WindowScreens(null, null, _ => { }, () => { }, NullLogger.Instance).Screens)
+        using var bus = Gio.Functions.BusGetSync(Gio.BusType.Session, null);
+        var context = GLib.MainContext.Default();
+        var answered = false;
+        var screens = new WindowScreens(bus, null, post => post(), () => answered = true, NullLogger.Instance);
+        while (!answered)
         {
-            Console.WriteLine(screen.Id);
+            context.Iteration(true);
+        }
+
+        foreach (var screen in screens.Screens)
+        {
+            Console.WriteLine($"{screen.Id} {screen.Taskbar is not null}");
         }
 
         return 0;

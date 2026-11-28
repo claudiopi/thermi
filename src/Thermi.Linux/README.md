@@ -16,7 +16,7 @@ The running overlay holds the bus name `io.github.claudiopi.thermi.Overlay`, and
 | `HotkeyStatus` | The settings window, for the hotkeys the desktop refused. |
 | `Message` | The settings window, for each message of their link. |
 | `Open` | A second start of thermi, to open the settings window. |
-| `State` | `thermi-cli`, as `OverlayState`: whether the overlays can show, and the monitors as the overlay places them, which only a running overlay measures. |
+| `State` | `thermi-cli`, and the settings window for its map and where each overlay shows, as `OverlayState`: whether the overlays can show, and the monitors as the overlay places them, which only a running overlay measures. |
 
 | Folder | What lives there |
 | --- | --- |

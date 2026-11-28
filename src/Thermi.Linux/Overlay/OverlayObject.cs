@@ -13,9 +13,9 @@ internal sealed record OverlayAnswers(Func<long> HotkeyStatus, Func<OverlayState
 /// <summary>
 /// What the running overlay answers its own programs on the session's bus, under its name <see cref="ShellLink.Name"/>:
 /// the settings window asks it which hotkeys the desktop refused, as Windows' asks the overlay's hidden window, and tells
-/// it each message of their link; <c>thermi-cli</c> asks its <see cref="OverlayState"/>; and a second start of thermi asks
-/// it to open the window, as Windows' second start does. The overlay's actions keep <see cref="ShellLink.ObjectPath"/>,
-/// which GDBus serves itself.
+/// it each message of their link; <c>thermi-cli</c> and the window's map ask its <see cref="OverlayState"/>; and a second
+/// start of thermi asks it to open the window, as Windows' second start does. The overlay's actions keep
+/// <see cref="ShellLink.ObjectPath"/>, which GDBus serves itself.
 /// </summary>
 internal sealed class OverlayObject(OverlayAnswers answers) : IBusObject
 {
