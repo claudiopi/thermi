@@ -241,7 +241,16 @@ internal sealed class ShellLink : IDisposable
 
     public async Task<string> ActivationAsync(uint time) => (await Own("Activation", GLib.Variant.NewUint32(time))).GetChildValue(0).GetString(out _);
 
-    public async Task<IReadOnlyList<ShellMonitor>> MonitorsAsync() => MonitorsOf((await Own("Monitors")).GetChildValue(0));
+    /// <summary>
+    /// The Shell's monitors, from an extension of this protocol alone, as the overlay shows only through one: another's may
+    /// answer in another shape, so it gives none.
+    /// </summary>
+    public async Task<IReadOnlyList<ShellMonitor>> MonitorsAsync()
+    {
+        var protocol = await Call(
+            Shell, ObjectPath, "org.freedesktop.DBus.Properties", "Get", GLib.Variant.NewString(Interface), GLib.Variant.NewString("Protocol"));
+        return protocol.GetChildValue(0).GetVariant().GetUint32() == Protocol ? MonitorsOf((await Own("Monitors")).GetChildValue(0)) : [];
+    }
 
     public void Dispose()
     {

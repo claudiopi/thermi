@@ -4,9 +4,10 @@ using Thermi.Linux.Gnome;
 namespace Thermi.Linux.Window;
 
 /// <summary>
-/// The monitors the window's map draws, as the overlay has them: on GNOME the Shell's, through thermi's extension, with
-/// the top bar as their taskbar and the names a snap keeps, so a spot picked on the map is the overlay's own; elsewhere,
-/// or before the Shell answers, GDK's, with no bar. Used on GTK's loop alone.
+/// The monitors the window's map draws, as the overlay has them: on GNOME the Shell's, through thermi's extension of this
+/// protocol, with the top bar as their taskbar and the names a snap keeps, so a spot picked on the map is the overlay's
+/// own; elsewhere, with an extension of another version, or before the Shell answers, GDK's, with no bar. Used on GTK's
+/// loop alone.
 /// </summary>
 internal sealed class WindowScreens
 {
@@ -14,6 +15,9 @@ internal sealed class WindowScreens
     private readonly ShellLink? _link;
     private readonly Action<Action> _post;
     private ShellScreens? _shell;
+
+    // Whether the extension is of this protocol, whose monitors its signal sends too.
+    private bool _ours;
 
     public WindowScreens(Gio.DBusConnection? bus, ShellLink? link, Action<Action> post, Action changed)
     {
@@ -30,7 +34,13 @@ internal sealed class WindowScreens
         }
 
         _link = link;
-        _link.MonitorsChanged = monitors => Taken(monitors, changed);
+        _link.MonitorsChanged = monitors =>
+        {
+            if (_ours)
+            {
+                Taken(monitors, changed);
+            }
+        };
         _ = ReadAsync(changed);
     }
 
@@ -61,13 +71,21 @@ internal sealed class WindowScreens
         return screens;
     }
 
-    // Without the extension the Shell has no such object, and the window keeps GDK's monitors.
+    // Without the extension the Shell has no such object, and with one of another version none of this protocol's
+    // monitors: the window keeps GDK's.
     private async Task ReadAsync(Action changed)
     {
         try
         {
             var monitors = await _link!.MonitorsAsync().ConfigureAwait(false);
-            _post(() => Taken(monitors, changed));
+            if (monitors.Count > 0)
+            {
+                _post(() =>
+                {
+                    _ours = true;
+                    Taken(monitors, changed);
+                });
+            }
         }
         catch (GLib.GException)
         {

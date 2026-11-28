@@ -14,7 +14,7 @@ public sealed class ExtensionTests
     // it added to the Shell or its top bar. "shows" makes a case's calls and says what the Shell shows of them, read through
     // its Eval once it painted a frame. "hold" shows the overlay and prints the key focus, then each signal of the
     // extension's, a line each, the key focus again at each press of the first button, and answers a right press with a
-    // menu, as thermi does, saying once the Shell took it.
+    // menu, as thermi does, saying once the Shell took it; a line "x y" on its input shows the overlay there instead.
     private const string Caller = """
         import json, math, sys, gi
         from gi.repository import Gio, GLib
@@ -23,9 +23,9 @@ public sealed class ExtensionTests
         PNG = bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) + b'thermi'
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
-        def show(overlay, length=None, scale=1.0):
+        def show(overlay, length=None, scale=1.0, at=(100.0, 100.0)):
             pixels = bytes(40 * 4 * 20 if length is None else length)
-            return 'Show', GLib.Variant('(uayiiiddda(dddd))', (overlay, pixels, 40, 20, 160, 100.0, 100.0, scale, [(0.0, 0.0, 40.0, 20.0)]))
+            return 'Show', GLib.Variant('(uayiiiddda(dddd))', (overlay, pixels, 40, 20, 160, *at, scale, [(0.0, 0.0, 40.0, 20.0)]))
 
         def row(text, parent=-1, checked=False, default=False, radio=False):
             return parent, text, '', checked, False, False, default, radio
@@ -191,12 +191,21 @@ public sealed class ExtensionTests
                     focus()
                 if signal == 'Pointer' and values[1] == 'press' and values[4] == 3:
                     print('menu', call(*menu(1, -1)), flush=True)
+            def move(fd, condition):
+                line = sys.stdin.readline().split()
+                if line:
+                    print('moved', call(*show(1, at=(float(line[0]), float(line[1])))), flush=True)
+                return bool(line)
             bus.signal_subscribe(None, None, None, PATH, None, Gio.DBusSignalFlags.NONE, heard)
+            GLib.io_add_watch(sys.stdin.fileno(), GLib.PRIORITY_DEFAULT, GLib.IOCondition.IN, move)
             shown = call(*show(1)) == 'taken'
             focus()
             print('ready' if shown else 'refused', flush=True)
             GLib.MainLoop().run()
         """;
+
+    // The frame clock of the Shell's one monitor, as a timeline on its stage picks it.
+    private const string FrameClock = "(global.thermiClock ??= new Clutter.Timeline({actor: global.stage, duration: 1}).frame_clock)";
 
     private static readonly TestMonitor Monitor = new(1920, 1080);
 
@@ -282,6 +291,7 @@ public sealed class ExtensionTests
     // it was; a right press opens thermi's menu and holds nothing, so the pointer is the person's again once the menu
     // closes; and another grab that takes the pointer from a press, as a modal dialog's, ends it as Esc does, as one already
     // there ends a press at once, which holds nothing. The overview does not open while a grab holds, so it never takes one.
+    // A press where thermi just moved the overlay takes it before the Shell laid it out there.
     [Fact(Timeout = Bound.Test)]
     public async Task ThePointerAndTheKeysAreThermisOnlyWhileItsPressHolds()
     {
@@ -307,6 +317,7 @@ public sealed class ExtensionTests
         var refused = caller.Out.NextAsync(line => line.StartsWith("cancel", StringComparison.Ordinal), cancel);
         await input.ShellAsync("global.thermiModal = Main.pushModal(global.stage); 0", cancel);
         await input.HoldAsync(OnOverlay, OnOverlay, Refused, there => input.ShellAsync("Main.popModal(global.thermiModal)", there), cancel);
+        await PressWhereMovedAsync();
 
         var lines = caller.Out.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         string[] keys = [.. lines.Where(line => line.StartsWith("Key", StringComparison.Ordinal))];
@@ -315,6 +326,7 @@ public sealed class ExtensionTests
         Assert.Single(lines.Where(line => line.StartsWith("focus", StringComparison.Ordinal)).Distinct());
         Assert.Contains("cancel after its press", lines);
         Assert.Equal(4, lines.Count(line => line.StartsWith("Pointer press 110.0 110.0 1", StringComparison.Ordinal)));
+        Assert.Contains("Pointer press 610.0 610.0 1", lines);
 
         async Task Keys(CancellationToken held)
         {
@@ -340,6 +352,28 @@ public sealed class ExtensionTests
         Task Refused(CancellationToken held)
         {
             return refused.WaitAsync(held);
+        }
+
+        // The Shell takes a press before it lays itself out for its next frame, as a press can come right after a drop moved
+        // the overlay: its frames held, the overlay moves under the pointer and the click comes, and only then a frame. A
+        // second click, once it laid the overlay out, says the first came through or not.
+        async Task PressWhereMovedAsync()
+        {
+            await input.MoveAsync(610, 610, cancel);
+            var moved = caller.Out.NextAsync(line => line == "moved taken", cancel);
+            await input.ShellAsync($"{FrameClock}.inhibit(); 0", cancel);
+            await caller.Input.WriteLineAsync("600 600".AsMemory(), cancel);
+            await caller.Input.FlushAsync(cancel);
+            await moved;
+            foreach (var state in new[] { "PRESSED", "RELEASED" })
+            {
+                await input.ShellAsync($"pointer.notify_button(global.get_current_time(), 1, Clutter.ButtonState.{state})", cancel);
+            }
+
+            await input.ShellAsync($"{FrameClock}.uninhibit(); 0", cancel);
+            var second = caller.Out.NextAsync(line => line.StartsWith("Pointer release 612", StringComparison.Ordinal), cancel);
+            await input.ClickAsync(612, 612, cancel);
+            await second;
         }
     }
 

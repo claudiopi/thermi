@@ -27,6 +27,24 @@ export function under(event) {
     return global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
 }
 
+// A box of thermi's put at its overlay's place, where unplaced finds it before the stage laid it out there.
+export function place(box, x, y) {
+    const [dx, dy, width, height] = box.thermiAt;
+    box.thermiPlaced = [x + dx, y + dy, width, height];
+    box.set_position(x + dx, y + dy);
+}
+
+// The stage takes a press before it lays itself out for the next frame, so it cannot pick a box made or moved since the
+// last frame, as when a press comes right after thermi drops an overlay: such a box takes the press at the place thermi
+// gave it. A box laid out is left to the stage's own pick.
+export function unplaced(boxes, event) {
+    const [x, y] = event.get_coords();
+    return boxes.find(box => {
+        const [left, top, width, height] = box.thermiPlaced;
+        return !box.has_allocation() && x >= left && x < left + width && y >= top && y < top + height;
+    }) ?? null;
+}
+
 // A call thermi's protocol does not have: refused before it changes anything.
 export class Refused extends Error {}
 

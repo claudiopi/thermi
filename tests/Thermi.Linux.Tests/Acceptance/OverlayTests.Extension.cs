@@ -23,13 +23,19 @@ public sealed partial class OverlayTests
             var metadata = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(other, "metadata.json"), cancel))!;
             metadata["thermi-protocol"] = (int)metadata["thermi-protocol"]! - 1;
             await File.WriteAllTextAsync(Path.Combine(other, "metadata.json"), metadata.ToJsonString(), cancel);
-            // Another protocol's signals may have other shapes: this one sends Ready and Pointer with nothing in them once
-            // thermi takes its name.
+            // Another protocol's signals and answers may have other shapes: this one sends Ready and Pointer with nothing in
+            // them once thermi takes its name, and counts who asks its monitors over the bus, apart from its own signal.
             var code = await File.ReadAllTextAsync(Path.Combine(other, "extension.js"), cancel);
             const string Appeared = "this._owner = owner;";
+            const string Monitors = "    Monitors() {";
+            const string Signal = "[this.Monitors()]";
             Assert.Contains(Appeared, code, StringComparison.Ordinal);
+            Assert.Contains(Monitors, code, StringComparison.Ordinal);
+            Assert.Contains(Signal, code, StringComparison.Ordinal);
             var sends = "['Ready', 'Pointer'].forEach(signal => this._emit(signal, '()', []));";
-            code = code.Replace(Appeared, $"{Appeared} {sends}", StringComparison.Ordinal);
+            code = code.Replace(Appeared, $"{Appeared} {sends}", StringComparison.Ordinal)
+                .Replace(Signal, "[this.Monitors(true)]", StringComparison.Ordinal)
+                .Replace(Monitors, "    Monitors(own) { if (!own) global.thermiMonitorsAsked = (global.thermiMonitorsAsked ?? 0) + 1;", StringComparison.Ordinal);
             await File.WriteAllTextAsync(Path.Combine(other, "extension.js"), code, cancel);
 
             await AnotherVersionShowsNothingAsync(other, cancel);
@@ -57,8 +63,15 @@ public sealed partial class OverlayTests
         var checking = notices.NextUpdateCheckAsync(cancel);
         await notices.ClickAsync(told, "update-extension", cancel);
         var asked = await Task.WhenAny(checking, thermi.WaitForExitAsync(cancel)) == checking;
+        // The window takes the monitors the Shell tells only from an extension of its own protocol, as the overlay does, and
+        // asks this one none: its map draws GDK's.
+        var window = await desktop.Session.StartAsync(Built.Program("thermi"), ["settings", "--trace"], cancel: cancel);
+        await Traced.FirstAsync(window.Error, Traced.WindowShown, cancel);
+        var monitors = await desktop.Session.RunAsync(
+            "gdbus", TestDesktop.Call("org.gnome.Shell", "/org/gnome/Shell", "Eval", "global.thermiMonitorsAsked ?? 0"), cancel: cancel);
         Assert.Equal(0, await Pictures.ChangedAsync(desktop.Session, before, after, UnderTheBar, cancel));
         Assert.True(asked, thermi.Error.Text);
+        Assert.Equal("(true, '0')", monitors.Out.Trim());
     }
 
     // With no extension, thermi asks the Shell to install its own from extensions.gnome.org, which GNOME confirms itself,

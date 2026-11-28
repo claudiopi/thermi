@@ -8,7 +8,7 @@ import {ON_X11, boxShape, coverWindows, isShape, leftShape, showShape} from './c
 import {ThermiDesktop} from './desktop.js';
 import {closeMenu, openMenu, refuseMenu} from './overlayMenu.js';
 import {PointerWatch} from './pointerWatch.js';
-import {OVERLAY, PATH, answer, finite, refusePicture, refuseUnless, setPicture, under} from './protocol.js';
+import {OVERLAY, PATH, answer, finite, place, refusePicture, refuseUnless, setPicture, under, unplaced} from './protocol.js';
 
 // thermi's surface on GNOME Shell (docs/adr/0019-linux.md): it shows what thermi paints, where thermi says, and passes
 // the pointer, the monitors and the menu's choice back; its icons in the top bar and its hotkeys are desktop.js'. It
@@ -208,7 +208,7 @@ export default class ThermiExtension extends Extension {
         if (!shown)
             return;
         shown.picture.set_position(x, y);
-        shown.clicks.forEach(click => click.set_position(x + click.thermiAt[0], y + click.thermiAt[1]));
+        shown.clicks.forEach(click => place(click, x, y));
     }
 
     _raise(overlay) {
@@ -280,7 +280,7 @@ export default class ThermiExtension extends Extension {
     // one that holds already ends a press as it comes, which then holds nothing.
     _clickable(overlay, [x, y, width, height]) {
         const click = new St.Widget({reactive: true, width, height});
-        click.thermiAt = [x, y];
+        click.thermiAt = [x, y, width, height];
         Main.layoutManager.addTopChrome(click);
         const pointer = (kind, event, button = 0, [dx, dy] = [0, 0]) => {
             const [px, py] = event.get_coords();
@@ -366,13 +366,15 @@ export default class ThermiExtension extends Extension {
 
     // Once a grab ends, a menu's or a drag's, GNOME 50 can send the next press or turn of the wheel to the actor the pointer
     // was on before it, a window or another box, wherever the pointer is now; so the stage asks what is under it, and a box
-    // of thermi's there takes it. While a grab holds, the stage sees nothing outside it.
+    // of thermi's there takes it, as one not laid out yet does where thermi put it. While a grab holds, the stage sees nothing
+    // outside it.
     _captured(event) {
         const type = event.type();
         if (type !== Clutter.EventType.BUTTON_PRESS && type !== Clutter.EventType.SCROLL)
             return Clutter.EVENT_PROPAGATE;
-        const box = under(event);
-        return box?.thermiTake && box !== global.stage.get_event_actor(event) ? box.thermiTake(event) : Clutter.EVENT_PROPAGATE;
+        const picked = under(event);
+        const box = picked?.thermiTake ? picked : unplaced([...this._overlays.values()].flatMap(shown => shown.clicks), event);
+        return box && box !== global.stage.get_event_actor(event) ? box.thermiTake(event) : Clutter.EVENT_PROPAGATE;
     }
 
     // The keys go back where they went before the press.
