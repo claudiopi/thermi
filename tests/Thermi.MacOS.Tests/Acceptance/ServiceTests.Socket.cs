@@ -8,16 +8,26 @@ namespace Thermi.MacOS.Tests.Acceptance;
 /// <summary>What A1 replays, and the clients that A3 runs.</summary>
 public sealed partial class ServiceTests
 {
-    // Writes to the socket, reads three lines, and says how much of what it wrote the service still left unread: a stream
-    // socket's bytes count against their writer until the reader takes them, which macOS's SO_NWRITE tells.
+    // Writes to the socket until it takes no more, reads three lines, and says how much of what it wrote the service still
+    // left unread: on macOS a Unix socket's bytes wait in their reader's buffer, which frees room only as the reader takes
+    // them, so what the writer cannot write again is what was left.
     private const string Writer = """
         import socket, sys
         client = socket.socket(socket.AF_UNIX)
         client.connect(sys.argv[1])
-        client.sendall(b'thermi\n' * 1024)
+        def fill():
+            sent = 0
+            client.setblocking(False)
+            try:
+                while True: sent += client.send(b'thermi\n' * 128)
+            except BlockingIOError:
+                pass
+            client.setblocking(True)
+            return sent
+        written = fill()
         lines = client.makefile()
         for _ in range(3): print(lines.readline(), end='', flush=True)
-        print('unread', client.getsockopt(socket.SOL_SOCKET, 0x1024), flush=True)
+        print('unread', written - fill(), flush=True)
         """;
 
     // Each row reads as it says: thermi-cli as the person, in their desktop's shell or over SSH, where their background
