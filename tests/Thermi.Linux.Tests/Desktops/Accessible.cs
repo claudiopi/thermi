@@ -105,13 +105,23 @@ internal static class Accessible
             def frames():
                 for app in children(desktop):
                     yield from (frame for frame in children(app) if role(frame) == Atspi.Role.FRAME)
+            # Read each quarter second until it is, each read that differs from the last on standard error, so a wait that
+            # runs out says what the desktop's windows were at its end, and whether each was the active one; an event
+            # missed, or a read a busy program failed, is read again.
+            said = []
             def active():
-                return any(alive(frame.get_name, None) == sys.argv[2] and has(frame, Atspi.StateType.ACTIVE) for frame in frames())
+                read = [(alive(frame.get_name, None), has(frame, Atspi.StateType.ACTIVE)) for frame in frames()]
+                if read != said:
+                    said[:] = read
+                    print(' | '.join(f'{name} {"active" if on else "inactive"}' for name, on in read), file=sys.stderr, flush=True)
+                return (sys.argv[2], True) in read
+            loop = GLib.MainLoop()
+            def again():
+                if active(): loop.quit()
+                return True
             if not active():
-                listener = Atspi.EventListener.new(lambda event: active() and Atspi.event_quit())
-                for kind in ('window:activate', 'object:state-changed:active'):
-                    listener.register(kind)
-                if not active(): Atspi.event_main()
+                GLib.timeout_add(250, again)
+                loop.run()
             print('active', flush=True)
         elif sys.argv[1] == 'slider':
             box = next(slider for app in apps if app.get_name() == 'thermi' for slider in sliders(app)).get_extents(Atspi.CoordType.WINDOW)
