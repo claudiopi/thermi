@@ -113,7 +113,7 @@ internal sealed class ShellLink : IDisposable
     /// Where the extension stands: its running object's protocol and <see cref="Face"/>, or else what the Shell says of it.
     /// The Shell's states are its own numbers: 1 is on, 6 installed and waiting to start, 7 and 8 turning off and on.
     /// </summary>
-    public ExtensionState State()
+    public ShellExtensionState State()
     {
         try
         {
@@ -125,7 +125,7 @@ internal sealed class ShellLink : IDisposable
             var xml = _bus.CallSync(
                 Shell, ObjectPath, "org.freedesktop.DBus.Introspectable", "Introspect", GLib.Variant.NewTuple([]), null, Gio.DBusCallFlags.None, Timeout, null);
             Face = ShellFace.Of(xml.GetChildValue(0).GetString(out _));
-            return !Face.Shows ? ExtensionState.OtherVersion : protocol < Protocol ? ExtensionState.Earlier : ExtensionState.Ours;
+            return !Face.Shows ? ShellExtensionState.OtherVersion : protocol < Protocol ? ShellExtensionState.Earlier : ShellExtensionState.Ours;
         }
         catch (GLib.GException)
         {
@@ -144,15 +144,15 @@ internal sealed class ShellLink : IDisposable
         catch (GLib.GException)
         {
             // The Shell is not up yet, as at a sign-in that starts thermi first: the extension's Ready says when it is.
-            return ExtensionState.Starting;
+            return ShellExtensionState.Starting;
         }
 
         if (info.NChildren() == 0)
         {
-            return OnDisk() ? ExtensionState.Unread : ExtensionState.Missing;
+            return OnDisk() ? ShellExtensionState.Unread : ShellExtensionState.Missing;
         }
 
-        return info.LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is 1 or 6 or 8 ? ExtensionState.Starting : ExtensionState.Off;
+        return info.LookupValue("state", GLib.VariantType.New("d"))?.GetDouble() is 1 or 6 or 8 ? ShellExtensionState.Starting : ShellExtensionState.Off;
     }
 
     // Where the Shell looks for extensions as it starts, as it asks GLib: the person's data folder, then the system's.

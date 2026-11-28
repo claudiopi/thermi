@@ -60,7 +60,7 @@ internal sealed record ShellRow(int Parent, string Text, string? Note, bool Chec
 }
 
 /// <summary>Where the extension stands for thermi: running with thermi's protocol, of another, or not running.</summary>
-internal enum ExtensionState
+internal enum ShellExtensionState
 {
     Ours,
 

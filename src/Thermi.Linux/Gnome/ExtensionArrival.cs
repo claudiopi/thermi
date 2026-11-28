@@ -42,17 +42,17 @@ internal sealed class ExtensionArrival
     public void Start()
     {
         var state = _link.State();
-        Ready = state is ExtensionState.Ours or ExtensionState.Earlier;
-        if (state == ExtensionState.Missing)
+        Ready = state is ShellExtensionState.Ours or ShellExtensionState.Earlier;
+        if (state == ShellExtensionState.Missing)
         {
             _link.Install();
         }
-        else if (state == ExtensionState.Unread)
+        else if (state == ShellExtensionState.Unread)
         {
             _ = InstallUnreadAsync();
         }
 
-        if (state is not ExtensionState.Ours and not ExtensionState.Starting and not ExtensionState.Unread)
+        if (state is not ShellExtensionState.Ours and not ShellExtensionState.Starting and not ShellExtensionState.Unread)
         {
             Tell(state);
         }
@@ -65,8 +65,8 @@ internal sealed class ExtensionArrival
     public bool Arrived()
     {
         var state = _link.State();
-        Ready = state is ExtensionState.Ours or ExtensionState.Earlier;
-        if (state is ExtensionState.Earlier or ExtensionState.OtherVersion)
+        Ready = state is ShellExtensionState.Ours or ShellExtensionState.Earlier;
+        if (state is ShellExtensionState.Earlier or ShellExtensionState.OtherVersion)
         {
             Tell(state);
         }
@@ -89,9 +89,9 @@ internal sealed class ExtensionArrival
             // Declined, offline, or not on the site: what the Shell has now says which.
         }
 
-        if (_link.State() == ExtensionState.Unread)
+        if (_link.State() == ShellExtensionState.Unread)
         {
-            _post(() => Tell(ExtensionState.Unread));
+            _post(() => Tell(ShellExtensionState.Unread));
         }
     }
 
@@ -107,9 +107,9 @@ internal sealed class ExtensionArrival
         }
     }
 
-    private void Tell(ExtensionState state)
+    private void Tell(ShellExtensionState state)
     {
-        if (state == ExtensionState.Earlier)
+        if (state == ShellExtensionState.Earlier)
         {
             _log.ExtensionEarlier(ShellLink.Protocol);
         }
@@ -127,15 +127,15 @@ internal sealed class ExtensionArrival
         var said = _texts();
         var (text, button) = state switch
         {
-            ExtensionState.Missing => (HostText.GnomeExtensionMissing, ((string, HostText)?)(InstallAction, HostText.GnomeExtensionInstall)),
-            ExtensionState.OtherVersion => (HostText.GnomeExtensionOtherVersion, (UpdateAction, HostText.GnomeExtensionUpdate)),
-            ExtensionState.Unread => (HostText.GnomeExtensionNextSignIn, null),
-            ExtensionState.Earlier => (HostText.GnomeExtensionEarlier, null),
-            ExtensionState.Off or ExtensionState.Ours or ExtensionState.Starting => (HostText.GnomeExtensionOff, null),
+            ShellExtensionState.Missing => (HostText.GnomeExtensionMissing, ((string, HostText)?)(InstallAction, HostText.GnomeExtensionInstall)),
+            ShellExtensionState.OtherVersion => (HostText.GnomeExtensionOtherVersion, (UpdateAction, HostText.GnomeExtensionUpdate)),
+            ShellExtensionState.Unread => (HostText.GnomeExtensionNextSignIn, null),
+            ShellExtensionState.Earlier => (HostText.GnomeExtensionEarlier, null),
+            ShellExtensionState.Off or ShellExtensionState.Ours or ShellExtensionState.Starting => (HostText.GnomeExtensionOff, null),
             _ => (HostText.GnomeExtensionOff, null),
         };
         (string, string)[] actions = button is var (id, label) ? [(id, said.Of(label))] : [];
-        var title = state == ExtensionState.Earlier ? HostText.GnomeExtensionEarlierTitle : HostText.GnomeExtensionTitle;
+        var title = state == ShellExtensionState.Earlier ? HostText.GnomeExtensionEarlierTitle : HostText.GnomeExtensionTitle;
         _ = _notices.Say(said.Of(title), said.Of(text), actions);
     }
 }

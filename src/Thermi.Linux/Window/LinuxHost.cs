@@ -279,7 +279,7 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
             // Declined or offline: what the Shell has now says which.
         }
 
-        _installRefused = fix == ExtensionState.Missing && _link.State() == Gnome.ExtensionState.Unread;
+        _installRefused = fix == ExtensionState.Missing && _link.State() == Gnome.ShellExtensionState.Unread;
         _extension = ExtensionOf();
         return fix == ExtensionState.OtherVersion || _extension == ExtensionState.Enabled;
     }
@@ -362,12 +362,12 @@ internal sealed partial class LinuxHost : IWindowHost, IDisposable
         _link is null || !(Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Contains("GNOME", StringComparison.OrdinalIgnoreCase) ? null
         : _link.State() switch
         {
-            Gnome.ExtensionState.Missing => ExtensionState.Missing,
-            Gnome.ExtensionState.Unread => _installRefused ? ExtensionState.NextSignIn : ExtensionState.Missing,
-            Gnome.ExtensionState.Off => ExtensionState.Disabled,
-            Gnome.ExtensionState.OtherVersion => ExtensionState.OtherVersion,
+            Gnome.ShellExtensionState.Missing => ExtensionState.Missing,
+            Gnome.ShellExtensionState.Unread => _installRefused ? ExtensionState.NextSignIn : ExtensionState.Missing,
+            Gnome.ShellExtensionState.Off => ExtensionState.Disabled,
+            Gnome.ShellExtensionState.OtherVersion => ExtensionState.OtherVersion,
             // An earlier protocol's shows the overlays until the next sign-in, which the overlay's notice asks for.
-            Gnome.ExtensionState.Ours or Gnome.ExtensionState.Earlier or Gnome.ExtensionState.Starting => ExtensionState.Enabled,
+            Gnome.ShellExtensionState.Ours or Gnome.ShellExtensionState.Earlier or Gnome.ShellExtensionState.Starting => ExtensionState.Enabled,
             _ => null,
         };
 

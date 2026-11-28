@@ -32,7 +32,7 @@ internal static partial class LinuxLog
     public static partial void NoticeUnanswered(this ILogger logger, TimeSpan bound);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The GNOME Shell extension is {State}: the overlays show once it runs thermi's protocol {Protocol}")]
-    public static partial void ExtensionNotReady(this ILogger logger, ExtensionState state, uint protocol);
+    public static partial void ExtensionNotReady(this ILogger logger, ShellExtensionState state, uint protocol);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The GNOME Shell extension is of a protocol before {Protocol}: the overlays show with what it has")]
     public static partial void ExtensionEarlier(this ILogger logger, uint protocol);
