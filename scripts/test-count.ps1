@@ -56,11 +56,10 @@ function Get-DotNetCases {
 function Get-PlaywrightCases($Suites, [string[]]$Titles) {
     foreach ($suite in $Suites) {
         $names = @($Titles) + $suite.title
+        # A spec lists a test for each engine it runs on, two on Linux and one on Windows: it is one case written all the same.
         foreach ($spec in $suite.specs) {
-            foreach ($test in $spec.tests) {
-                $table = "$($spec.file):$($spec.line)"
-                [pscustomobject]@{ Names = $names + $spec.title; Table = $table; Folder = (Join-Path $web 'tests'); Line = $spec.line; Runner = 'Playwright' }
-            }
+            $table = "$($spec.file):$($spec.line)"
+            [pscustomobject]@{ Names = $names + $spec.title; Table = $table; Folder = (Join-Path $web 'tests'); Line = $spec.line; Runner = 'Playwright' }
         }
         Get-PlaywrightCases $suite.suites $names
     }

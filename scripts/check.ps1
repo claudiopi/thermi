@@ -18,8 +18,9 @@ param(
     # (scripts/redundant.ps1).
     [switch]$Mutation,
     # One part alone. DotNet is Core, Windows and WindowsAlone: Core's tests with the build's own checks, the Windows tests
-    # that run in parallel, and those that run alone. On Linux it is LinuxCore and Linux: Thermi.Tests and the Linux tests,
-    # and there is no page's half, whose tests run in the Edge that Windows ships. The CI runs each part in a job of its own.
+    # that run in parallel, and those that run alone. On Linux it is LinuxCore and Linux: Thermi.Tests and the Linux tests;
+    # the page's half runs there only as Web, its tests in Chromium and in WebKit, where on Windows they run in the Edge
+    # that Windows ships. The CI runs each part in a job of its own.
     [ValidateSet('All', 'DotNet', 'Core', 'Windows', 'WindowsAlone', 'Web', 'LinuxCore', 'Linux')]
     [string]$Part = 'All',
     # Every step, as the CI runs them, whatever the change.
@@ -193,8 +194,11 @@ function Start-WebHalf {
 # cores and time out when others take them.
 # Its build type-checks it, so nothing else does; installs never run a package's scripts.
 function Invoke-Web {
-    if ($Ci -or -not (Test-Path (Join-Path $web 'node_modules' '.package-lock.json')) -or
-        (Get-Item (Join-Path $web 'package-lock.json')).LastWriteTimeUtc -gt (Get-Item (Join-Path $web 'node_modules' '.package-lock.json')).LastWriteTimeUtc) {
+    # npm's record of what it installed starts with a dot, which hides it from Get-Item on Linux without -Force, here and
+    # in Test-PageBuilt.
+    $installed = Join-Path $web 'node_modules' '.package-lock.json'
+    if ($Ci -or -not (Test-Path $installed) -or
+        (Get-Item (Join-Path $web 'package-lock.json')).LastWriteTimeUtc -gt (Get-Item -Force $installed).LastWriteTimeUtc) {
         Invoke-Step 'web install' { npm ci --prefix $web --ignore-scripts --no-audit --no-fund }
     }
     if (-not $PageBuilt -and ($Ci -or -not (Test-PageBuilt))) { Invoke-Step 'web typecheck and build' { npm run build --prefix $web } }
@@ -222,7 +226,7 @@ function Test-PageBuilt {
     $index = Join-Path $web 'dist' 'index.html'
     if (-not (Test-Path $index)) { return $false }
     $inputs = @(Get-ChildItem (Join-Path $web 'src'), (Join-Path $web 'tests') -Recurse -File) + @(Get-ChildItem $web -File) +
-        @(Get-Item (Join-Path $web 'node_modules' '.package-lock.json') -ErrorAction SilentlyContinue)
+        @(Get-Item -Force (Join-Path $web 'node_modules' '.package-lock.json') -ErrorAction SilentlyContinue)
     -not ($inputs | Where-Object { $_.LastWriteTimeUtc -gt (Get-Item $index).LastWriteTimeUtc })
 }
 
